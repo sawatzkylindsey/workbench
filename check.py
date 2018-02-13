@@ -46,3 +46,9 @@ def checkNotEqual(value, other):
 
     return value
 
+def checkEqual(value, other):
+    if value != other:
+        raise ValueError("value '%s' is unexpectedly not equal to '%s'" % (value, other))
+
+    return value
+

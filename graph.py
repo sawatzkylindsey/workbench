@@ -28,6 +28,12 @@ class Node:
         self.finalized = True
         return self
 
+    def __str__(self):
+        return "Node{identifer:%s}" % self.identifier
+
+    def __repr__(self):
+        return str(self)
+
 
 class DirectedLink:
     def __init__(self, source, target):
@@ -90,28 +96,109 @@ class Graph(object):
         logging.debug("links(%s): nodes=%d -> links=%d." % (direction, len(self.all_nodes), len(links)))
         return links
 
-    def neighbourhood(self, node_or_identifier, limit=None):
+    def neighbourhood(self, node_or_identifier, limit=None, inclusive=False):
         if isinstance(node_or_identifier, Node):
             node = node_or_identifier
         else:
             node = self.indexes[node_or_identifier]
 
+        call_id = "%s-%s-%s" % (node.identifier, limit, inclusive)
         out = set()
+        logging.debug("%s: queing %s" % (call_id, node))
         processing = [(node, 0)]
+        processed = {}
+        first = True
 
         while len(processing) > 0:
             current_node, current_limit = processing.pop()
-            out.add(current_node)
+
+            if current_node in processed:
+                assert processed[current_node] > current_limit
+
+            if not first:
+                processed[current_node] = current_limit
+
+            if first:
+                if inclusive:
+                    out.add(current_node)
+                    logging.debug("%s: adding %s (first+inclusive)" % (call_id, current_node))
+            else:
+                out.add(current_node)
+                logging.debug("%s: adding %s" % (call_id, current_node))
+
+            first = False
+            descendant_limit = current_limit + 1
 
             for descendant in current_node.descendants:
-                if descendant not in out \
-                    and (limit is None or current_limit + 1 <= limit):
-                    processing.append((descendant, current_limit + 1))
+                logging.debug("%s: explor %s (%s)" % (call_id, descendant, descendant_limit))
+
+                if (descendant not in processed or processed[descendant] > descendant_limit) \
+                    and (limit is None or descendant_limit <= limit):
+                    logging.debug("%s: queing %s" % (call_id, descendant))
+                    processing.append((descendant, descendant_limit))
 
         return out
 
     def nodes(self, identifiers):
         return set([self.indexes[i] for i in identifiers])
+
+    def page_rank(self, damping=0.85, epsilon=0.005, epochs=50, biases={}):
+        assert damping >= 0.0 and damping <= 1.0
+        initial = 1.0 / len(self.all_nodes)
+        weights = {n.identifier: initial for n in self.all_nodes}
+
+        for i in xrange(0, epochs):
+            next_weights = self.page_rank_iteration(weights, damping, biases)
+
+            if self._delta(weights, next_weights) < epsilon:
+                break
+
+            weights = next_weights
+
+        return next_weights
+
+    def page_rank_iteration(self, weights, damping, biases):
+        assert damping >= 0.0 and damping <= 1.0
+        intermediaries = {n.identifier: 0.0 for n in self.all_nodes}
+        leak = 0.0
+
+        for node in self.all_nodes:
+            direct_neighbours = self.neighbourhood(node.identifier, 1, False)
+
+            if len(direct_neighbours) > 0:
+                contribution = weights[node.identifier] / len(direct_neighbours)
+
+                for direct_neighbour in direct_neighbours:
+                    intermediaries[direct_neighbour.identifier] += contribution
+            else:
+                leak += weights[node.identifier]
+
+        for k, v in biases.iteritems():
+            assert v >= 0.0 and v <= 1.0
+            intermediaries[k] += v
+
+        assert len(weights) == len(intermediaries)
+        damping_constant = (1.0 - damping) / len(self.all_nodes)
+        leak_constant = (damping * leak) / len(self.all_nodes)
+        out = {}
+
+        for k, v in intermediaries.iteritems():
+            out[k] = damping_constant + leak_constant + (damping * v)
+
+        if len(biases) > 0:
+            total = sum(out.values())
+            scale = 1.0 / total
+            out = {k: scale * v for k, v in out.iteritems()}
+
+        return out
+
+    def _delta(self, a, b):
+        total = 0.0
+
+        for k, v in a.iteritems():
+            total += abs(v - b[k])
+
+        return total
 
 
 class UndirectedGraph(Graph):
@@ -121,7 +208,6 @@ class UndirectedGraph(Graph):
 
         for node in self.all_nodes:
             direct_neighbours = self.neighbourhood(node, 1)
-            direct_neighbours.remove(node)
             neighbours = [n for n in direct_neighbours]
             count = 0
 
@@ -151,7 +237,6 @@ class DirectedGraph(Graph):
 
         for node in self.all_nodes:
             direct_neighbours = self.neighbourhood(node, 1)
-            direct_neighbours.remove(node)
             neighbours = [n for n in direct_neighbours]
             count = 0
 

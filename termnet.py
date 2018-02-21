@@ -14,7 +14,7 @@ import pickle
 import sys
 
 
-from graph import GraphBuilder
+from graph import GraphBuilder, Graph
 from log import setup_logging, user_log
 from parser import GlossaryCsv
 
@@ -42,19 +42,75 @@ def main():
     logging.debug(args)
 
     cooccurrences = read_cooccurrences(args.input_text, args.input_format)
-    builder = GraphBuilder()
-    sampler = 0
+    builder = GraphBuilder(Graph.UNDIRECTED)
 
     for k, v in sorted(cooccurrences.iteritems()):
-        if False or sampler % 30 == 0:
-            user_log.info("%s: %s" % (k, [str(i) for i in v]))
-            builder.add(k, v)
-
-        sampler += 1
+        user_log.info("%s: %s" % (k, [str(i) for i in v]))
+        builder.add(k, v)
 
     graph = builder.build()
     write_json(graph, args.output_json)
     return 0
+
+
+class Termnet:
+    def __init__(self, input_text, input_format):
+        cooccurrences = read_cooccurrences(input_text, input_format)
+        builder = GraphBuilder(Graph.UNDIRECTED)
+
+        for k, v in sorted(cooccurrences.iteritems()):
+            builder.add(k, v)
+
+        self.graph = builder.build()
+        self.page_ranks = {}
+        portion = 1.0 / len(self.graph.all_nodes)
+        self.rank = {n.identifier: portion for n in self.graph.all_nodes}
+        i = 0
+
+        for k, v in sorted(cooccurrences.iteritems()):
+            print(k)
+            self.page_ranks[k] = self.graph.page_rank(biases={i: 0.1 for i in v})
+
+            #if i >= 3:
+            #    break
+
+            i += 1
+
+    def mark(self, term):
+        if term is None:
+            return self._out([n.identifier for n in self.graph.all_nodes], self.graph.links())
+
+        for k, v in self.page_ranks[term].iteritems():
+            self.rank[k] += v
+
+        total = sum(self.rank.values())
+        scale = 1.0 / total
+        self.rank = {k: scale * v for k, v in self.rank.iteritems()}
+        node_ranks = []
+
+        for node in self.graph.neighbourhood(term, 3):
+            node_ranks += [(node.identifier, self.rank[node.identifier])]
+
+        print(node_ranks)
+        logging.debug(node_ranks)
+        sorted_node_ranks = sorted(node_ranks, key=lambda item: item[1], reverse=True)
+        print(sorted_node_ranks)
+        nodes = [item[0] for item in sorted_node_ranks[:8]]
+        print(nodes)
+        logging.debug(nodes)
+        links = []
+
+        for link in self.graph.links():
+            if link.source in nodes and link.target in nodes:
+                links += [link]
+
+        return self._out(nodes, links)
+
+    def _out(self, nodes, links):
+        return {
+            "nodes": [{"id": identifier.name(), "group": 0, "coeff": self.graph.clustering_coefficients[identifier]} for identifier in nodes],
+            "links": [{"source": link.source.name(), "target": link.target.name()} for link in links]
+        }
 
 
 def read_cooccurrences(input_text, input_format):
@@ -77,8 +133,8 @@ def str_kv(value):
 
 
 def write_json(graph, output_json):
-    nodes = [{"id": node.identifier.name(), "group": i % 10} for i, node in enumerate(graph.nodes)]
-    links = [{"source": link.source.name(), "target": link.target.name()} for link in graph.get_links(False)]
+    nodes = [{"id": node.identifier.name(), "group": i % 10} for i, node in enumerate(graph.all_nodes)]
+    links = [{"source": link.source.name(), "target": link.target.name()} for link in graph.links()]
 
     with open(output_json, "w") as fh:
         fh.write(json.dumps({"nodes": nodes, "links": links}, indent=4, sort_keys=True))

@@ -66,6 +66,9 @@ class Term:
     def __str__(self):
         return "Term{%s}" % str(self.words)
 
+    def __repr__(self):
+        return str(self)
+
     def __cmp__(self, other):
         return cmp(self.words, other.words)
 

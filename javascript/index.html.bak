@@ -55,79 +55,96 @@ var simulation = d3.forceSimulation()
     .force("charge", d3.forceManyBody())
     .force("center", d3.forceCenter(width / 2, height / 2));
 
-d3.json("mark.json")
-    .post("", function(error, data) {
-        //console.log(data);
-        draw(data);
-    });
-/*d3.json("Astronomy.json", function(error, graph) {
-    console.log("asdfdf");
-    if (error) {
-        throw error;
-    }
+var graph_data;
 
-    console.log(graph);
-});*/
+d3.json("Astronomy.json", function(error, graph) {
+  if (error) throw error;
 
-function draw(graph) {
-  console.log("draw: " + graph);
+  //var all_nodes = graph.nodes;
+  //var center_node = {"id": "CENTER", "group": 2};
+  //all_nodes.push(center_node);
+  graph_data = graph;
+  //var all_links = graph.links;
 
-    svg.selectAll("g").remove();
+  //for(var x in graph.links) {
+  //  all_links.push({"source": x["source"], "target": x["target"]});
+  //}
+
+  //for (var i = 0; i < graph_data.nodes.length; i++) {
+    //console.log(all_nodes[i]);
+    //all_links.push({"source": center_node, "target": all_nodes[i], "display": true});
+  //}
+  console.log(graph_data);
 
   var link = svg.append("g")
       .attr("class", "links")
-    .selectAll("links")
-    .data(graph.links, function (links) {
-        console.log(links);
-        return links;
-        //return l || d3.select(this).attr("id")
-    })
+    .selectAll("line")
+    .data(graph_data.links)
     .enter()
     .append("line")
       //.attr("id", function(d) { return d["source"]id; })
       .attr("term-source", function(d) { return d.source; })
       .attr("term-target", function(d) { return d.target; })
-      .attr("stroke-width", function(d) { return Math.sqrt(d.value); });
-      //.style("opacity", .05);
+      .attr("stroke-width", function(d) { return Math.sqrt(d.value); })
+      .style("opacity", .05);
+
+  /*var center_node = svg.select("g")
+    .append("circle")
+    .attr("r", 10)
+    .attr("fill", function(d) { return color(1); });*/
+
+
+
+  /*var center_link = svg.append("g")
+    .attr("class", "links")
+    .selectAll("bob_is_your_uncle")
+    .data(center_links)
+    .enter().append("line")
+        .attr("stroke-width", function(d) { return 0.1; });*/
 
   var node = svg.append("g")
       .attr("class", "nodes")
     .selectAll("bob")
-    .data(graph.nodes)
+    .data(graph_data.nodes)
     .enter().append("circle")
       .attr("r", 5)
       .attr("fill", function(d) { return color(d.group); })
       .attr("term", function(d) { return d.id; })
-      .style("opacity", function(d) { return (d.coeff + .25) / 1.25; })
+      .style("opacity", .05)
       .on("click", unstick)
       .call(d3.drag()
           .on("start", dragstarted)
           .on("drag", dragged)
           .on("end", dragended));
 
-    //var labels = svg.selectAll(".labels")
-    var labels = svg.append("g")
-          .attr("class", "label").selectAll("bobbobobo")
-        .data(graph.nodes)
-        .enter()
-        .append("text")
-        .style("pointer-events", "none")
-        .attr("x", function(d) { return d.x; })
-        .attr("y", function(d) {return d.y;})
-        .attr("class", "labels")
-        .attr("stroke", "black")
-        .attr("term", function(d) { return d.id; })
-        .style("opacity", function(d) { return (d.coeff + .25) / 1.25; })
-        .text(function (d) { return d.id; });
+            var labels = svg.selectAll(".labels")
+                    .data(graph_data.nodes)
+                    .enter()
+                    .append("text")
+                    .style("pointer-events", "none")
+                    .attr("x", function(d) { return d.x; })
+                    .attr("y", function(d) {return d.y;})
+                    .attr("class", "labels")
+                    .attr("stroke", "black")
+                    .attr("term", function(d) { return d.id; })
+                    .text(function (d) { return d.id; })
+                    .style("opacity", .05);
+
+  //node.append("text")
+  //    .attr("x", function(d) { return d.x; })
+  //    .attr("y", function(d) {return d.y;})
+  //    .attr("class", "labels")
+  //    //.attr("stroke", "black")
+  //    .text(function(d) { return d.id; });
+  //node.append("title")
+  //    .text(function(d) { return d.id; });
 
   simulation
-      .nodes(graph.nodes)
+      .nodes(graph_data.nodes)
       .on("tick", ticked);
 
   simulation.force("link")
-      .links(graph.links);
-
-  simulation.restart();
+      .links(graph_data.links);
 
   function ticked() {
     link
@@ -136,15 +153,21 @@ function draw(graph) {
         .attr("x2", function(d) { return xbounded(d.target); })
         .attr("y2", function(d) { return ybounded(d.target); });
 
+    /*center_link
+        .attr("x1", function(d) { return d.source.x; })
+        .attr("y1", function(d) { return d.source.y; })
+        .attr("x2", function(d) { return d.target.x; })
+        .attr("y2", function(d) { return d.target.y; });*/
+
     node
-        .attr("cx", function(d) { return xbounded(d);})
-        .attr("cy", function(d) { return ybounded(d);});
+        .attr("cx", function(d) { return xbounded(d);})//d.id == "CENTER" ? 500 : d.x; })
+        .attr("cy", function(d) { return ybounded(d);});//d.id == "CENTER" ? 500 : d.y; });
 
     labels
         .attr("x", function(d) { return xbounded(d) + 4.5; })
         .attr("y", function(d) { return ybounded(d) + 4.5; })
   }
-}
+});
 
 function xbounded(d) { return Math.max(Math.min(d.x, width - 50), 10); }
 function ybounded(d) { return Math.max(Math.min(d.y, height - 10), 10); }
@@ -172,22 +195,26 @@ function unstick(d) {
 }
 
 function selectTerm(termname) {
-    console.log("term: " + termname);
-    d3.json("mark.json")
-        .post(termname, function(error, data) {
-            //console.log(data);
-            draw(data);
+    console.log(termname);
+    var links = [];
+    var neighbourhood = walk(termname, 2, links);
+    console.log(neighbourhood);
+    neighbourhood.forEach(function(t) {
+        d3.selectAll("[term=" + t + "]")
+            .style("opacity", 1);
+    });
+    neighbourhood.forEach(function(i) {
+        neighbourhood.forEach(function(j) {
+            d3.select("[term-source=" + i + "][term-target=" + j + "]")
+                .style("opacity", 1);
+            d3.select("[term-source=" + j + "][term-target=" + i + "]")
+                .style("opacity", 1);
         });
-
-    /*d3.request("mark")
-        //.header("X-Requested-With", "XMLHttpRequest")
-        .header("Content-Type", "application/json")
-        .post(termname, function(error, data) {
-            console.log(data.response);
-        });*/
-    /*d3.json("Astronomy.json", function (error, data) {
-        draw(data);
-    });*/
+    });
+    links.forEach(function(l) {
+    });
+    //console.log(d3.select(".text text='" + "termname" + "'"));
+    simulation.restart();
 }
 
 function walk(termname, depth) {

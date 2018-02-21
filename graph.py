@@ -18,10 +18,6 @@ class Node:
         checkEqual(self.finalized, False)
         checkInstance(descendant, Node)
         checkNotEqual(self.identifier, descendant.identifier)
-
-        for existing in self.descendants:
-            checkNotEqual(descendant.identifier, existing.identifier)
-
         self.descendants.add(descendant)
 
     def finalize(self):
@@ -95,6 +91,16 @@ class Graph(object):
 
         logging.debug("links(%s): nodes=%d -> links=%d." % (direction, len(self.all_nodes), len(links)))
         return links
+
+    def _sub_graph(self, direction, identifiers):
+        gb = GraphBuilder(direction)
+
+        for link in self.links():
+            if link.source in identifiers and link.target in identifiers:
+                gb.add(link.source, [link.target])
+
+        return gb.build()
+
 
     def neighbourhood(self, node_or_identifier, limit=None, inclusive=False):
         if isinstance(node_or_identifier, Node):
@@ -229,6 +235,9 @@ class UndirectedGraph(Graph):
     def links(self):
         return self._links(self.UNDIRECTED)
 
+    def sub_graph(self):
+        return self._sub_graph(self.UNDIRECTED)
+
 
 class DirectedGraph(Graph):
     def __init__(self, all_nodes):
@@ -257,6 +266,9 @@ class DirectedGraph(Graph):
 
     def links(self):
         return self._links(self.DIRECTED)
+
+    def sub_graph(self):
+        return self._sub_graph(self.DIRECTED)
 
 
 class GraphBuilder:

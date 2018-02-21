@@ -45,6 +45,7 @@ class Tests(TestCase):
         gb = GraphBuilder(Graph.UNDIRECTED)
         graph = gb.add("bobo", ["jack", "jill", "jane"]) \
             .add("jack", ["colt"]) \
+            .add("jack", ["colt"]) \
             .build()
         self.assertEqual(graph.links(), set([UndirectedLink("bobo", "jack"), UndirectedLink("bobo", "jill"), \
             UndirectedLink("bobo", "jane"), UndirectedLink("jack", "colt")]))
@@ -52,6 +53,7 @@ class Tests(TestCase):
     def test_graph_builder_directed(self):
         gb = GraphBuilder(Graph.DIRECTED)
         graph = gb.add("bobo", ["jack", "jill", "jane"]) \
+            .add("jack", ["colt"]) \
             .add("jack", ["colt"]) \
             .add("jane", ["bobo"]) \
             .build()

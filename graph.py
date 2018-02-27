@@ -4,20 +4,20 @@
 import logging
 import pdb
 
-from check import checkInstance, checkNotInstance, checkEqual, checkNotEqual
+from check import check_instance, check_not_instance, check_equal, check_not_equal
 
 
 class Node:
     # Note: Want instance based equals/hash.
     def __init__(self, identifier):
-        self.identifier = checkNotInstance(identifier, Node)
+        self.identifier = check_not_instance(identifier, Node)
         self.descendants = set()
         self.finalized = False
 
     def add_descendant(self, descendant):
-        checkEqual(self.finalized, False)
-        checkInstance(descendant, Node)
-        checkNotEqual(self.identifier, descendant.identifier)
+        check_equal(self.finalized, False)
+        check_instance(descendant, Node)
+        check_not_equal(self.identifier, descendant.identifier)
         self.descendants.add(descendant)
 
     def finalize(self):
@@ -33,8 +33,8 @@ class Node:
 
 class DirectedLink:
     def __init__(self, source, target):
-        self.source = checkNotInstance(source, Node)
-        self.target = checkNotInstance(target, Node)
+        self.source = check_not_instance(source, Node)
+        self.target = check_not_instance(target, Node)
 
     def __eq__(self, other):
         return self.source == other.source and \
@@ -46,8 +46,8 @@ class DirectedLink:
 
 class UndirectedLink:
     def __init__(self, source, target):
-        self.source = checkNotInstance(source, Node)
-        self.target = checkNotInstance(target, Node)
+        self.source = check_not_instance(source, Node)
+        self.target = check_not_instance(target, Node)
 
     def __eq__(self, other):
         return (self.source == other.source and self.target == other.target) or \
@@ -66,8 +66,8 @@ class Graph(object):
             identifier_class = all_nodes[0].identifier.__class__
 
             for node in all_nodes:
-                checkInstance(node.identifier, identifier_class)
-                checkEqual(node.finalized, True)
+                check_instance(node.identifier, identifier_class)
+                check_equal(node.finalized, True)
 
         self.all_nodes = all_nodes
         self.indexes = {}
@@ -117,6 +117,7 @@ class Graph(object):
 
         while len(processing) > 0:
             current_node, current_limit = processing.pop()
+            current_cc = self.clustering_coefficients[current_node.identifier]
 
             if current_node in processed:
                 assert processed[current_node] > current_limit
@@ -137,9 +138,11 @@ class Graph(object):
 
             for descendant in current_node.descendants:
                 logging.debug("%s: explor %s (%s)" % (call_id, descendant, descendant_limit))
+                descendant_cc = self.clustering_coefficients[descendant.identifier]
 
+                # TODO: Properify                                      vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
                 if (descendant not in processed or processed[descendant] > descendant_limit) \
-                    and (limit is None or descendant_limit <= limit):
+                    and (limit is None or descendant_limit <= limit or (descendant_limit <= limit + 1 and descendant_cc - .25 > current_cc)):
                     logging.debug("%s: queing %s" % (call_id, descendant))
                     processing.append((descendant, descendant_limit))
 
@@ -213,8 +216,7 @@ class UndirectedGraph(Graph):
         self.clustering_coefficients = {}
 
         for node in self.all_nodes:
-            direct_neighbours = self.neighbourhood(node, 1)
-            neighbours = [n for n in direct_neighbours]
+            neighbours = [n for n in node.descendants]
             count = 0
 
             for i, neighbour in enumerate(neighbours):
@@ -245,8 +247,9 @@ class DirectedGraph(Graph):
         self.clustering_coefficients = {}
 
         for node in self.all_nodes:
-            direct_neighbours = self.neighbourhood(node, 1)
-            neighbours = [n for n in direct_neighbours]
+            neighbours = [n for n in node.descendants]
+            #direct_neighbours = self.neighbourhood(node, 1)
+            #neighbours = [n for n in direct_neighbours]
             count = 0
 
             for i, neighbour in enumerate(neighbours):

@@ -20,7 +20,12 @@
 </style>
 <svg width="960" height="700"></svg>
 <script src="https://d3js.org/d3.v4.min.js"></script>
+<script src="rainbowvis.js"></script>
 <script>
+
+var rainbow = new Rainbow();
+rainbow.setNumberRange(0, 1.0);
+rainbow.setSpectrum("#7c9bff", "#012496");
 
 var svg = d3.select("svg"),
     width = +svg.attr("width"),
@@ -49,10 +54,13 @@ var textbox = fo.append("xhtml:input")
 
 var color = d3.scaleOrdinal(d3.schemeCategory20);
 
+function count(thing) { return thing.length; }
+
 var simulation = d3.forceSimulation()
     .force("link", d3.forceLink()
-        .id(function(d) { return d.id; }))
-    .force("charge", d3.forceManyBody())
+        .distance(function (link) { return 50; } )
+        .id(function(d) { return d.name; }))//.strength(1 / Math.min(count(link.source, count(link.target))))
+    .force("charge", d3.forceManyBody().strength(-300))
     .force("center", d3.forceCenter(width / 2, height / 2));
 
 d3.json("mark.json")
@@ -70,7 +78,7 @@ d3.json("mark.json")
 });*/
 
 function draw(graph) {
-  console.log("draw: " + graph);
+  console.log(graph);
 
     svg.selectAll("g").remove();
 
@@ -78,27 +86,42 @@ function draw(graph) {
       .attr("class", "links")
     .selectAll("links")
     .data(graph.links, function (links) {
-        console.log(links);
         return links;
         //return l || d3.select(this).attr("id")
     })
     .enter()
     .append("line")
       //.attr("id", function(d) { return d["source"]id; })
-      .attr("term-source", function(d) { return d.source; })
-      .attr("term-target", function(d) { return d.target; })
-      .attr("stroke-width", function(d) { return Math.sqrt(d.value); });
-      //.style("opacity", .05);
+      .attr("term-source", function(l) { return l.source; })
+      .attr("term-target", function(l) { return l.target; })
+      .attr("stroke-width", function(l) { return Math.sqrt(l.value); })
+      .style("opacity", function(l) { return l.alpha; } );
 
   var node = svg.append("g")
       .attr("class", "nodes")
     .selectAll("bob")
     .data(graph.nodes)
     .enter().append("circle")
-      .attr("r", 5)
-      .attr("fill", function(d) { return color(d.group); })
-      .attr("term", function(d) { return d.id; })
-      .style("opacity", function(d) { return (d.coeff + .25) / 1.25; })
+      //.attr("r", 5)
+      .attr("fill", function(d) {
+        return "#" + rainbow.colourAt(d.coeff);
+
+        /*var r = 160 - (d.coeff * 160);
+        var g = 180 + (d.coeff * 180);
+        var b = (d.coeff * 100) + 155;
+        return "rgb(" + r + "," + g + "," + b + ")";*/
+
+        /*if (d.coeff <= 0.33) {
+            return "rgb(160, 197, 255)";
+        } else if (d.coeff <= .66) {
+            return "rgb(80, 147, 255)";
+        } else {
+            return "rgb(0, 97, 255)";
+        }*/
+      })
+      .attr("term", function(d) { return d.name; })
+      .attr("r", radius)
+      .style("opacity", function(d) { return d.alpha; })
       .on("click", unstick)
       .call(d3.drag()
           .on("start", dragstarted)
@@ -116,9 +139,9 @@ function draw(graph) {
         .attr("y", function(d) {return d.y;})
         .attr("class", "labels")
         .attr("stroke", "black")
-        .attr("term", function(d) { return d.id; })
-        .style("opacity", function(d) { return (d.coeff + .25) / 1.25; })
-        .text(function (d) { return d.id; });
+        .attr("term", function(d) { return d.name; })
+        .style("opacity", function(d) { return d.alpha / 1.5; })
+        .text(function (d) { return d.name; });
 
   simulation
       .nodes(graph.nodes)
@@ -141,7 +164,9 @@ function draw(graph) {
         .attr("cy", function(d) { return ybounded(d);});
 
     labels
-        .attr("x", function(d) { return xbounded(d) + 4.5; })
+        .attr("x", function(d) {
+            return xbounded(d) + radius(d) + 4.5;
+        })
         .attr("y", function(d) { return ybounded(d) + 4.5; })
   }
 }
@@ -169,6 +194,26 @@ function dragended(d) {
 function unstick(d) {
   d.fx = null;
   d.fy = null;
+}
+
+var RADIUS_SCALE = 400;
+
+function radius(d) {
+    //var value = (Math.log(d.radius) + 5) / 10;
+    var value = d.radius;
+
+    if (value < 0.01) {
+        return 0.01 * RADIUS_SCALE;
+    } else {
+        return value * RADIUS_SCALE;
+    }
+    /*if (d.radius < 0.01) {
+        return 0.01 * RADIUS_SCALE;
+    } else if (d.radius > 0.5) {
+        return 0.5 * RADIUS_SCALE;
+    } else {
+        return d.radius * RADIUS_SCALE;
+    }*/
 }
 
 function selectTerm(termname) {

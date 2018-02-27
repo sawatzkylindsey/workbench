@@ -12,7 +12,10 @@ from nlp import Term
 import termnet
 
 
+#worker = termnet.Termnet("glossary1.csv", termnet.GLOSSARY_CSV)
+#worker = termnet.Termnet("glossary2.csv", termnet.GLOSSARY_CSV)
 worker = termnet.Termnet("Astronomy.csv", termnet.GLOSSARY_CSV)
+
 
 
 class S(BaseHTTPRequestHandler):
@@ -36,13 +39,13 @@ class S(BaseHTTPRequestHandler):
             self.send_error(404,'File Not Found: %s ' % self.path)
 
     def do_POST(self):
-        print("POST %s" % self.path)
         content_length = int(self.headers['Content-Length']) # <--- Gets the size of data
         post_data = self.rfile.read(content_length) # <--- Gets the data itself
+        print("POST %s: '%s'" % (self.path, post_data))
         term = None
 
         if post_data != "":
-            term = Term(post_data.split(" "))
+            term = Term(post_data.lower().split("-"))
 
         thing = worker.mark(term)
         self._set_headers("application/json")

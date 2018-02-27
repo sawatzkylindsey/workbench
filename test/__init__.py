@@ -4,7 +4,7 @@
 from pytils.invigilator import create_suite
 
 
-from workbench.test import graph
+from workbench.test import graph, nlp
 
 
 def all():
@@ -13,6 +13,7 @@ def all():
 
 def unit():
     return [
-        graph.tests()
+        graph.tests(),
+        nlp.tests()
     ]
 

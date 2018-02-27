@@ -7,13 +7,16 @@ from csv import reader as csv_reader
 import json
 import itertools
 import logging
+import math
 import numpy
 import os
 import pdb
 import pickle
 import sys
+import threading
 
 
+from frontend import d3node, d3link
 from graph import GraphBuilder, Graph
 from log import setup_logging, user_log
 from parser import GlossaryCsv
@@ -23,6 +26,7 @@ GLOSSARY_CSV = "glossary_csv"
 FORMATS = [
     GLOSSARY_CSV
 ]
+TOP = 10
 
 
 def main():
@@ -41,7 +45,7 @@ def main():
     setup_logging(".%s.log" % os.path.splitext(os.path.basename(__file__))[0], args.verbose)
     logging.debug(args)
 
-    cooccurrences = read_cooccurrences(args.input_text, args.input_format)
+    cooccurrences = parse_cooccurrences(args.input_text, args.input_format).cooccurrences
     builder = GraphBuilder(Graph.UNDIRECTED)
 
     for k, v in sorted(cooccurrences.iteritems()):
@@ -55,65 +59,149 @@ def main():
 
 class Termnet:
     def __init__(self, input_text, input_format):
-        cooccurrences = read_cooccurrences(input_text, input_format)
+        self.parser = parse_cooccurrences(input_text, input_format)
         builder = GraphBuilder(Graph.UNDIRECTED)
 
-        for k, v in sorted(cooccurrences.iteritems()):
+        for k, v in sorted(self.parser.cooccurrences.iteritems()):
             builder.add(k, v)
 
         self.graph = builder.build()
-        self.page_ranks = {}
         portion = 1.0 / len(self.graph.all_nodes)
         self.rank = {n.identifier: portion for n in self.graph.all_nodes}
+        self.page_ranks = {}
+        self.average = {}
+        self.softener = {}
+        self._t = threading.Thread(target=self.calculate_ranks)
+        self._t.daemon = True
+        self._t.start()
+
+    def calculate_ranks(self):
         i = 0
 
-        for k, v in sorted(cooccurrences.iteritems()):
-            print(k)
-            self.page_ranks[k] = self.graph.page_rank(biases={i: 0.1 for i in v})
-
+        for k, v in sorted(self.parser.cooccurrences.iteritems()):
+            print("page ranking: %s" % k)
+            self.page_ranks[k] = self.graph.page_rank(biases={i: 0.1 if i != k else 0.2 for i in v})
+            self.average[k] = sum(self.page_ranks[k].values()) / len(self.page_ranks[k])
+            self.softener[k] = self._find_softener(self.average[k])
             #if i >= 3:
             #    break
 
             i += 1
 
+    def _find_softener(self, value):
+        upper = 1.0
+        lower = 2.0
+        test = math.sqrt(value) / lower
+
+        while test > value:
+            lower = lower * 2.0
+            test = math.sqrt(value) / lower
+
+        midpoint = (lower + upper) / 2.0
+        test = math.sqrt(value) / midpoint
+
+        while not self._within(test, value):
+            if test > value:
+                upper = midpoint
+            else:
+                lower = midpoint
+
+            midpoint = (lower + upper) / 2.0
+            test = math.sqrt(value) / midpoint
+
+        return lambda v: (math.sqrt(v) / midpoint) if v > value else v
+
+    def _within(self, value, expected, epsilon=0.00001):
+        return abs(expected - value) < epsilon
+
     def mark(self, term):
         if term is None:
-            return self._out([n.identifier for n in self.graph.all_nodes], self.graph.links())
+            return {
+                "nodes": [d3node(self._name(node.identifier), self.rank[node.identifier], 0.75, self._coeff(node.identifier)).__dict__ for node in self.graph.all_nodes],
+                "links": [d3link(self._name(link.source), self._name(link.target), 0.75).__dict__ for link in self.graph.links()]
+            }
 
-        for k, v in self.page_ranks[term].iteritems():
-            self.rank[k] += v
+        lemma_term = self.parser.inflections.to_lemma(term)
+        average = self.average[lemma_term]
+        average = sum(self.rank.values()) / len(self.rank)
+        print(average)
+        smoother = self._find_softener(average)
+        #smoother = lambda v: math.sqrt(v) if v > average else v
+
+        for k, v in self.page_ranks[lemma_term].iteritems():
+            assert v >= 0.0 and v <= 1.0
+            #softener = (math.log10(v) + 2.0) / 4.0
+            #assert softener < v, "s: %s, v: %s" % (softener, v)
+            #softened = (math.sqrt(v) / 2.0)
+            #assert softened < v, "s: %s, v: %s" % (softened, v)
+            softened = self.softener[lemma_term](v)
+            #if v > average:
+            #    assert softened < v, "a %s, v %s, s %s" % (average, v, softened)
+            #else:
+            #    assert softened > v, "a %s, v %s, s %s" % (average, v, softened)
+            #print("s: %s, v: %s" % (self.softener[lemma_term](v), v))
+            smoothed = smoother(v)
+            self.rank[k] += smoothed
 
         total = sum(self.rank.values())
         scale = 1.0 / total
+        assert scale >= 0.0
         self.rank = {k: scale * v for k, v in self.rank.iteritems()}
-        node_ranks = []
-
-        for node in self.graph.neighbourhood(term, 3):
-            node_ranks += [(node.identifier, self.rank[node.identifier])]
-
+        node_ranks = {
+            lemma_term: self.rank[lemma_term]
+        }
         print(node_ranks)
+
+        for node in self.graph.neighbourhood(lemma_term, 1):
+            assert self.rank[node.identifier] >= 0.0 and self.rank[node.identifier] <= 1.0
+            node_ranks[node.identifier] = self.rank[node.identifier]
+
         logging.debug(node_ranks)
-        sorted_node_ranks = sorted(node_ranks, key=lambda item: item[1], reverse=True)
+        sorted_node_ranks = sorted(node_ranks.iteritems(), key=lambda item: item[1], reverse=True)
         print(sorted_node_ranks)
-        nodes = [item[0] for item in sorted_node_ranks[:8]]
-        print(nodes)
-        logging.debug(nodes)
-        links = []
+        selected_nodes = [item[0] for item in sorted_node_ranks[:TOP]]
+        neighbour_nodes = [item[0] for item in sorted_node_ranks[TOP:]]
+        selected_links = []
+        neighbour_links = []
 
         for link in self.graph.links():
-            if link.source in nodes and link.target in nodes:
-                links += [link]
+            if link.source in selected_nodes and link.target in selected_nodes:
+                selected_links += [link]
+            elif (link.source in selected_nodes and link.target in neighbour_nodes) \
+                or (link.source in neighbour_nodes and link.target in selected_nodes) \
+                or (link.source in neighbour_nodes and link.target in neighbour_nodes):
+                neighbour_links += [link]
 
-        return self._out(nodes, links)
-
-    def _out(self, nodes, links):
         return {
-            "nodes": [{"id": identifier.name(), "group": 0, "coeff": self.graph.clustering_coefficients[identifier]} for identifier in nodes],
-            "links": [{"source": link.source.name(), "target": link.target.name()} for link in links]
+            "nodes": [d3node(self._name(identifier), node_ranks[identifier], 1.0, self._coeff(identifier)).__dict__ for identifier in selected_nodes] \
+                + [d3node(self._name(identifier), node_ranks[identifier], 0.25, self._coeff(identifier)).__dict__ for identifier in neighbour_nodes],
+            "links": [d3link(self._name(link.source), self._name(link.target), 1.0).__dict__ for link in selected_links] \
+                + [d3link(self._name(link.source), self._name(link.target), 0.25).__dict__ for link in neighbour_links]
+        }
+
+    def _name(self, term):
+        return self.parser.inflections.to_inflection(term).name()
+
+    def _coeff(self, term):
+        return self.graph.clustering_coefficients[term]
+
+    #def _radius(self, value):
+    #    assert value >= 0.0 and value <= 1.0
+    #    scaled = (math.log10(value) + 2.0) / 2.0
+    #
+    #    if value < 0.01:
+    #        return 0.01
+    #    else:
+    #        return value
+
+    def _out(self, node_alphas, link_alphas):
+        return {
+            "nodes": [{"id": self.parser.inflections.to_inflection(identifier).name(), "group": 0, "coeff": self.graph.clustering_coefficients[identifier]} for identifier in nodes],
+            "links": [{"source": self.parser.inflections.to_inflection(link.source).name(), "target": self.parser.inflections.to_inflection(link.target).name()} for link in links]
         }
 
 
-def read_cooccurrences(input_text, input_format):
+def parse_cooccurrences(input_text, input_format):
     if input_format == GLOSSARY_CSV:
         parser = GlossaryCsv()
     else:
@@ -122,7 +210,7 @@ def read_cooccurrences(input_text, input_format):
     parser.parse(input_text)
     logging.debug(json.dumps(str_kv(parser.inflections.counts), indent=2, sort_keys=True))
     #logging.debug(json.dumps({str(k): str(v) for k, v in parser.inflections.counts.items()}, indent=2, sort_keys=True))
-    return parser.cooccurrences
+    return parser
 
 
 def str_kv(value):

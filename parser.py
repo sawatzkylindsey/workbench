@@ -28,14 +28,16 @@ class GlossaryCsv:
             for row in csv_reader(fh):
                 row = [unicode(item, "utf-8") for item in row]
                 term = self._glossary_term(row)
+                inflection = self._glossary_inflection(row)
                 self.terms.add(term)
+                self.inflections.record(term, inflection)
                 self.cooccurrences[term] = set()
 
         with open(input_text, "r") as fh:
             for row in csv_reader(fh):
                 row = [unicode(item, "utf-8") for item in row]
                 term = self._glossary_term(row)
-                reference_terms = nlp.extract_terms(corpus=nlp.SPLITTER(row[1].strip()),
+                reference_terms = nlp.extract_terms(corpus=nlp.SPLITTER(row[1].strip().lower()),
                                                     terms=self.terms,
                                                     lemmatizer=CANONICALIZER,
                                                     inflection_recorder=self.inflections.record)
@@ -46,6 +48,11 @@ class GlossaryCsv:
 
     def _glossary_term(self, row):
         assert len(row) == 2, row
-        lemmas = [CANONICALIZER(item) for item in nlp.SPLITTER(row[0].strip())]
+        lemmas = [CANONICALIZER(item) for item in nlp.SPLITTER(row[0].strip().lower())]
         return nlp.Term(lemmas)
+
+    def _glossary_inflection(self, row):
+        assert len(row) == 2, row
+        inflections = [item for item in nlp.SPLITTER(row[0].strip().lower())]
+        return nlp.Term(inflections)
 

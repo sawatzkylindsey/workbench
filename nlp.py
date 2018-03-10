@@ -94,8 +94,8 @@ class Inflections:
         check_none(self.lemma_to_inflection)
         check_none(self.inflection_to_lemma)
         logging.debug("record: %s->%s" % (lemma_term, inflection_term))
-        assert isinstance(lemma_term, Term)
-        assert isinstance(inflection_term, Term)
+        check_instance(lemma_term, Term)
+        check_instance(inflection_term, Term)
 
         if lemma_term not in self.counts:
             self.counts[lemma_term] = {}
@@ -123,4 +123,9 @@ class Inflections:
         check_instance(inflection_term, Term)
         return self.inflection_to_lemma[inflection_term]
 
+    def lemma_counts(self):
+        return [(lemma, sum(inflections.values())) for lemma, inflections in self.counts.iteritems()]
+
+    def inflection_counts(self):
+        return [(lemma, inflection, count) for lemma, inflections in self.counts.iteritems() for inflection, count in inflections.iteritems()]
 

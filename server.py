@@ -3,6 +3,7 @@
 
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 import SocketServer
+import logging
 import os
 import mimetypes
 import json
@@ -11,10 +12,16 @@ import json
 from nlp import Term
 import termnet
 
+logging.getLogger().setLevel(logging.INFO)
+root_handler = logging.FileHandler(".%s.log" % os.path.splitext(os.path.basename(__file__))[0])
+root_handler.setFormatter(logging.Formatter("%(levelname)s %(module)s..%(funcName)s: %(message)s"))
+logging.getLogger().addHandler(root_handler)
 
 #worker = termnet.Termnet("glossary1.csv", termnet.GLOSSARY_CSV)
 #worker = termnet.Termnet("glossary2.csv", termnet.GLOSSARY_CSV)
 worker = termnet.Termnet("Astronomy.csv", termnet.GLOSSARY_CSV)
+#worker = termnet.Termnet(["cog.txt", "direct.txt", "mayer.txt", "reduce.txt"], termnet.LINE_TEXT)
+#worker = termnet.Termnet(["astro1.txt", "astro2.txt", "astro3.txt"], termnet.LINE_TEXT)
 
 
 

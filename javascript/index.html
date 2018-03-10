@@ -25,7 +25,8 @@
 
 var rainbow = new Rainbow();
 rainbow.setNumberRange(0, 1.0);
-rainbow.setSpectrum("#7c9bff", "#012496");
+rainbow.setSpectrum("#96afff", "#001e84");
+//rainbow.setSpectrum("#96afff", "#00155b");
 
 var svg = d3.select("svg"),
     width = +svg.attr("width"),
@@ -105,19 +106,6 @@ function draw(graph) {
       //.attr("r", 5)
       .attr("fill", function(d) {
         return "#" + rainbow.colourAt(d.coeff);
-
-        /*var r = 160 - (d.coeff * 160);
-        var g = 180 + (d.coeff * 180);
-        var b = (d.coeff * 100) + 155;
-        return "rgb(" + r + "," + g + "," + b + ")";*/
-
-        /*if (d.coeff <= 0.33) {
-            return "rgb(160, 197, 255)";
-        } else if (d.coeff <= .66) {
-            return "rgb(80, 147, 255)";
-        } else {
-            return "rgb(0, 97, 255)";
-        }*/
       })
       .attr("term", function(d) { return d.name; })
       .attr("r", radius)
@@ -196,24 +184,16 @@ function unstick(d) {
   d.fy = null;
 }
 
-var RADIUS_SCALE = 400;
+var RADIUS_SCALE = 500;
 
 function radius(d) {
-    //var value = (Math.log(d.radius) + 5) / 10;
     var value = d.radius;
 
-    if (value < 0.01) {
-        return 0.01 * RADIUS_SCALE;
+    if (value < 0.005) {
+        return 0.005 * RADIUS_SCALE;
     } else {
         return value * RADIUS_SCALE;
     }
-    /*if (d.radius < 0.01) {
-        return 0.01 * RADIUS_SCALE;
-    } else if (d.radius > 0.5) {
-        return 0.5 * RADIUS_SCALE;
-    } else {
-        return d.radius * RADIUS_SCALE;
-    }*/
 }
 
 function selectTerm(termname) {

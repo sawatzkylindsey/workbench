@@ -18,7 +18,7 @@
 }
 
 </style>
-<svg width="960" height="700"></svg>
+<svg width="1200" height="700"></svg>
 <script src="https://d3js.org/d3.v4.min.js"></script>
 <script src="rainbowvis.js"></script>
 <script>
@@ -59,7 +59,7 @@ function count(thing) { return thing.length; }
 
 var simulation = d3.forceSimulation()
     .force("link", d3.forceLink()
-        .distance(function (link) { return 50; } )
+        .distance(function (link) { return 80; } )
         .id(function(d) { return d.name; }))//.strength(1 / Math.min(count(link.source, count(link.target))))
     .force("charge", d3.forceManyBody().strength(-300))
     .force("center", d3.forceCenter(width / 2, height / 2));

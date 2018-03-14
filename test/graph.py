@@ -22,6 +22,14 @@ class Tests(TestCase):
     def test_node(self):
         a = Node("a")
         b = Node("b")
+        self.assertEqual(a, a)
+        self.assertEqual(hash(a), hash(a))
+        self.assertNotEqual(a, b)
+        self.assertNotEqual(hash(a), hash(b))
+        self.assertEqual(cmp(a, a), 0)
+        self.assertEqual(cmp(a, b), -1)
+        self.assertEqual(cmp(b, a), 1)
+
         self.assertEqual(a.descendants, set())
         self.assertEqual(b.descendants, set())
 

@@ -2,29 +2,66 @@
 # -*- coding: utf-8 -*-
 
 from csv import reader as csv_reader
+import json
 import logging
 import pdb
 from rake_nltk import Rake
 import re
+import textrank
+import wikipedia
 
 
+from check import check_not_empty
 import nlp
+from trie import build as build_trie
 
 
 CANONICALIZER = nlp.stem
+
+GLOSSARY_CSV = "glossary_csv"
+LINE_TEXT = "line_text"
+WIKIPEDIA_ARTICLES_LIST = "wikipedia_articles_list"
+FORMATS = [
+    GLOSSARY_CSV,
+    LINE_TEXT,
+    WIKIPEDIA_ARTICLES_LIST
+]
+
+
+def parse_input(input_texts, input_format):
+    if input_format == GLOSSARY_CSV:
+        parser = GlossaryCsv()
+    elif input_format == LINE_TEXT:
+        parser = LineText()
+    elif input_format == WIKIPEDIA_ARTICLES_LIST:
+        parser = WikipediaArticlesList()
+    else:
+        raise ValueError("Unknown input format '%s'." % input_format)
+
+    for input_text in input_texts:
+        parser.parse(input_text)
+
+    #logging.debug(json.dumps(str_kv(parser.inflections.counts), indent=2, sort_keys=True))
+    #logging.debug(json.dumps({str(k): str(v) for k, v in parser.inflections.counts.items()}, indent=2, sort_keys=True)) 
+    return parser
+
+
+def str_kv(value):
+    if isinstance(value, dict):
+        return {str(k): str_kv(v) for k, v in value.iteritems()}
+    else:
+        return str(value)
 
 
 class GlossaryCsv:
     def __init__(self):
         self.terms = set()
         self.cooccurrences = {}
-        self.inflections = None
+        self.inflections = nlp.Inflections()
 
     def parse(self, input_text):
-        assert len(self.terms) == 0
-        assert len(self.cooccurrences) == 0
-        assert self.inflections is None
-        self.inflections = nlp.Inflections()
+        if len(self.terms) > 0:
+            raise ValueError("cannot invoke parse() multiple times for GlossaryCsv parser.")
 
         with open(input_text, "r") as fh:
             for row in csv_reader(fh):
@@ -35,12 +72,14 @@ class GlossaryCsv:
                 self.inflections.record(term, inflection)
                 self.cooccurrences[term] = set()
 
+        terms_trie = build_trie(self.terms)
+
         with open(input_text, "r") as fh:
             for row in csv_reader(fh):
                 row = [unicode(item, "utf-8") for item in row]
                 term = self._glossary_term(row)
                 reference_terms = nlp.extract_terms(corpus=nlp.SPLITTER(row[1].strip().lower()),
-                                                    terms=self.terms,
+                                                    terms_trie=terms_trie,
                                                     lemmatizer=CANONICALIZER,
                                                     inflection_recorder=self.inflections.record)
 
@@ -59,19 +98,95 @@ class GlossaryCsv:
         return nlp.Term(inflections)
 
 
+class WikipediaArticlesList:
+    SECTION_BLACKLIST = [
+        u"Notes",
+        u"References",
+        u"Further reading",
+        u"External links",
+        u"See also",
+    ]
+
+    def __init__(self):
+        self.terms = set()
+        self.cooccurrences = {}
+        self.inflections = nlp.Inflections()
+
+    def parse(self, input_text):
+        pages = {}
+        parse_terms = set()
+
+        with open(input_text, "r") as fh:
+            for line in fh.readlines():
+                page_id = unicode(line.strip(), "utf-8")
+                split = page_id.split("#")
+                page = wikipedia.page(split[0])
+
+                if len(split) == 1:
+                    page_content = self._strip(check_not_empty(page.summary).lower())
+                else:
+                    page_content = u""
+
+                for section in (page.sections if len(split) == 1 else split[1:]):
+                    if section not in self.SECTION_BLACKLIST:
+                        logging.debug("Page '%s' using section '%s'." % (page_id, section))
+                        raw_section_content = page.section(section)
+
+                        if raw_section_content is not None and len(raw_section_content) > 0:
+                            section_content = self._strip(raw_section_content)
+
+                            if len(section_content) > 0:
+                                page_content += u" " + section_content
+
+                pages[page_id] = page_content
+                page_terms = self._extract_terms(page_content)
+
+                for term in page_terms:
+                    self.terms.add(term)
+
+                    if term not in parse_terms:
+                        logging.debug("Page '%s' adding term '%s'." % (page_id, term))
+                        parse_terms.add(term)
+                        self.inflections.record(term, term)
+
+        for page_id, page_content in pages.iteritems():
+            for line in page_content.split("."):
+                terms_trie = build_trie(parse_terms)
+                reference_terms = nlp.extract_terms(corpus=nlp.SPLITTER(line), \
+                                                    terms_trie=terms_trie)
+                logging.debug("Page '%s' reference terms: %s" % (page_id, reference_terms))
+
+                for a in reference_terms:
+                    for b in reference_terms:
+                        if a != b:
+                            if a not in self.cooccurrences:
+                                self.cooccurrences[a] = set()
+
+                            self.cooccurrences[a].add(b)
+
+    def _strip(self, content):
+        return u" ".join(re.findall(r"(\w+|\.)", content, re.UNICODE))
+
+    def _extract_terms(self, content):
+        terms_textrank = set(textrank.extract_key_phrases(content))
+        logging.debug("textranks: %s" % terms_textrank)
+        rake = Rake()
+        rake.extract_keywords_from_text(content)
+        rake_ranked_phrases = rake.get_ranked_phrases()
+        terms_rake = set(rake_ranked_phrases[:int(len(rake_ranked_phrases) * 0.3)])
+        logging.debug("rakes: %s" % terms_textrank)
+        return [nlp.Term(t.split(" ")) for t in terms_textrank.intersection(terms_rake)]
+
+
 class LineText:
     MINIMUM_TERM_LENGTH = 5
 
     def __init__(self):
         self.terms = set()
         self.cooccurrences = {}
-        self.inflections = None
+        self.inflections = nlp.Inflections()
 
     def parse(self, input_texts):
-        assert len(self.terms) == 0
-        assert len(self.cooccurrences) == 0
-        assert self.inflections is None
-        self.inflections = nlp.Inflections()
         link_counts = {}
         conditional_inflections = {}
 
@@ -79,7 +194,6 @@ class LineText:
             with open(input_text, "r") as fh:
                 rake = Rake()
                 terms = rake.extract_keywords_from_sentences(fh.readlines())
-                pdb.set_trace()
 
             self._parse(input_text, link_counts, conditional_inflections)
 

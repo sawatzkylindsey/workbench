@@ -3,31 +3,31 @@
 
 import logging
 from nltk.stem import SnowballStemmer
+import nltk
 import pdb
 import re
 
 
 from check import check_not_empty, check_none, check_instance
-from trie import build as trie_build
+from trie import Node
 
 
 STEMMER = SnowballStemmer("english")
-SPLITTER = lambda text: re.findall(r"\w+", text, re.UNICODE)
+SPLITTER = nltk.word_tokenize
 
 
 def stem(word):
     return STEMMER.stem(word)
 
 
-def extract_terms(corpus, terms, lemmatizer=lambda x: x, inflection_recorder=lambda x, y: 0):
+def extract_terms(corpus, terms_trie, lemmatizer=lambda x: x, inflection_recorder=lambda x, y: 0):
+    check_instance(terms_trie, Node)
     extracted_terms = set()
-    # TODO: use input lemmatized_trie instead of constructing it over and over again
-    trie = trie_build(terms, tokenizer=lambda t: iter(t))
     i = 0
 
     while i < len(corpus):
         span = 1
-        node = trie
+        node = terms_trie
         lemma = lemmatizer(corpus[i])
         sequence = None
 

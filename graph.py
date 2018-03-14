@@ -30,6 +30,17 @@ class Node:
     def __repr__(self):
         return str(self)
 
+    def __cmp__(self, other):
+        return cmp(self.identifier, other.identifier)
+
+    # We do indeed want object identity (writing a __cmp__ method forces us to write __eq__ and __hash__).
+    def __eq__(self, other):
+        return id(self) == id(other)
+
+    # We do indeed want object identity (writing a __cmp__ method forces us to write __eq__ and __hash__).
+    def __hash__(self):
+        return id(self)
+
 
 class DirectedLink:
     def __init__(self, source, target):
@@ -107,6 +118,9 @@ class Graph(object):
             node = node_or_identifier
         else:
             node = self.indexes[node_or_identifier]
+
+        if limit == 1:
+            return node.descendants.union(set([node])) if inclusive else node.descendants
 
         call_id = "%s-%s-%s" % (node.identifier, limit, inclusive)
         out = set()
@@ -225,7 +239,6 @@ class UndirectedGraph(Graph):
                         count += 1
 
             total = len(neighbours)
-            logging.debug("%s: count %d, total %d" % (node.identifier, count, total))
             cc = 0.0
 
             if count > 0:
@@ -258,7 +271,6 @@ class DirectedGraph(Graph):
                         count += 1
 
             total = len(neighbours)
-            logging.debug("%s: count %d, total %d" % (node.identifier, count, total))
             cc = 0.0
 
             if count > 0:

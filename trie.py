@@ -16,7 +16,7 @@ class Node:
         return str(self)
 
 
-def build(terms, tokenizer):
+def build(terms, tokenizer=lambda t: iter(t)):
     trie_dict = {}
     finals = {}
 

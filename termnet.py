@@ -18,18 +18,13 @@ import threading
 
 from frontend import d3node, d3link
 from graph import GraphBuilder, Graph
-from log import setup_logging, user_log
+from pytils.log import setup_logging, user_log
 from parser import GlossaryCsv, LineText
 import nlp
 
 
-GLOSSARY_CSV = "glossary_csv"
-LINE_TEXT = "line_text"
-FORMATS = [
-    GLOSSARY_CSV,
-    LINE_TEXT
-]
 TOP = 10
+BIAS_RELATED = 0.1
 
 
 def main():
@@ -63,70 +58,19 @@ def main():
 class Termnet:
     LIMIT = 100
 
-    def __init__(self, input_text, input_format):
-        self.parser = parse_cooccurrences(input_text, input_format)
-
-        with open("inflection_counts.csv", "w") as fh:
-            fh.write("lemma,inflection,count\n")
-
-            for item in sorted(self.parser.inflections.inflection_counts(), key=lambda item: item[2], reverse=True):
-                fh.write(item[0].name())
-                fh.write(",")
-                fh.write(item[1].name())
-                fh.write(",")
-                fh.write(str(item[2]))
-                fh.write("\n")
-
-        with open("lemma_counts.csv", "w") as fh:
-            fh.write("lemma,count\n")
-
-            for item in sorted(self.parser.inflections.lemma_counts(), key=lambda item: item[1], reverse=True):
-                fh.write(item[0].name())
-                fh.write(",")
-                fh.write(str(item[1]))
-                fh.write("\n")
-
-        builder = GraphBuilder(Graph.UNDIRECTED)
-
-        for k, v in sorted(self.parser.cooccurrences.iteritems()):
-            builder.add(k, v)
-
-        self.graph = builder.build()
+    def __init__(self, graph):
+        self.graph = graph
         self.average = 1.0 / len(self.graph.all_nodes)
         self.rank = {n.identifier: self.average for n in self.graph.all_nodes}
         self.page_ranks = {}
-        self.softener = {}
-        self._t = threading.Thread(target=self.calculate_ranks)
-        self._t.daemon = True
-        self._t.start()
+        self._background_calculate_ranks = threading.Thread(target=self.calculate_ranks)
+        self._background_calculate_ranks.daemon = True
+        self._background_calculate_ranks.start()
 
     def calculate_ranks(self):
-        i = 0
-
-        for k, v in sorted(self.parser.cooccurrences.iteritems()):
-            print("page ranking: %s" % k)
-            logging.debug("page ranking: %s" % k)
-            self.page_ranks[k] = self.graph.page_rank(biases={i: 0.1 if i != k else 0.2 for i in v})
-            #self.average[k] = sum(self.page_ranks[k].values()) / len(self.page_ranks[k])
-            #print("average[%s] = %s" % (k, self.average[k]))
-            #self.softener[k] = self._find_softenerx(self.page_ranks[k][k])
-            #if i >= 3:
-            #    break
-
-            i += 1
-
-    def _find_softenerx(self, value):
-        crossover = value
-        upper = 1.0
-        lower = 2.0
-        test = math.sqrt(crossover) / lower
-
-        while test > crossover:
-            lower = lower * 2.0
-            test = math.sqrt(crossover) / lower
-
-        f = self._find(value, lambda x, d: math.sqrt(x) / d, lower, upper)
-        return lambda v: f(v) if v > value else v
+        for node in sorted(self.graph.all_nodes):
+            user_log.info("page ranking: %s" % node.identifier.name())
+            self.page_ranks[node.identifier] = self.graph.page_rank(biases={d.identifier: BIAS_RELATED for d in node.descendants})
 
     def _find(self, value, f, i, j):
         test_i = f(value, i)
@@ -159,9 +103,6 @@ class Termnet:
 
     def _within(self, value, expected, epsilon=0.0000001):
         return abs(expected - value) < epsilon
-
-    def _find_softenery(self, value):
-        return lambda x: 1.0 / (1.0 + math.exp(-((10 * x) - (value * 10))))
 
     def _find_softener(self, value):
         i = 1.0
@@ -208,8 +149,8 @@ class Termnet:
 
             logging.info("scaled: %s -> %s" % (v, scaled))
             return scaled
+
         return s
-        #return lambda v: lis_fixed(v) if v <= value else ris_fixed(v)
 
     def _left_inverse_sigmoid(self, value):
         assert value >= 0.0 and value <= 1.0
@@ -244,6 +185,9 @@ class Termnet:
 
         return lambda v: lis_fixed(v)
 
+    def reset(self):
+        self.rank = {n.identifier: self.average for n in self.graph.all_nodes}
+
     def mark(self, term):
         if term is None:
             node_ranks = {}
@@ -261,35 +205,20 @@ class Termnet:
                 "links": [d3link(self._name(link.source), self._name(link.target), 0.75).__dict__ for link in self.graph.links()]
             }
 
-        lemma_term = self.parser.inflections.to_lemma(term)
-        #average = self.average[lemma_term]
-        #average = sum(self.rank.values()) / len(self.rank)
-        #logging.info("average      : %s" % self.average)
-        #smoother = self._find_softener(self.average * 10)
-        #print("average upped: %s" % (average * 10.0))
-        before = self.page_ranks[lemma_term][lemma_term]
-        #smoother = self._find_softener(self.page_ranks[lemma_term][lemma_term] * 10)
-        rank_before = self.rank[lemma_term]
-
-        for k, v in self.page_ranks[lemma_term].iteritems():
+        for k, v in self.page_ranks[term].iteritems():
             assert v >= 0.0 and v <= 1.0, v
-            #softened = self.softener[lemma_term](v)
-            #smoothed = smoother(v)
-            #assert smoothed >= 0.0 and smoothed <= 1.0, "%s -> %s" % (v, smoothed)
             self.rank[k] += v
 
         total = sum(self.rank.values())
         scale = 1.0 / total
-        print(total)
         assert scale >= 0.0
         self.rank = {k: scale * v for k, v in self.rank.iteritems()}
         node_ranks = {
-            lemma_term: self.rank[lemma_term]
+            term: self.rank[term]
         }
-        logging.info("search %s - %s: %s -> %s" % (lemma_term, before, rank_before, self.rank[lemma_term]))
-        sum_subgraph = self.rank[lemma_term]
+        sum_subgraph = self.rank[term]
 
-        for node in self.graph.neighbourhood(lemma_term, 1):
+        for node in self.graph.neighbourhood(term, 1):
             assert self.rank[node.identifier] >= 0.0 and self.rank[node.identifier] <= 1.0
             node_ranks[node.identifier] = self.rank[node.identifier]
             sum_subgraph += self.rank[node.identifier]
@@ -320,39 +249,17 @@ class Termnet:
         }
 
     def _name(self, term):
-        return self.parser.inflections.to_inflection(term).name()
+        return term.name()
+        #return self.parser.inflections.to_inflection(term).name()
 
     def _coeff(self, term):
         return self.graph.clustering_coefficients[term]
-
-    #def _radius(self, value):
-    #    assert value >= 0.0 and value <= 1.0
-    #    scaled = (math.log10(value) + 2.0) / 2.0
-    #
-    #    if value < 0.01:
-    #        return 0.01
-    #    else:
-    #        return value
 
     def _out(self, node_alphas, link_alphas):
         return {
             "nodes": [{"id": self.parser.inflections.to_inflection(identifier).name(), "group": 0, "coeff": self.graph.clustering_coefficients[identifier]} for identifier in nodes],
             "links": [{"source": self.parser.inflections.to_inflection(link.source).name(), "target": self.parser.inflections.to_inflection(link.target).name()} for link in links]
         }
-
-
-def parse_cooccurrences(input_text, input_format):
-    if input_format == GLOSSARY_CSV:
-        parser = GlossaryCsv()
-    elif input_format == LINE_TEXT:
-        parser = LineText()
-    else:
-        raise ValueError("Unknown input format '%s'." % input_format)
-
-    parser.parse(input_text)
-    logging.debug(json.dumps(str_kv(parser.inflections.counts), indent=2, sort_keys=True))
-    #logging.debug(json.dumps({str(k): str(v) for k, v in parser.inflections.counts.items()}, indent=2, sort_keys=True))
-    return parser
 
 
 def str_kv(value):

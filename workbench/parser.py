@@ -6,13 +6,13 @@ import json
 import logging
 import os
 import pdb
+from pytils import check
 from rake_nltk import Rake
 import re
 import textrank
 import wikipediaapi
 
 
-from workbench.check import check_not_empty
 import workbench.nlp as nlp
 from workbench.trie import build as build_trie
 
@@ -133,7 +133,7 @@ class WikipediaArticlesList:
                     page = wikipedia.page(split[0])
 
                     if len(split) == 1:
-                        page_content = check_not_empty(page.summary).lower()
+                        page_content = check.check_not_empty(page.summary).lower()
                     else:
                         page_content = ""
 

@@ -4,23 +4,23 @@
 import json
 import logging
 import pdb
+from pytils import check
 
 from workbench.base import Base, Comparable
-from workbench.check import check_instance, check_not_instance, check_equal, check_not_equal, check_one_of, check_list_or_set
 
 
 class Node(Comparable):
     # Note: Want instance based equals/hash.
     def __init__(self, identifier):
         super(Node, self).__init__()
-        self.identifier = check_not_instance(identifier, Node)
+        self.identifier = check.check_not_instance(identifier, Node)
         self.descendants = set()
         self.finalized = False
 
     def add_descendant(self, descendant):
-        check_equal(self.finalized, False)
-        check_instance(descendant, Node)
-        check_not_equal(self.identifier, descendant.identifier)
+        check.check_equal(self.finalized, False)
+        check.check_instance(descendant, Node)
+        check.check_not_equal(self.identifier, descendant.identifier)
         self.descendants.add(descendant)
 
     def finalize(self):
@@ -48,8 +48,8 @@ class Node(Comparable):
 class DirectedLink(Base):
     def __init__(self, source, target):
         super(DirectedLink, self).__init__()
-        self.source = check_not_instance(source, Node)
-        self.target = check_not_instance(target, Node)
+        self.source = check.check_not_instance(source, Node)
+        self.target = check.check_not_instance(target, Node)
 
     def __str__(self):
         return "DirectedLink{source:%s, target:%s}" % (self.source, self.target)
@@ -65,8 +65,8 @@ class DirectedLink(Base):
 class UndirectedLink(Base):
     def __init__(self, source, target):
         super(UndirectedLink, self).__init__()
-        self.source = check_not_instance(source, Node)
-        self.target = check_not_instance(target, Node)
+        self.source = check.check_not_instance(source, Node)
+        self.target = check.check_not_instance(target, Node)
 
     def __str__(self):
         return "UndirectedLink{%s, %s}" % (self.source, self.target)
@@ -88,11 +88,11 @@ class Graph(object):
             identifier_class = all_nodes[0].identifier.__class__
 
             for node in all_nodes:
-                check_instance(node.identifier, identifier_class)
-                check_equal(node.finalized, True)
+                check.check_instance(node.identifier, identifier_class)
+                check.check_equal(node.finalized, True)
 
         self.all_nodes = all_nodes
-        self.kind = check_one_of(kind, [Graph.DIRECTED, Graph.UNDIRECTED])
+        self.kind = check.check_one_of(kind, [Graph.DIRECTED, Graph.UNDIRECTED])
         self.indexes = {}
 
         for node in self.all_nodes:
@@ -296,7 +296,7 @@ class GraphBuilder:
             raise ValueError(direction)
 
     def add(self, identifier, descendants=[]):
-        check_list_or_set(descendants)
+        check.check_list_or_set(descendants)
 
         for descendant in descendants:
             if descendant not in self.nodes:

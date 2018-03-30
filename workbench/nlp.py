@@ -5,11 +5,11 @@ import logging
 from nltk.stem import SnowballStemmer
 import nltk
 import pdb
+from pytils import check
 import re
 
 
 from workbench.base import Comparable
-from workbench.check import check_not_empty, check_none, check_instance
 from workbench.trie import Node
 
 
@@ -25,7 +25,7 @@ def stem(word):
 
 
 def extract_terms(corpus, terms_trie, lemmatizer=lambda x: x, inflection_recorder=lambda x, y: 0):
-    check_instance(terms_trie, Node)
+    check.check_instance(terms_trie, Node)
     extracted_terms = set()
     i = 0
 
@@ -62,7 +62,7 @@ def extract_terms(corpus, terms_trie, lemmatizer=lambda x: x, inflection_recorde
 class Term(Comparable):
     def __init__(self, words):
         super(Term, self).__init__()
-        self.words = tuple(check_not_empty(words))
+        self.words = tuple(check.check_not_empty(words))
 
     def __len__(self):
         return len(self.words)
@@ -96,11 +96,11 @@ class Inflections:
         self.inflection_to_lemma = None
 
     def record(self, lemma_term, inflection_term):
-        check_none(self.lemma_to_inflection)
-        check_none(self.inflection_to_lemma)
+        check.check_none(self.lemma_to_inflection)
+        check.check_none(self.inflection_to_lemma)
         logging.debug("record: %s->%s" % (lemma_term, inflection_term))
-        check_instance(lemma_term, Term)
-        check_instance(inflection_term, Term)
+        check.check_instance(lemma_term, Term)
+        check.check_instance(inflection_term, Term)
 
         if lemma_term not in self.counts:
             self.counts[lemma_term] = {}
@@ -120,12 +120,12 @@ class Inflections:
 
     def to_inflection(self, lemma_term):
         self._setup_maps()
-        check_instance(lemma_term, Term)
+        check.check_instance(lemma_term, Term)
         return self.lemma_to_inflection[lemma_term]
 
     def to_lemma(self, inflection_term):
         self._setup_maps()
-        check_instance(inflection_term, Term)
+        check.check_instance(inflection_term, Term)
         return self.inflection_to_lemma[inflection_term]
 
     def lemma_counts(self):

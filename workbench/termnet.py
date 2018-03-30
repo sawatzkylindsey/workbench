@@ -11,12 +11,12 @@ import math
 import numpy
 import os
 import pdb
+from pytils import check
 import pickle
 import sys
 import threading
 
 
-from workbench.check import check_instance, check_one_of
 from workbench.frontend import d3node, d3link
 from workbench.graph import GraphBuilder, Graph
 from pytils.log import setup_logging, user_log
@@ -48,8 +48,8 @@ def main():
 
 
 def build(input_text, input_format):
-    check_instance(input_text, list)
-    check_one_of(check_instance(input_format, str), workbench.parser.FORMATS)
+    check.check_instance(input_text, list)
+    check.check_one_of(check.check_instance(input_format, str), workbench.parser.FORMATS)
     parse = workbench.parser.parse_input(input_text, input_format)
     builder = GraphBuilder(Graph.UNDIRECTED)
     ## Could use comprehensions, but actually would be slower (would need to iterate twice).

@@ -4,12 +4,10 @@
 import json
 import logging
 import pdb
-from pytils import check
-
-from workbench.base import Base, Comparable
+from pytils import base, check
 
 
-class Node(Comparable):
+class Node(base.Comparable):
     # Note: Want instance based equals/hash.
     def __init__(self, identifier):
         super(Node, self).__init__()
@@ -27,11 +25,8 @@ class Node(Comparable):
         self.finalized = True
         return self
 
-    def __str__(self):
-        return "Node{identifer:%s}" % self.identifier
-
     def __repr__(self):
-        return str(self)
+        return "Node{identifer:%s}" % self.identifier
 
     def _comparator(self, fn, other):
         return fn(self.identifier, other.identifier)
@@ -45,13 +40,13 @@ class Node(Comparable):
         return id(self)
 
 
-class DirectedLink(Base):
+class DirectedLink(object):
     def __init__(self, source, target):
         super(DirectedLink, self).__init__()
         self.source = check.check_not_instance(source, Node)
         self.target = check.check_not_instance(target, Node)
 
-    def __str__(self):
+    def __repr__(self):
         return "DirectedLink{source:%s, target:%s}" % (self.source, self.target)
 
     def __eq__(self, other):
@@ -62,13 +57,13 @@ class DirectedLink(Base):
         return hash((self.source, self.target))
 
 
-class UndirectedLink(Base):
+class UndirectedLink(object):
     def __init__(self, source, target):
         super(UndirectedLink, self).__init__()
         self.source = check.check_not_instance(source, Node)
         self.target = check.check_not_instance(target, Node)
 
-    def __str__(self):
+    def __repr__(self):
         return "UndirectedLink{%s, %s}" % (self.source, self.target)
 
     def __eq__(self, other):

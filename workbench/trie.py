@@ -9,7 +9,7 @@ class Node:
         self.children = children
         self.final = final
 
-    def __str__(self):
+    def __repr__(self):
         return "Node{%s, %s}" % (self.children, self.final)
 
     def __repr__(self):

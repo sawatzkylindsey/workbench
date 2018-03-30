@@ -5,11 +5,10 @@ import logging
 from nltk.stem import SnowballStemmer
 import nltk
 import pdb
-from pytils import check
+from pytils import base, check
 import re
 
 
-from workbench.base import Comparable
 from workbench.trie import Node
 
 
@@ -59,7 +58,7 @@ def extract_terms(corpus, terms_trie, lemmatizer=lambda x: x, inflection_recorde
     return extracted_terms
 
 
-class Term(Comparable):
+class Term(base.Comparable):
     def __init__(self, words):
         super(Term, self).__init__()
         self.words = tuple(check.check_not_empty(words))
@@ -76,11 +75,8 @@ class Term(Comparable):
     def __hash__(self):
         return hash(self.words)
 
-    def __str__(self):
-        return "Term{%s}" % str(self.words)
-
     def __repr__(self):
-        return str(self)
+        return "Term{%s}" % str(self.words)
 
     def _comparator(self, fn, other):
         return fn(self.words, other.words)

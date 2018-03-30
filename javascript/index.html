@@ -54,17 +54,60 @@ var textbox = fo.append("xhtml:input")
     });
 
 var color = d3.scaleOrdinal(d3.schemeCategory20);
+var absoluteGraph;
 
-function count(thing) { return thing.length; }
+/*function count(thing) {
+    if (absoluteGraph == null) {
+        return 1;
+    }
+
+    var c = 0;
+
+    absoluteGraph.
+}*/
+
+var RADIUS_SCALE = 250;
+
+function radius(r) {
+    if (r < 0.009) {
+        return 0.009 * RADIUS_SCALE;
+    } else {
+        return r * RADIUS_SCALE;
+    }
+}
 
 var simulation = d3.forceSimulation()
     .force("link", d3.forceLink()
-        .distance(function (link) { return 80; } )
-        .id(function(d) { return d.name; }))//.strength(1 / Math.min(count(link.source, count(link.target))))
-    .force("charge", d3.forceManyBody().strength(-300))
-    .force("center", d3.forceCenter(width / 2, height / 2));
+        /*.distance(function (link) {
+            console.log(link.source.radius);
+            console.log(link.target.radius);
+            console.log(Math.max(link.source.radius, link.target.radius));
+            console.log(radius(Math.max(link.source.radius, link.target.radius)));
+            return radius(Math.max(link.source.radius, link.target.radius)) * 1;
+        })*/
+        .distance(80)
+        .id(function(d) { return d.name; })
+        /*.strength(function(link) {
+            //return Math.max(link.source.radius, link.target.radius);
+            return 0.01;
+            //console.log(count(link.source));
+            //return 1 / Math.min(count(link.source), count(link.target));
+        })*/
+    )
+    .force("charge", d3.forceManyBody().strength(-200))
+    //.force("center", d3.forceCenter(width / 2, height / 2))
+    .force("collide", d3.forceCollide(function (d) {
+        return radius(d.radius) * 2;
+    }).strength(0.005).iterations(16))
+    .force("y", d3.forceY(height / 2.0).strength(0.05))
+    .force("x", d3.forceX(width/ 2.0).strength(0.05));
+/*var simulation = d3.layout.force()
+    .gravity(.05)
+    .charge(-240)
+    .linkDistance(50)
+    .size([width, height]);*/
 
-d3.json("mark.json")
+d3.json("search")
     .post("", function(error, data) {
         //console.log(data);
         draw(data);
@@ -78,10 +121,39 @@ d3.json("mark.json")
     console.log(graph);
 });*/
 
+var placements = {};
+var previousPositions = {};
+var stalex = {};
+var staley = {};
+
 function draw(graph) {
+  absoluteGraph = graph;
   console.log(graph);
 
-    svg.selectAll("g").remove();
+  previousPositions = {};
+  stalex = {};
+  staley = {};
+  var placedNodesList = svg.selectAll("circle")
+    .each(function(n) {
+      //console.log(n);
+      previousPositions[n.name] = {"x": n.x, "y": n.y};
+    });
+  /*for (var n in graph.nodes) {
+    console.log(n);
+    n["fx"] = 500;
+    n["fy"] = 400;
+    console.log(n);
+  }*/
+  graph.nodes = graph.nodes.map(function(n) {
+    if (n.name in previousPositions) {
+        n["fx"] = previousPositions[n.name].x;
+        n["fy"] = previousPositions[n.name].y;
+    }
+    return n;
+  });
+  console.log(graph);
+
+  svg.selectAll("g").remove();
 
   var link = svg.append("g")
       .attr("class", "links")
@@ -98,17 +170,45 @@ function draw(graph) {
       .attr("stroke-width", function(l) { return Math.sqrt(l.value); })
       .style("opacity", function(l) { return l.alpha; } );
 
+  //for(var n in graph.nodes) {
+  // console.log(n.name);
+  //  //all_links.push({"source": x["source"], "target": x["target"]});
+  //}
+
   var node = svg.append("g")
       .attr("class", "nodes")
     .selectAll("bob")
     .data(graph.nodes)
     .enter().append("circle")
+      .attr("id", function(d) { return "node-" + d.name; })
       //.attr("r", 5)
       .attr("fill", function(d) {
         return "#" + rainbow.colourAt(d.coeff);
       })
       .attr("term", function(d) { return d.name; })
-      .attr("r", radius)
+      .attr("r", function(d) { return radius(d.radius); })
+      /*.attr("fx", function(d) {
+        if (d.name in previousPositions) {
+            return previousPositions[d.name].x;
+        }
+        return null;
+      })
+      .attr("fy", function(d) {
+        if (d.name in previousPositions) {
+            return previousPositions[d.name].y;
+        }
+        return null;
+      })
+      .call(function(d) {
+        if (d.name in previousPositions) {
+            d.fx = previousPositions[d.name].x;
+            d.fy = previousPositions[d.name].y;
+        }
+      })
+      .call(function(d) {
+        d.fx = 100;
+        d.fy = 200;
+       })*/
       .style("opacity", function(d) { return d.alpha; })
       .on("click", unstick)
       .call(d3.drag()
@@ -123,8 +223,23 @@ function draw(graph) {
         .enter()
         .append("text")
         .style("pointer-events", "none")
-        .attr("x", function(d) { return d.x; })
-        .attr("y", function(d) {return d.y;})
+        /*.attr("x", function(d) {
+          if (d.name in placedNodes) {
+            return placedNodes[d.name]["x"];
+          }
+          else {
+            return d.x;
+          }
+        })
+        .attr("y", function(d) {
+          if (d.name in placedNodes) {
+            return placedNodes[d.name]["y"];
+          }
+          else {
+            return d.y;
+          }
+        })*/
+        //.attr("y", function(d) { return d.y; })
         .attr("class", "labels")
         .attr("stroke", "black")
         .attr("term", function(d) { return d.name; })
@@ -138,7 +253,8 @@ function draw(graph) {
   simulation.force("link")
       .links(graph.links);
 
-  simulation.restart();
+  simulation.alphaTarget(0.5).restart();
+  var i = 0;
 
   function ticked() {
     link
@@ -147,13 +263,63 @@ function draw(graph) {
         .attr("x2", function(d) { return xbounded(d.target); })
         .attr("y2", function(d) { return ybounded(d.target); });
 
-    node
-        .attr("cx", function(d) { return xbounded(d);})
-        .attr("cy", function(d) { return ybounded(d);});
+    node.call(function(d) {
+            /*if (d.name in placements) {
+                d.fx = placements[d.name].x;
+                d.fy = placements[d.name].y;
+            }
+            else if (d.name in previousPositions) {
+                d.fx = previousPositions[d.name].x;
+                d.fy = previousPositions[d.name].y;
+            }
+            else {
+                d.fx = null;
+                d.fy = null;
+                d.cx = xbounded(d);
+                d.cy = ybounded(d);
+            }*/
+            //    d.cx = xbounded(d);
+            //    d.cy = ybounded(d);
+            //console.log(d.name + " (" + d.x + "," + d.y + ")");
+        })
+        /*.attr("fx", function(d) {
+            if (d.name in placements) {
+                return placements[d.name].x;
+            }
+            else if (d.name in previousPositions) {
+                return previousPositions[d.name].x;
+            }
+            return null;
+        })
+        .attr("fy", function(d) {
+            if (d.name in placements) {
+                return placements[d.name].y;
+            }
+            else if (d.name in previousPositions) {
+                return previousPositions[d.name].y;
+            }
+            return null;
+        })*/
+        .attr("cx", function(d) {
+            /*if (d.name in previousPositions && !(d.name in stalex)) {
+                stalex[d.name] = true;
+                return previousPositions[d.name].x;
+            }*/
+            return xbounded(d);
+        })
+        .attr("cy", function(d) {
+            /*if (d.name in previousPositions && !(d.name in staley)) {
+                staley[d.name] = true;
+                return previousPositions[d.name].y;
+            }*/
+            return ybounded(d);
+        });
+        //.attr("cx", function(d) { return xbounded(d);})
+        //.attr("cy", function(d) { return ybounded(d);});
 
     labels
         .attr("x", function(d) {
-            return xbounded(d) + radius(d) + 4.5;
+            return xbounded(d) + radius(d.radius) + 4.5;
         })
         .attr("y", function(d) { return ybounded(d) + 4.5; })
   }
@@ -163,48 +329,47 @@ function xbounded(d) { return Math.max(Math.min(d.x, width - 50), 10); }
 function ybounded(d) { return Math.max(Math.min(d.y, height - 10), 10); }
 
 function dragstarted(d) {
-  if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+  if (!d3.event.active) {
+    simulation.alphaTarget(0.3).restart();
+  }
+  //placements[d.name] = {"x": d.x, "y": d.y};
+  //console.log(placements);
   d.fx = d.x;
   d.fy = d.y;
 }
 
 function dragged(d) {
+  //placements[d.name] = {"x": d3.event.x, "y": d3.event.y};
+  //console.log(placements);
   d.fx = d3.event.x;
   d.fy = d3.event.y;
 }
 
 function dragended(d) {
-  if (!d3.event.active) simulation.alphaTarget(0);
+  if (!d3.event.active) {
+    simulation.alphaTarget(0);
+  }
+  //delete placements[d3.event.name];
   //d.fx = null;
   //d.fy = null;
 }
 
 function unstick(d) {
+  //delete placements[d.name];
+  //console.log(placements);
   d.fx = null;
   d.fy = null;
 }
 
-var RADIUS_SCALE = 500;
-
-function radius(d) {
-    var value = d.radius;
-
-    if (value < 0.005) {
-        return 0.005 * RADIUS_SCALE;
-    } else {
-        return value * RADIUS_SCALE;
-    }
-}
-
 function selectTerm(termname) {
     console.log("term: " + termname);
-    d3.json("mark.json")
+    d3.json("search")
         .post(termname, function(error, data) {
             //console.log(data);
             draw(data);
         });
 
-    /*d3.request("mark")
+    /*d3.request("search")
         //.header("X-Requested-With", "XMLHttpRequest")
         .header("Content-Type", "application/json")
         .post(termname, function(error, data) {

@@ -8,8 +8,9 @@ import pdb
 import re
 
 
-from check import check_not_empty, check_none, check_instance
-from trie import Node
+from workbench.base import Comparable
+from workbench.check import check_not_empty, check_none, check_instance
+from workbench.trie import Node
 
 
 STEMMER = SnowballStemmer("english")
@@ -17,6 +18,9 @@ SPLITTER = nltk.word_tokenize
 
 
 def stem(word):
+    if word == "ares":
+        return word
+
     return STEMMER.stem(word)
 
 
@@ -55,8 +59,9 @@ def extract_terms(corpus, terms_trie, lemmatizer=lambda x: x, inflection_recorde
     return extracted_terms
 
 
-class Term:
+class Term(Comparable):
     def __init__(self, words):
+        super(Term, self).__init__()
         self.words = tuple(check_not_empty(words))
 
     def __len__(self):
@@ -77,11 +82,11 @@ class Term:
     def __repr__(self):
         return str(self)
 
-    def __cmp__(self, other):
-        return cmp(self.words, other.words)
+    def _comparator(self, fn, other):
+        return fn(self.words, other.words)
 
     def name(self):
-        return "-".join(self.words)
+        return " ".join(self.words)
 
 
 class Inflections:
@@ -108,8 +113,8 @@ class Inflections:
             self.lemma_to_inflection = {}
             self.inflection_to_lemma = {}
 
-            for lemma, inflections in self.counts.iteritems():
-                tmp = sorted(inflections.iteritems(), key=lambda item: item[1], reverse=True)
+            for lemma, inflections in self.counts.items():
+                tmp = sorted(inflections.items(), key=lambda item: item[1], reverse=True)
                 self.lemma_to_inflection[lemma] = tmp[0][0]
                 self.inflection_to_lemma[tmp[0][0]] = lemma
 
@@ -124,8 +129,8 @@ class Inflections:
         return self.inflection_to_lemma[inflection_term]
 
     def lemma_counts(self):
-        return [(lemma, sum(inflections.values())) for lemma, inflections in self.counts.iteritems()]
+        return [(lemma, sum(inflections.values())) for lemma, inflections in self.counts.items()]
 
     def inflection_counts(self):
-        return [(lemma, inflection, count) for lemma, inflections in self.counts.iteritems() for inflection, count in inflections.iteritems()]
+        return [(lemma, inflection, count) for lemma, inflections in self.counts.items() for inflection, count in inflections.items()]
 

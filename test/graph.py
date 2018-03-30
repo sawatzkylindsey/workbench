@@ -45,18 +45,87 @@ class Tests(TestCase):
         a = Node("a")
         b = Node("b")
         a.add_descendant(b)
-        graph = Graph([a.finalize(), b.finalize()])
-        self.assertEqual(graph._links(Graph.DIRECTED), set([DirectedLink("a", "b")]))
-        self.assertEqual(graph._links(Graph.UNDIRECTED), set([UndirectedLink("a", "b")]))
+
+        graph_d = Graph([a.finalize(), b.finalize()], Graph.DIRECTED)
+        self.assertEqual(graph_d.links(), set([DirectedLink("a", "b")]))
+
+        graph_ud = Graph([a.finalize(), b.finalize()], Graph.UNDIRECTED)
+        self.assertEqual(graph_ud.links(), set([UndirectedLink("a", "b")]))
 
     def test_graph_builder_undirected(self):
         gb = GraphBuilder(Graph.UNDIRECTED)
         graph = gb.add("bobo", ["jack", "jill", "jane"]) \
             .add("jack", ["colt"]) \
             .add("jack", ["colt"]) \
+            .add("alik", ["peny"]) \
             .build()
         self.assertEqual(graph.links(), set([UndirectedLink("bobo", "jack"), UndirectedLink("bobo", "jill"), \
-            UndirectedLink("bobo", "jane"), UndirectedLink("jack", "colt")]))
+            UndirectedLink("bobo", "jane"), UndirectedLink("jack", "colt"), UndirectedLink("alik", "peny")]))
+        self.assertEqual(graph.distances, {
+            "bobo": {
+                "bobo": 0,
+                "jack": 1,
+                "jill": 1,
+                "jane": 1,
+                "colt": 2,
+                "alik": None,
+                "peny": None,
+            },
+            "jack": {
+                "bobo": 1,
+                "jack": 0,
+                "jill": 2,
+                "jane": 2,
+                "colt": 1,
+                "alik": None,
+                "peny": None,
+            },
+            "jill": {
+                "bobo": 1,
+                "jack": 2,
+                "jill": 0,
+                "jane": 2,
+                "colt": 3,
+                "alik": None,
+                "peny": None,
+            },
+            "jane": {
+                "bobo": 1,
+                "jack": 2,
+                "jill": 2,
+                "jane": 0,
+                "colt": 3,
+                "alik": None,
+                "peny": None,
+            },
+            "colt": {
+                "bobo": 2,
+                "jack": 1,
+                "jill": 3,
+                "jane": 3,
+                "colt": 0,
+                "alik": None,
+                "peny": None,
+            },
+            "alik": {
+                "bobo": None,
+                "jack": None,
+                "jill": None,
+                "jane": None,
+                "colt": None,
+                "alik": 0,
+                "peny": 1,
+            },
+            "peny": {
+                "bobo": None,
+                "jack": None,
+                "jill": None,
+                "jane": None,
+                "colt": None,
+                "alik": 1,
+                "peny": 0,
+            },
+        })
 
     def test_graph_builder_directed(self):
         gb = GraphBuilder(Graph.DIRECTED)
@@ -64,9 +133,76 @@ class Tests(TestCase):
             .add("jack", ["colt"]) \
             .add("jack", ["colt"]) \
             .add("jane", ["bobo"]) \
+            .add("alik", ["peny"]) \
             .build()
         self.assertEqual(graph.links(), set([DirectedLink("bobo", "jack"), DirectedLink("bobo", "jill"), \
-            DirectedLink("bobo", "jane"), DirectedLink("jack", "colt"), DirectedLink("jane", "bobo")]))
+            DirectedLink("bobo", "jane"), DirectedLink("jack", "colt"), DirectedLink("jane", "bobo"), DirectedLink("alik", "peny")]))
+        self.assertEqual(graph.distances, {
+            "bobo": {
+                "bobo": 0,
+                "jack": 1,
+                "jill": 1,
+                "jane": 1,
+                "colt": 2,
+                "alik": None,
+                "peny": None,
+            },
+            "jack": {
+                "bobo": None,
+                "jack": 0,
+                "jill": None,
+                "jane": None,
+                "colt": 1,
+                "alik": None,
+                "peny": None,
+            },
+            "jill": {
+                "bobo": None,
+                "jack": None,
+                "jill": 0,
+                "jane": None,
+                "colt": None,
+                "alik": None,
+                "peny": None,
+            },
+            "jane": {
+                "bobo": 1,
+                "jack": 2,
+                "jill": 2,
+                "jane": 0,
+                "colt": 3,
+                "alik": None,
+                "peny": None,
+            },
+            "colt": {
+                "bobo": None,
+                "jack": None,
+                "jill": None,
+                "jane": None,
+                "colt": 0,
+                "alik": None,
+                "peny": None,
+            },
+            "alik": {
+                "bobo": None,
+                "jack": None,
+                "jill": None,
+                "jane": None,
+                "colt": None,
+                "alik": 0,
+                "peny": 1,
+            },
+            "peny": {
+                "bobo": None,
+                "jack": None,
+                "jill": None,
+                "jane": None,
+                "colt": None,
+                "alik": None,
+                "peny": 0,
+            },
+        })
+
 
     def test_neighbourhood_directed(self):
         gb = GraphBuilder(Graph.DIRECTED)
@@ -76,26 +212,27 @@ class Tests(TestCase):
             .add("jill", ["stew"]) \
             .add("stew", ["alik"]) \
             .add("jane", ["bobo"]) \
+            .add("peny", ["ruby"]) \
             .build()
-        self.assertEqual(graph.neighbourhood("bobo", 0, inclusive=False), set())
-        self.assertEqual(graph.neighbourhood("bobo", 1, inclusive=False), graph.nodes(["jack", "jill", "jane"]))
-        self.assertEqual(graph.neighbourhood("bobo", 2, inclusive=False), graph.nodes(["bobo", "jack", "jill", "jane", "colt", "stew"]))
-        self.assertEqual(graph.neighbourhood("bobo", 3, inclusive=False), graph.nodes(["bobo", "jack", "jill", "jane", "colt", "stew", "alik"]))
-        self.assertEqual(graph.neighbourhood("bobo", 4, inclusive=False), graph.nodes(["bobo", "jack", "jill", "jane", "colt", "stew", "alik"]))
-        self.assertEqual(graph.neighbourhood("bobo", None, inclusive=False), graph.nodes(["bobo", "jack", "jill", "jane", "colt", "stew", "alik"]))
+        self.assertEqual(graph.neighbourhood("bobo", 0, False), set())
+        self.assertEqual(graph.neighbourhood("bobo", 1, False), set([("jack", 1), ("jill", 1), ("jane", 1)]))
+        self.assertEqual(graph.neighbourhood("bobo", 2, False), set([("jack", 1), ("jill", 1), ("jane", 1), ("colt", 2), ("stew", 2)]))
+        self.assertEqual(graph.neighbourhood("bobo", 3, False), set([("jack", 1), ("jill", 1), ("jane", 1), ("colt", 2), ("stew", 2), ("alik", 3)]))
+        self.assertEqual(graph.neighbourhood("bobo", 4, False), set([("jack", 1), ("jill", 1), ("jane", 1), ("colt", 2), ("stew", 2), ("alik", 3)]))
+        self.assertEqual(graph.neighbourhood("bobo", None, False), set([("jack", 1), ("jill", 1), ("jane", 1), ("colt", 2), ("stew", 2), ("alik", 3)]))
 
-        self.assertEqual(graph.neighbourhood("bobo", 0, inclusive=True), graph.nodes(["bobo"]))
-        self.assertEqual(graph.neighbourhood("bobo", 1, inclusive=True), graph.nodes(["bobo", "jack", "jill", "jane"]))
-        self.assertEqual(graph.neighbourhood("bobo", 2, inclusive=True), graph.nodes(["bobo", "jack", "jill", "jane", "colt", "stew"]))
-        self.assertEqual(graph.neighbourhood("bobo", 3, inclusive=True), graph.nodes(["bobo", "jack", "jill", "jane", "colt", "stew", "alik"]))
-        self.assertEqual(graph.neighbourhood("bobo", 4, inclusive=True), graph.nodes(["bobo", "jack", "jill", "jane", "colt", "stew", "alik"]))
-        self.assertEqual(graph.neighbourhood("bobo", None, inclusive=True), graph.nodes(["bobo", "jack", "jill", "jane", "colt", "stew", "alik"]))
+        self.assertEqual(graph.neighbourhood("bobo", 0, True), set([("bobo", 0)]))
+        self.assertEqual(graph.neighbourhood("bobo", 1, True), set([("bobo", 0), ("jack", 1), ("jill", 1), ("jane", 1)]))
+        self.assertEqual(graph.neighbourhood("bobo", 2, True), set([("bobo", 0), ("jack", 1), ("jill", 1), ("jane", 1), ("colt", 2), ("stew", 2)]))
+        self.assertEqual(graph.neighbourhood("bobo", 3, True), set([("bobo", 0), ("jack", 1), ("jill", 1), ("jane", 1), ("colt", 2), ("stew", 2), ("alik", 3)]))
+        self.assertEqual(graph.neighbourhood("bobo", 4, True), set([("bobo", 0), ("jack", 1), ("jill", 1), ("jane", 1), ("colt", 2), ("stew", 2), ("alik", 3)]))
+        self.assertEqual(graph.neighbourhood("bobo", None, True), set([("bobo", 0), ("jack", 1), ("jill", 1), ("jane", 1), ("colt", 2), ("stew", 2), ("alik", 3)]))
 
-        self.assertEqual(graph.neighbourhood("colt", None, inclusive=False), set())
-        self.assertEqual(graph.neighbourhood("colt", None, inclusive=True), graph.nodes(["colt"]))
+        self.assertEqual(graph.neighbourhood("colt", None, False), set())
+        self.assertEqual(graph.neighbourhood("colt", None, True), set([("colt", 0)]))
 
-        self.assertEqual(graph.neighbourhood("jack", None, inclusive=False), graph.nodes(["colt"]))
-        self.assertEqual(graph.neighbourhood("jack", None, inclusive=True), graph.nodes(["colt", "jack"]))
+        self.assertEqual(graph.neighbourhood("jack", None, False), set([("colt", 1)]))
+        self.assertEqual(graph.neighbourhood("jack", None, True), set([("jack", 0), ("colt", 1)]))
 
     def test_neighbourhood_undirected(self):
         gb = GraphBuilder(Graph.UNDIRECTED)
@@ -103,18 +240,20 @@ class Tests(TestCase):
             .add("jack", ["colt"]) \
             .add("jill", ["alik", "stew"]) \
             .add("colt", ["stew"]) \
+            .add("peny", ["ruby"]) \
             .build()
-        self.assertEqual(graph.neighbourhood("bobo", 0, inclusive=False), set())
-        self.assertEqual(graph.neighbourhood("bobo", 1, inclusive=False), graph.nodes(["jack", "jill", "jane"]))
-        self.assertEqual(graph.neighbourhood("bobo", 2, inclusive=False), graph.nodes(["bobo", "jack", "jill", "jane", "alik", "colt", "stew"]))
-        self.assertEqual(graph.neighbourhood("bobo", 3, inclusive=False), graph.nodes(["bobo", "jack", "jill", "jane", "alik", "colt", "stew"]))
-        self.assertEqual(graph.neighbourhood("bobo", None, inclusive=False), graph.nodes(["bobo", "jack", "jill", "jane", "alik", "colt", "stew"]))
+        self.assertEqual(graph.neighbourhood("bobo", 0, False), set())
+        self.assertEqual(graph.neighbourhood("bobo", 1, False), set([("jack", 1), ("jill", 1), ("jane", 1)]))
+        self.assertEqual(graph.neighbourhood("bobo", 2, False), set([("jack", 1), ("jill", 1), ("jane", 1), ("alik", 2), ("colt", 2), ("stew", 2)]))
+        self.assertEqual(graph.neighbourhood("bobo", 3, False), set([("jack", 1), ("jill", 1), ("jane", 1), ("alik", 2), ("colt", 2), ("stew", 2)]))
+        self.assertEqual(graph.neighbourhood("bobo", None, False), set([("jack", 1), ("jill", 1), ("jane", 1), ("alik", 2), ("colt", 2), ("stew", 2)]))
 
-        self.assertEqual(graph.neighbourhood("bobo", 0, inclusive=True), graph.nodes(["bobo"]))
-        self.assertEqual(graph.neighbourhood("bobo", 1, inclusive=True), graph.nodes(["bobo", "jack", "jill", "jane"]))
-        self.assertEqual(graph.neighbourhood("bobo", 2, inclusive=True), graph.nodes(["bobo", "jack", "jill", "jane", "alik", "colt", "stew"]))
-        self.assertEqual(graph.neighbourhood("bobo", 3, inclusive=True), graph.nodes(["bobo", "jack", "jill", "jane", "alik", "colt", "stew"]))
-        self.assertEqual(graph.neighbourhood("bobo", None, inclusive=True), graph.nodes(["bobo", "jack", "jill", "jane", "alik", "colt", "stew"]))
+        self.assertEqual(graph.neighbourhood("bobo", 0, True), set([("bobo", 0)]))
+        self.assertEqual(graph.neighbourhood("bobo", 1, True), set([("bobo", 0), ("jack", 1), ("jill", 1), ("jane", 1)]))
+        self.assertEqual(graph.neighbourhood("bobo", 2, True), set([("bobo", 0), ("jack", 1), ("jill", 1), ("jane", 1), ("alik", 2), ("colt", 2), ("stew", 2)]))
+        self.assertEqual(graph.neighbourhood("bobo", 3, True), set([("bobo", 0), ("jack", 1), ("jill", 1), ("jane", 1), ("alik", 2), ("colt", 2), ("stew", 2)]))
+        self.assertEqual(graph.neighbourhood("bobo", None, True), set([("bobo", 0), ("jack", 1), ("jill", 1), ("jane", 1), ("alik", 2), ("colt", 2), ("stew", 2)]))
+
 
     def test_cc_none_undirected(self):
         gb = GraphBuilder(Graph.UNDIRECTED)
@@ -124,6 +263,15 @@ class Tests(TestCase):
         self.assertEqual(graph.clustering_coefficients["jack"], 0.0)
         self.assertEqual(graph.clustering_coefficients["jill"], 0.0)
         self.assertEqual(graph.clustering_coefficients["jane"], 0.0)
+        # Testing clustering coefficient expansion
+        self.assertEqual(graph.neighbourhood("bobo", 0, False), set())
+        self.assertEqual(graph.neighbourhood("bobo", 0, False, (1, 1.0)), set([("jack", 1), ("jill", 1), ("jane", 1)]))
+        self.assertEqual(graph.neighbourhood("jack", 0, False), set())
+        self.assertEqual(graph.neighbourhood("jack", 0, False, (1, 1.0)), set([("bobo", 1)]))
+        self.assertEqual(graph.neighbourhood("jill", 0, False), set())
+        self.assertEqual(graph.neighbourhood("jill", 0, False, (1, 1.0)), set([("bobo", 1)]))
+        self.assertEqual(graph.neighbourhood("jane", 0, False), set())
+        self.assertEqual(graph.neighbourhood("jane", 0, False, (1, 1.0)), set([("bobo", 1)]))
 
     def test_cc_one_undirected(self):
         gb = GraphBuilder(Graph.UNDIRECTED)
@@ -134,6 +282,17 @@ class Tests(TestCase):
         self.assertEqual(graph.clustering_coefficients["jack"], 1.0)
         self.assertEqual(graph.clustering_coefficients["jill"], 1.0)
         self.assertEqual(graph.clustering_coefficients["jane"], 0.0)
+        # Testing clustering coefficient expansion
+        self.assertEqual(graph.neighbourhood("bobo", 0, False), set())
+        self.assertEqual(graph.neighbourhood("bobo", 0, False, (1, 0.34)), set([("jack", 1), ("jill", 1)]))
+        self.assertEqual(graph.neighbourhood("bobo", 0, False, (1, 0.32)), set())
+        self.assertEqual(graph.neighbourhood("jack", 0, False), set())
+        self.assertEqual(graph.neighbourhood("jack", 0, False, (1, 1.0)), set([("jill", 1)]))
+        self.assertEqual(graph.neighbourhood("jill", 0, False), set())
+        self.assertEqual(graph.neighbourhood("jill", 0, False, (1, 1.0)), set([("jack", 1)]))
+        self.assertEqual(graph.neighbourhood("jane", 0, False), set())
+        self.assertEqual(graph.neighbourhood("jane", 0, False, (1, 1.0)), set([("bobo", 1)]))
+        self.assertEqual(graph.neighbourhood("jane", 0, False, (1, 0.1)), set([("bobo", 1)]))
 
     def test_cc_two_undirected(self):
         gb = GraphBuilder(Graph.UNDIRECTED)
@@ -144,6 +303,19 @@ class Tests(TestCase):
         self.assertEqual(graph.clustering_coefficients["jack"], 2 / 3.0)
         self.assertEqual(graph.clustering_coefficients["jill"], 1.0)
         self.assertEqual(graph.clustering_coefficients["jane"], 1.0)
+        # Testing clustering coefficient expansion
+        self.assertEqual(graph.neighbourhood("bobo", 0, False), set())
+        self.assertEqual(graph.neighbourhood("bobo", 0, False, (1, 1.0)), set([("jill", 1), ("jane", 1), ("jack", 1)]))
+        self.assertEqual(graph.neighbourhood("bobo", 0, False, (1, 0.67)), set([("jill", 1), ("jane", 1)]))
+        self.assertEqual(graph.neighbourhood("bobo", 0, False, (1, 0.65)), set())
+        self.assertEqual(graph.neighbourhood("jack", 0, False), set())
+        self.assertEqual(graph.neighbourhood("jack", 0, False, (1, 1.0)), set([("jill", 1), ("jane", 1), ("bobo", 1)]))
+        self.assertEqual(graph.neighbourhood("jack", 0, False, (1, 0.67)), set([("jill", 1), ("jane", 1)]))
+        self.assertEqual(graph.neighbourhood("jack", 0, False, (1, 0.65)), set())
+        self.assertEqual(graph.neighbourhood("jill", 0, False), set())
+        self.assertEqual(graph.neighbourhood("jill", 0, False, (1, 1.0)), set())
+        self.assertEqual(graph.neighbourhood("jane", 0, False), set())
+        self.assertEqual(graph.neighbourhood("jane", 0, False, (1, 1.0)), set())
 
     def test_cc_three_undirected(self):
         gb = GraphBuilder(Graph.UNDIRECTED)
@@ -164,6 +336,15 @@ class Tests(TestCase):
         self.assertEqual(graph.clustering_coefficients["jack"], 0.0)
         self.assertEqual(graph.clustering_coefficients["jill"], 0.0)
         self.assertEqual(graph.clustering_coefficients["jane"], 0.0)
+        # Testing clustering coefficient expansion
+        self.assertEqual(graph.neighbourhood("bobo", 0, False), set())
+        self.assertEqual(graph.neighbourhood("bobo", 0, False, (1, 1.0)), set([("jack", 1), ("jill", 1), ("jane", 1)]))
+        self.assertEqual(graph.neighbourhood("jack", 0, False), set())
+        self.assertEqual(graph.neighbourhood("jack", 0, False, (1, 1.0)), set())
+        self.assertEqual(graph.neighbourhood("jill", 0, False), set())
+        self.assertEqual(graph.neighbourhood("jill", 0, False, (1, 1.0)), set())
+        self.assertEqual(graph.neighbourhood("jane", 0, False), set())
+        self.assertEqual(graph.neighbourhood("jane", 0, False, (1, 1.0)), set())
 
     def test_cc_one_directed(self):
         gb = GraphBuilder(Graph.DIRECTED)
@@ -174,6 +355,15 @@ class Tests(TestCase):
         self.assertEqual(graph.clustering_coefficients["jack"], 0.0)
         self.assertEqual(graph.clustering_coefficients["jill"], 0.0)
         self.assertEqual(graph.clustering_coefficients["jane"], 0.0)
+        # Testing clustering coefficient expansion
+        self.assertEqual(graph.neighbourhood("bobo", 0, False), set())
+        self.assertEqual(graph.neighbourhood("bobo", 0, False, (1, 1.0)), set())
+        self.assertEqual(graph.neighbourhood("jack", 0, False), set())
+        self.assertEqual(graph.neighbourhood("jack", 0, False, (1, 1.0)), set([("jill", 1)]))
+        self.assertEqual(graph.neighbourhood("jill", 0, False), set())
+        self.assertEqual(graph.neighbourhood("jill", 0, False, (1, 1.0)), set())
+        self.assertEqual(graph.neighbourhood("jane", 0, False), set())
+        self.assertEqual(graph.neighbourhood("jane", 0, False, (1, 1.0)), set())
 
     def test_cc_two_directed(self):
         gb = GraphBuilder(Graph.DIRECTED)
@@ -207,6 +397,15 @@ class Tests(TestCase):
         self.assertEqual(graph.clustering_coefficients["jack"], 1 / 2.0)
         self.assertEqual(graph.clustering_coefficients["jill"], 0.0)
         self.assertEqual(graph.clustering_coefficients["jane"], 0.0)
+        # Testing clustering coefficient expansion
+        self.assertEqual(graph.neighbourhood("bobo", 0, False), set())
+        self.assertEqual(graph.neighbourhood("bobo", 0, False, (1, 1.0)), set())
+        self.assertEqual(graph.neighbourhood("jack", 0, False), set())
+        self.assertEqual(graph.neighbourhood("jack", 0, False, (1, 1.0)), set())
+        self.assertEqual(graph.neighbourhood("jill", 0, False), set())
+        self.assertEqual(graph.neighbourhood("jill", 0, False, (1, 0.1)), set([("jack", 1)]))
+        self.assertEqual(graph.neighbourhood("jane", 0, False), set())
+        self.assertEqual(graph.neighbourhood("jane", 0, False, (1, 1.0)), set([("jill", 1)]))
 
     def test_cc_five_directed(self):
         gb = GraphBuilder(Graph.DIRECTED)

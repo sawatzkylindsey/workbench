@@ -1,15 +1,18 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+import json
 import logging
 import pdb
 
-from check import check_instance, check_not_instance, check_equal, check_not_equal
+from workbench.base import Base, Comparable
+from workbench.check import check_instance, check_not_instance, check_equal, check_not_equal, check_one_of, check_list_or_set
 
 
-class Node:
+class Node(Comparable):
     # Note: Want instance based equals/hash.
     def __init__(self, identifier):
+        super(Node, self).__init__()
         self.identifier = check_not_instance(identifier, Node)
         self.descendants = set()
         self.finalized = False
@@ -30,8 +33,8 @@ class Node:
     def __repr__(self):
         return str(self)
 
-    def __cmp__(self, other):
-        return cmp(self.identifier, other.identifier)
+    def _comparator(self, fn, other):
+        return fn(self.identifier, other.identifier)
 
     # We do indeed want object identity (writing a __cmp__ method forces us to write __eq__ and __hash__).
     def __eq__(self, other):
@@ -42,10 +45,14 @@ class Node:
         return id(self)
 
 
-class DirectedLink:
+class DirectedLink(Base):
     def __init__(self, source, target):
+        super(DirectedLink, self).__init__()
         self.source = check_not_instance(source, Node)
         self.target = check_not_instance(target, Node)
+
+    def __str__(self):
+        return "DirectedLink{source:%s, target:%s}" % (self.source, self.target)
 
     def __eq__(self, other):
         return self.source == other.source and \
@@ -55,10 +62,14 @@ class DirectedLink:
         return hash((self.source, self.target))
 
 
-class UndirectedLink:
+class UndirectedLink(Base):
     def __init__(self, source, target):
+        super(UndirectedLink, self).__init__()
         self.source = check_not_instance(source, Node)
         self.target = check_not_instance(target, Node)
+
+    def __str__(self):
+        return "UndirectedLink{%s, %s}" % (self.source, self.target)
 
     def __eq__(self, other):
         return (self.source == other.source and self.target == other.target) or \
@@ -72,7 +83,7 @@ class Graph(object):
     DIRECTED = "directed"
     UNDIRECTED = "undirected"
 
-    def __init__(self, all_nodes):
+    def __init__(self, all_nodes, kind):
         if len(all_nodes) > 0:
             identifier_class = all_nodes[0].identifier.__class__
 
@@ -81,30 +92,84 @@ class Graph(object):
                 check_equal(node.finalized, True)
 
         self.all_nodes = all_nodes
+        self.kind = check_one_of(kind, [Graph.DIRECTED, Graph.UNDIRECTED])
         self.indexes = {}
 
         for node in self.all_nodes:
             self.indexes[node.identifier] = node
 
-    def _links(self, direction):
+        self.clustering_coefficients = self._calculate_clustering_coefficients()
+        self.distances, self.max_distance = self._calculate_distances()
+
+    def _calculate_clustering_coefficients(self):
+        ccs = {}
+
+        for node in self.all_nodes:
+            neighbours = [n for n in node.descendants]
+            count = 0
+
+            for i, neighbour in enumerate(neighbours):
+                for j in range(i if self.kind == Graph.UNDIRECTED else 0, len(neighbours)):
+                    if neighbours[j] in neighbour.descendants:
+                        count += 1
+
+            total = len(neighbours)
+            cc = 0.0
+
+            if count > 0:
+                if total > 1:
+                    numerator = float(total) * (total - 1)
+
+                    if self.kind == Graph.UNDIRECTED:
+                        numerator /= 2.0
+
+                    cc = count / numerator
+
+            ccs[node.identifier] = cc
+
+        return ccs
+
+    def _calculate_distances(self):
+        ds = {}
+        maximum = 0
+
+        for node in self.all_nodes:
+            ds[node.identifier] = {}
+
+            for neighbour, distance in self.neighbourhood(node, None, True, None):
+                ds[node.identifier][neighbour] = distance
+
+                if distance > maximum:
+                    maximum = distance
+
+            for neighbour in self.all_nodes:
+                if neighbour.identifier not in ds[node.identifier]:
+                    ds[node.identifier][neighbour.identifier] = None
+
+        return ds, maximum
+
+    def links(self):
         links = set()
 
         for node in self.all_nodes:
             for descendant in node.descendants:
-                if direction == self.DIRECTED:
+                if self.kind == self.DIRECTED:
                     link = DirectedLink(node.identifier, descendant.identifier)
-                elif direction == self.UNDIRECTED:
+                elif self.kind == self.UNDIRECTED:
                     link = UndirectedLink(node.identifier, descendant.identifier)
                 else:
-                    raise ValueError(direction)
+                    raise ValueError(self.kind)
 
                 links.add(link)
 
-        logging.debug("links(%s): nodes=%d -> links=%d." % (direction, len(self.all_nodes), len(links)))
+        logging.debug("links(%s): nodes=%d -> links=%d." % (self.kind, len(self.all_nodes), len(links)))
         return links
 
-    def _sub_graph(self, direction, identifiers):
-        gb = GraphBuilder(direction)
+    def distance(self, a, b):
+        return self.distances[a][b]
+
+    def sub_graph(self, identifiers):
+        gb = GraphBuilder(self.kind)
 
         for link in self.links():
             if link.source in identifiers and link.target in identifiers:
@@ -112,55 +177,43 @@ class Graph(object):
 
         return gb.build()
 
+    def neighbourhood(self, node_or_identifier, limit=None, self_inclusive=False, expansion=None):
+        if expansion is not None:
+            assert isinstance(expansion, tuple)
+            assert len(expansion) == 2
+            assert isinstance(expansion[0], int) and expansion[0] > 0
+            assert expansion[1] > 0.0 and expansion[1] <= 1.0
 
-    def neighbourhood(self, node_or_identifier, limit=None, inclusive=False):
         if isinstance(node_or_identifier, Node):
             node = node_or_identifier
         else:
             node = self.indexes[node_or_identifier]
 
-        if limit == 1:
-            return node.descendants.union(set([node])) if inclusive else node.descendants
-
-        call_id = "%s-%s-%s" % (node.identifier, limit, inclusive)
-        out = set()
-        logging.debug("%s: queing %s" % (call_id, node))
+        call_id = "%s-%s-%s" % (node.identifier, limit, self_inclusive)
         processing = [(node, 0)]
         processed = {}
-        first = True
 
         while len(processing) > 0:
-            current_node, current_limit = processing.pop()
+            current_node, current_distance = processing.pop()
             current_cc = self.clustering_coefficients[current_node.identifier]
-
-            if current_node in processed:
-                assert processed[current_node] > current_limit
-
-            if not first:
-                processed[current_node] = current_limit
-
-            if first:
-                if inclusive:
-                    out.add(current_node)
-                    logging.debug("%s: adding %s (first+inclusive)" % (call_id, current_node))
-            else:
-                out.add(current_node)
-                logging.debug("%s: adding %s" % (call_id, current_node))
-
-            first = False
-            descendant_limit = current_limit + 1
+            processed[current_node.identifier] = current_distance
+            #logging.debug("%s: adding %s-%d" % (call_id, current_node, current_distance))
+            descendant_distance = current_distance + 1
 
             for descendant in current_node.descendants:
-                logging.debug("%s: explor %s (%s)" % (call_id, descendant, descendant_limit))
+                #logging.debug("%s: explore %s-%d" % (call_id, descendant, descendant_distance))
                 descendant_cc = self.clustering_coefficients[descendant.identifier]
 
-                # TODO: Properify                                      vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-                if (descendant not in processed or processed[descendant] > descendant_limit) \
-                    and (limit is None or descendant_limit <= limit or (descendant_limit <= limit + 1 and descendant_cc - .25 > current_cc)):
-                    logging.debug("%s: queing %s" % (call_id, descendant))
-                    processing.append((descendant, descendant_limit))
+                if (descendant.identifier not in processed or processed[descendant.identifier] > descendant_distance) \
+                    and (limit is None or descendant_distance <= limit \
+                        or (expansion is not None and descendant_distance <= (limit + expansion[0]) and (descendant_cc * expansion[1]) >= current_cc)):
+                    #logging.debug("%s: queuing (cc %.2f) %s-%d" % (call_id, descendant_cc, descendant.identifier, descendant_distance))
+                    processing.append((descendant, descendant_distance))
 
-        return out
+        if not self_inclusive:
+            del processed[node.identifier]
+
+        return set(processed.items())
 
     def nodes(self, identifiers):
         return set([self.indexes[i] for i in identifiers])
@@ -170,7 +223,7 @@ class Graph(object):
         initial = 1.0 / len(self.all_nodes)
         weights = {n.identifier: initial for n in self.all_nodes}
 
-        for i in xrange(0, epochs):
+        for i in range(0, epochs):
             next_weights = self.page_rank_iteration(weights, damping, biases)
 
             if self._delta(weights, next_weights) < epsilon:
@@ -186,17 +239,15 @@ class Graph(object):
         leak = 0.0
 
         for node in self.all_nodes:
-            direct_neighbours = self.neighbourhood(node.identifier, 1, False)
+            if len(node.descendants) > 0:
+                contribution = weights[node.identifier] / len(node.descendants)
 
-            if len(direct_neighbours) > 0:
-                contribution = weights[node.identifier] / len(direct_neighbours)
-
-                for direct_neighbour in direct_neighbours:
-                    intermediaries[direct_neighbour.identifier] += contribution
+                for descendant in node.descendants:
+                    intermediaries[descendant.identifier] += contribution
             else:
                 leak += weights[node.identifier]
 
-        for k, v in biases.iteritems():
+        for k, v in biases.items():
             assert v >= 0.0 and v <= 1.0
             intermediaries[k] += v
 
@@ -205,20 +256,20 @@ class Graph(object):
         leak_constant = (damping * leak) / len(self.all_nodes)
         out = {}
 
-        for k, v in intermediaries.iteritems():
+        for k, v in intermediaries.items():
             out[k] = damping_constant + leak_constant + (damping * v)
 
         if len(biases) > 0:
             total = sum(out.values())
             scale = 1.0 / total
-            out = {k: scale * v for k, v in out.iteritems()}
+            out = {k: scale * v for k, v in out.items()}
 
         return out
 
     def _delta(self, a, b):
         total = 0.0
 
-        for k, v in a.iteritems():
+        for k, v in a.items():
             total += abs(v - b[k])
 
         return total
@@ -226,64 +277,14 @@ class Graph(object):
 
 class UndirectedGraph(Graph):
     def __init__(self, all_nodes):
-        super(UndirectedGraph, self).__init__(all_nodes)
-        self.clustering_coefficients = {}
-
-        for node in self.all_nodes:
-            neighbours = [n for n in node.descendants]
-            count = 0
-
-            for i, neighbour in enumerate(neighbours):
-                for j in xrange(i, len(neighbours)):
-                    if neighbours[j] in neighbour.descendants:
-                        count += 1
-
-            total = len(neighbours)
-            cc = 0.0
-
-            if count > 0:
-                if total > 1:
-                    cc = count / (float(total) * (total - 1) / 2.0)
-
-            self.clustering_coefficients[node.identifier] = cc
-
-    def links(self):
-        return self._links(self.UNDIRECTED)
-
-    def sub_graph(self):
-        return self._sub_graph(self.UNDIRECTED)
+        super(UndirectedGraph, self).__init__(all_nodes, Graph.UNDIRECTED)
+        pass
 
 
 class DirectedGraph(Graph):
     def __init__(self, all_nodes):
-        super(DirectedGraph, self).__init__(all_nodes)
-        self.clustering_coefficients = {}
-
-        for node in self.all_nodes:
-            neighbours = [n for n in node.descendants]
-            #direct_neighbours = self.neighbourhood(node, 1)
-            #neighbours = [n for n in direct_neighbours]
-            count = 0
-
-            for i, neighbour in enumerate(neighbours):
-                for j in xrange(0, len(neighbours)):
-                    if neighbours[j] in neighbour.descendants:
-                        count += 1
-
-            total = len(neighbours)
-            cc = 0.0
-
-            if count > 0:
-                if total > 1:
-                    cc = count / (float(total) * (total - 1))
-
-            self.clustering_coefficients[node.identifier] = cc
-
-    def links(self):
-        return self._links(self.DIRECTED)
-
-    def sub_graph(self):
-        return self._sub_graph(self.DIRECTED)
+        super(DirectedGraph, self).__init__(all_nodes, Graph.DIRECTED)
+        pass
 
 
 class GraphBuilder:
@@ -295,6 +296,8 @@ class GraphBuilder:
             raise ValueError(direction)
 
     def add(self, identifier, descendants=[]):
+        check_list_or_set(descendants)
+
         for descendant in descendants:
             if descendant not in self.nodes:
                 self.nodes[descendant] = Node(descendant)

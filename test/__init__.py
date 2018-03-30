@@ -4,7 +4,7 @@
 from pytils.invigilator import create_suite
 
 
-from workbench.test import graph, nlp
+from test import graph, nlp
 
 
 def all():

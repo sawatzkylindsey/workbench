@@ -36,7 +36,7 @@ def build(terms, tokenizer=lambda t: iter(t)):
     logging.debug("build:\n%s\n%s" % (trie_dict, finals))
 
     def _build(d, path=[]):
-        iterator = d.iteritems
+        iterator = d.items
         children = {}
 
         for token, sub_dict in iterator():

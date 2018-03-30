@@ -1,2 +1,8 @@
 *.pyc
+*.log
+.coverage
+
+p3/
+build/
+
 

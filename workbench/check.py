@@ -1,6 +1,8 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+import collections
+
 
 def check_not_none(value):
     if value is None:
@@ -47,15 +49,30 @@ def check_instance(value, instance):
     return value
 
 
+def check_list_or_set(value):
+    if not isinstance(value, list) and not isinstance(value, set):
+        raise ValueError("value '%s' is unexpectedly not a list or a set" % value)
+
+    return value
+
+
 def check_not_equal(value, other):
     if value == other:
         raise ValueError("value '%s' is unexpectedly equal to '%s'" % (value, other))
 
     return value
 
+
 def check_equal(value, other):
     if value != other:
         raise ValueError("value '%s' is unexpectedly not equal to '%s'" % (value, other))
+
+    return value
+
+
+def check_one_of(value, options):
+    if value not in options:
+        raise ValueError("value '%s' is unexpectedly not one of '%s'" % (value, options))
 
     return value
 

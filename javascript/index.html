@@ -26,26 +26,17 @@
 var rainbow = new Rainbow();
 rainbow.setNumberRange(0, 1.0);
 rainbow.setSpectrum("#96afff", "#001e84");
-//rainbow.setSpectrum("#96afff", "#00155b");
 
 var svg = d3.select("svg"),
     width = +svg.attr("width"),
     height = +svg.attr("height");
 
 var fo = svg.append("foreignObject")
-    //.text("asdf")
-    //.attr("type", "text")
-    //.attr("placeholder", "adsf")
-    /*.attr("x", 0)
-    .attr("y", 0)
-    .attr("width", 100)
-    .attr("height", 150)*/
     .attr("transform", "translate(20, 20)");
 
 var textbox = fo.append("xhtml:input")
     .attr("type", "text")
-    .attr("id", "textbox");
-    textbox
+    .attr("id", "textbox")
     .on("keydown", function () {
         if (d3.event.keyCode == 13) {
             selectTerm(textbox.property("value"));
@@ -54,18 +45,6 @@ var textbox = fo.append("xhtml:input")
     });
 
 var color = d3.scaleOrdinal(d3.schemeCategory20);
-var absoluteGraph;
-
-/*function count(thing) {
-    if (absoluteGraph == null) {
-        return 1;
-    }
-
-    var c = 0;
-
-    absoluteGraph.
-}*/
-
 var RADIUS_SCALE = 250;
 
 function radius(r) {
@@ -78,287 +57,140 @@ function radius(r) {
 
 var simulation = d3.forceSimulation()
     .force("link", d3.forceLink()
-        /*.distance(function (link) {
-            console.log(link.source.radius);
-            console.log(link.target.radius);
-            console.log(Math.max(link.source.radius, link.target.radius));
-            console.log(radius(Math.max(link.source.radius, link.target.radius)));
-            return radius(Math.max(link.source.radius, link.target.radius)) * 1;
-        })*/
         .distance(80)
         .id(function(d) { return d.name; })
-        /*.strength(function(link) {
-            //return Math.max(link.source.radius, link.target.radius);
-            return 0.01;
-            //console.log(count(link.source));
-            //return 1 / Math.min(count(link.source), count(link.target));
-        })*/
     )
     .force("charge", d3.forceManyBody().strength(-200))
-    //.force("center", d3.forceCenter(width / 2, height / 2))
     .force("collide", d3.forceCollide(function (d) {
         return radius(d.radius) * 2;
     }).strength(0.005).iterations(16))
+    //.force("center", d3.forceCenter(width / 2, height / 2))
     .force("y", d3.forceY(height / 2.0).strength(0.05))
     .force("x", d3.forceX(width/ 2.0).strength(0.05));
-/*var simulation = d3.layout.force()
-    .gravity(.05)
-    .charge(-240)
-    .linkDistance(50)
-    .size([width, height]);*/
 
 d3.json("search")
     .post("", function(error, data) {
         //console.log(data);
         draw(data);
     });
-/*d3.json("Astronomy.json", function(error, graph) {
-    console.log("asdfdf");
-    if (error) {
-        throw error;
-    }
 
-    console.log(graph);
-});*/
-
-var placements = {};
-var previousPositions = {};
-var stalex = {};
-var staley = {};
 
 function draw(graph) {
-  absoluteGraph = graph;
-  console.log(graph);
+    console.log(graph);
 
-  previousPositions = {};
-  stalex = {};
-  staley = {};
-  var placedNodesList = svg.selectAll("circle")
-    .each(function(n) {
-      //console.log(n);
-      previousPositions[n.name] = {"x": n.x, "y": n.y};
+    var previousPositions = {};
+    svg.selectAll("circle")
+        .each(function(n) {
+            //console.log(n);
+            previousPositions[n.name] = {"x": n.x, "y": n.y};
+        });
+    graph.nodes = graph.nodes.map(function(n) {
+        if (n.name in previousPositions) {
+            n["fx"] = previousPositions[n.name].x;
+            n["fy"] = previousPositions[n.name].y;
+        }
+        return n;
     });
-  /*for (var n in graph.nodes) {
-    console.log(n);
-    n["fx"] = 500;
-    n["fy"] = 400;
-    console.log(n);
-  }*/
-  graph.nodes = graph.nodes.map(function(n) {
-    if (n.name in previousPositions) {
-        n["fx"] = previousPositions[n.name].x;
-        n["fy"] = previousPositions[n.name].y;
-    }
-    return n;
-  });
-  console.log(graph);
+    console.log(graph);
 
-  svg.selectAll("g").remove();
+    svg.selectAll("g").remove();
 
-  var link = svg.append("g")
-      .attr("class", "links")
-    .selectAll("links")
-    .data(graph.links, function (links) {
-        return links;
-        //return l || d3.select(this).attr("id")
-    })
-    .enter()
-    .append("line")
-      //.attr("id", function(d) { return d["source"]id; })
-      .attr("term-source", function(l) { return l.source; })
-      .attr("term-target", function(l) { return l.target; })
-      .attr("stroke-width", function(l) { return Math.sqrt(l.value); })
-      .style("opacity", function(l) { return l.alpha; } );
+    var link = svg.append("g")
+        .attr("class", "links")
+        .selectAll("links")
+        .data(graph.links, function (links) {
+            return links;
+        })
+        .enter()
+        .append("line")
+        .attr("term-source", function(l) { return l.source; })
+        .attr("term-target", function(l) { return l.target; })
+        .attr("stroke-width", function(l) { return Math.sqrt(l.value); })
+        .style("opacity", function(l) { return l.alpha; } );
 
-  //for(var n in graph.nodes) {
-  // console.log(n.name);
-  //  //all_links.push({"source": x["source"], "target": x["target"]});
-  //}
-
-  var node = svg.append("g")
-      .attr("class", "nodes")
-    .selectAll("bob")
-    .data(graph.nodes)
-    .enter().append("circle")
-      .attr("id", function(d) { return "node-" + d.name; })
-      //.attr("r", 5)
-      .attr("fill", function(d) {
-        return "#" + rainbow.colourAt(d.coeff);
-      })
-      .attr("term", function(d) { return d.name; })
-      .attr("r", function(d) { return radius(d.radius); })
-      /*.attr("fx", function(d) {
-        if (d.name in previousPositions) {
-            return previousPositions[d.name].x;
-        }
-        return null;
-      })
-      .attr("fy", function(d) {
-        if (d.name in previousPositions) {
-            return previousPositions[d.name].y;
-        }
-        return null;
-      })
-      .call(function(d) {
-        if (d.name in previousPositions) {
-            d.fx = previousPositions[d.name].x;
-            d.fy = previousPositions[d.name].y;
-        }
-      })
-      .call(function(d) {
-        d.fx = 100;
-        d.fy = 200;
-       })*/
-      .style("opacity", function(d) { return d.alpha; })
-      .on("click", unstick)
-      .call(d3.drag()
-          .on("start", dragstarted)
-          .on("drag", dragged)
-          .on("end", dragended));
-
-    //var labels = svg.selectAll(".labels")
-    var labels = svg.append("g")
-          .attr("class", "label").selectAll("bobbobobo")
+    var node = svg.append("g")
+        .attr("class", "nodes")
+        .selectAll("bob")
         .data(graph.nodes)
         .enter()
-        .append("text")
-        .style("pointer-events", "none")
-        /*.attr("x", function(d) {
-          if (d.name in placedNodes) {
-            return placedNodes[d.name]["x"];
-          }
-          else {
-            return d.x;
-          }
-        })
-        .attr("y", function(d) {
-          if (d.name in placedNodes) {
-            return placedNodes[d.name]["y"];
-          }
-          else {
-            return d.y;
-          }
-        })*/
-        //.attr("y", function(d) { return d.y; })
-        .attr("class", "labels")
-        .attr("stroke", "black")
-        .attr("term", function(d) { return d.name; })
-        .style("opacity", function(d) { return d.alpha / 1.5; })
-        .text(function (d) { return d.name; });
+            .append("circle")
+            .attr("id", function(d) { return "node-" + d.name; })
+            .attr("fill", function(d) {
+                return "#" + rainbow.colourAt(d.coeff);
+            })
+            .attr("term", function(d) { return d.name; })
+            .attr("r", function(d) { return radius(d.radius); })
+            .style("opacity", function(d) { return d.alpha; })
+            .on("click", unstick)
+            .call(d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended));
 
-  simulation
-      .nodes(graph.nodes)
-      .on("tick", ticked);
+    var labels = svg.append("g")
+        .attr("class", "label")
+        .selectAll("bobbobobo")
+        .data(graph.nodes)
+        .enter()
+            .append("text")
+            .style("pointer-events", "none")
+            .attr("class", "labels")
+            .attr("stroke", "black")
+            .attr("term", function(d) { return d.name; })
+            .style("opacity", function(d) { return d.alpha / 1.5; })
+            .text(function (d) { return d.name; });
 
-  simulation.force("link")
-      .links(graph.links);
+    simulation.nodes(graph.nodes)
+        .on("tick", ticked);
 
-  simulation.alphaTarget(0.5).restart();
-  var i = 0;
+    simulation.force("link")
+        .links(graph.links);
 
-  function ticked() {
-    link
-        .attr("x1", function(d) { return xbounded(d.source); })
-        .attr("y1", function(d) { return ybounded(d.source); })
-        .attr("x2", function(d) { return xbounded(d.target); })
-        .attr("y2", function(d) { return ybounded(d.target); });
+    simulation.alphaTarget(0.5).restart();
 
-    node.call(function(d) {
-            /*if (d.name in placements) {
-                d.fx = placements[d.name].x;
-                d.fy = placements[d.name].y;
-            }
-            else if (d.name in previousPositions) {
-                d.fx = previousPositions[d.name].x;
-                d.fy = previousPositions[d.name].y;
-            }
-            else {
-                d.fx = null;
-                d.fy = null;
-                d.cx = xbounded(d);
-                d.cy = ybounded(d);
-            }*/
-            //    d.cx = xbounded(d);
-            //    d.cy = ybounded(d);
-            //console.log(d.name + " (" + d.x + "," + d.y + ")");
-        })
-        /*.attr("fx", function(d) {
-            if (d.name in placements) {
-                return placements[d.name].x;
-            }
-            else if (d.name in previousPositions) {
-                return previousPositions[d.name].x;
-            }
-            return null;
-        })
-        .attr("fy", function(d) {
-            if (d.name in placements) {
-                return placements[d.name].y;
-            }
-            else if (d.name in previousPositions) {
-                return previousPositions[d.name].y;
-            }
-            return null;
-        })*/
-        .attr("cx", function(d) {
-            /*if (d.name in previousPositions && !(d.name in stalex)) {
-                stalex[d.name] = true;
-                return previousPositions[d.name].x;
-            }*/
-            return xbounded(d);
-        })
-        .attr("cy", function(d) {
-            /*if (d.name in previousPositions && !(d.name in staley)) {
-                staley[d.name] = true;
-                return previousPositions[d.name].y;
-            }*/
-            return ybounded(d);
-        });
-        //.attr("cx", function(d) { return xbounded(d);})
-        //.attr("cy", function(d) { return ybounded(d);});
+    function ticked() {
+        link
+            .attr("x1", function(d) { return xbounded(d.source); })
+            .attr("y1", function(d) { return ybounded(d.source); })
+            .attr("x2", function(d) { return xbounded(d.target); })
+            .attr("y2", function(d) { return ybounded(d.target); });
 
-    labels
-        .attr("x", function(d) {
-            return xbounded(d) + radius(d.radius) + 4.5;
-        })
-        .attr("y", function(d) { return ybounded(d) + 4.5; })
-  }
+        node.attr("cx", function(d) { return xbounded(d);})
+            .attr("cy", function(d) { return ybounded(d);});
+
+        labels
+            .attr("x", function(d) {
+                return xbounded(d) + radius(d.radius) + 4.5;
+            })
+            .attr("y", function(d) { return ybounded(d) + 4.5; })
+    }
 }
 
 function xbounded(d) { return Math.max(Math.min(d.x, width - 50), 10); }
 function ybounded(d) { return Math.max(Math.min(d.y, height - 10), 10); }
 
 function dragstarted(d) {
-  if (!d3.event.active) {
-    simulation.alphaTarget(0.3).restart();
-  }
-  //placements[d.name] = {"x": d.x, "y": d.y};
-  //console.log(placements);
-  d.fx = d.x;
-  d.fy = d.y;
+    if (!d3.event.active) {
+        simulation.alphaTarget(0.3).restart();
+    }
+    d.fx = d.x;
+    d.fy = d.y;
 }
 
 function dragged(d) {
-  //placements[d.name] = {"x": d3.event.x, "y": d3.event.y};
-  //console.log(placements);
-  d.fx = d3.event.x;
-  d.fy = d3.event.y;
+    d.fx = d3.event.x;
+    d.fy = d3.event.y;
 }
 
 function dragended(d) {
-  if (!d3.event.active) {
-    simulation.alphaTarget(0);
-  }
-  //delete placements[d3.event.name];
-  //d.fx = null;
-  //d.fy = null;
+    if (!d3.event.active) {
+        simulation.alphaTarget(0);
+    }
 }
 
 function unstick(d) {
-  //delete placements[d.name];
-  //console.log(placements);
-  d.fx = null;
-  d.fy = null;
+    d.fx = null;
+    d.fy = null;
 }
 
 function selectTerm(termname) {
@@ -368,46 +200,6 @@ function selectTerm(termname) {
             //console.log(data);
             draw(data);
         });
-
-    /*d3.request("search")
-        //.header("X-Requested-With", "XMLHttpRequest")
-        .header("Content-Type", "application/json")
-        .post(termname, function(error, data) {
-            console.log(data.response);
-        });*/
-    /*d3.json("Astronomy.json", function (error, data) {
-        draw(data);
-    });*/
 }
-
-function walk(termname, depth) {
-    var neighbours = new Set();
-    neighbours.add(termname);
-
-    if (depth > 0) {
-        for (var i = 0; i < graph_data.links.length; i++) {
-            var link = graph_data.links[i];
-            console.log(link);
-
-            if (link.source.id == termname) {
-                neighbours.add(link.target.id);
-            } else if (link.target.id == termname) {
-                neighbours.add(link.source.id);
-            }
-        }
-        var children = new Set();
-        neighbours.forEach(function(i) {
-            walk(i, depth - 1).forEach(function(c) {
-                children.add(c);
-            })
-        });
-        children.forEach(function(i) {
-            neighbours.add(i);
-        });
-    }
-
-    return neighbours;
-}
-
 </script>
 

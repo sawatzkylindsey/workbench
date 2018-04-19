@@ -43,8 +43,6 @@ def parse_input(input_texts, input_format):
     for input_text in input_texts:
         parser.parse(input_text)
 
-    #logging.debug(json.dumps(str_kv(parser.inflections.counts), indent=2, sort_keys=True))
-    #logging.debug(json.dumps({str(k): str(v) for k, v in parser.inflections.counts.items()}, indent=2, sort_keys=True)) 
     return parser
 
 
@@ -182,6 +180,7 @@ class WikipediaArticlesList:
                 page_content = fh.read()
 
             for line in page_content.split("."):
+                line = line.strip()
                 reference_terms = nlp.extract_terms(corpus=nlp.SPLITTER(line),
                                                     terms_trie=terms_trie,
                                                     lemmatizer=CANONICALIZER,
@@ -195,10 +194,10 @@ class WikipediaArticlesList:
                                 self.cooccurrences[a] = {}
 
                             if b not in self.cooccurrences[a]:
-                                self.cooccurrences[a][b] = 0
+                                self.cooccurrences[a][b] = []
 
                             #self.cooccurrences[a].add(b)
-                            self.cooccurrences[a][b] += 1
+                            self.cooccurrences[a][b] += [line]
 
     def _extract_terms(self, page_id, content):
         page_name = page_id.replace(" ", "_")

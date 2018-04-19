@@ -3,9 +3,9 @@
 
 
 class d3node:
-    def __init__(self, name, radius=1.0, alpha=1.0, coeff=0.5):
+    def __init__(self, name, rank=1.0, alpha=1.0, coeff=0.5):
         self.name = name
-        self.radius = radius
+        self.rank = rank
         self.alpha = alpha
         self.coeff = coeff
 

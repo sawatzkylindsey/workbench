@@ -11,6 +11,7 @@ import os
 import pdb
 #import SocketServer
 import sys
+import urllib
 
 
 from workbench.graph import GraphBuilder, Graph
@@ -61,24 +62,37 @@ class ServerHandler(BaseHTTPRequestHandler):
         post_data = self._read()
         logging.debug("POST %s: '%s'" % (self.path, post_data))
         display_term = None
-        post_term = None
+        term = None
+        mode = None
         out = {}
 
         if post_data != "":
-            post_term = Term(post_data.lower().split(" "))
-            logging.debug(post_term)
+            query = urllib.parse.parse_qs(post_data)
+            logging.debug(query)
+
+            if "term" in query:
+                term = Term(query["term"][0].lower().split(" "))
+
+            if "mode" in query:
+                mode = query["mode"][0]
 
         if self.path == "/reset":
             self.server.termnet.reset()
         elif self.path == "/positive":
-            self.server.termnet.positive(post_term)
+            if mode == "add":
+                self.server.termnet.positive_add(term)
+            else:
+                self.server.termnet.positive_remove(term)
         elif self.path == "/negative":
-            self.server.termnet.negative(post_term)
+            if mode == "add":
+                self.server.termnet.negative_add(term)
+            else:
+                self.server.termnet.negative_remove(term)
         elif self.path == "/mark":
-            self.server.termnet.mark(post_term)
+            self.server.termnet.mark(term)
         elif self.path == "/search":
-            self.server.previous = post_term
-            out = self.server.termnet.display(post_term)
+            self.server.previous = term
+            out = self.server.termnet.display(term)
 
         self._set_headers("application/json")
         self._write(json.dumps(out))

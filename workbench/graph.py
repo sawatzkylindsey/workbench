@@ -3,6 +3,7 @@
 
 import json
 import logging
+import math
 import pdb
 from pytils import base, check
 
@@ -95,6 +96,12 @@ class Graph(object):
 
         self.clustering_coefficients = self._calculate_clustering_coefficients()
         self.distances, self.max_distance = self._calculate_distances()
+
+    def __contains__(self, identifier):
+        return identifier in self.indexes
+
+    def __getitem__(self, identifier):
+        return self.indexes[identifier]
 
     def _calculate_clustering_coefficients(self):
         ccs = {}
@@ -259,6 +266,7 @@ class Graph(object):
             scale = 1.0 / total
             out = {k: scale * v for k, v in out.items()}
 
+        assert math.isclose(1.0, sum(out.values()), abs_tol=0.005), sum(out.values())
         return out
 
     def _delta(self, a, b):

@@ -17,12 +17,22 @@
   font-size: 14px;
 }
 
-input {
-  display: block;
-  margin: 2px;
-}
-td {
+//input {
+//  display: block;
+//  margin: 2px;
+//}
+
+.description {
   text-align: right;
+}
+
+.clickable:hover {
+  cursor: pointer;
+}
+
+ul {
+  list-style-type: none;
+  padding: 0;
 }
 
 </style>
@@ -64,59 +74,177 @@ var controlFo = svg.append("foreignObject")
     .attr("transform", "translate(10, 10)")
     .attr("width", center_x - pool_radius - 40)
     .attr("height", height - 40);
-$("#controlFo").load("controls.html");
+var neighbourhooder = null;
+var searcher = null;
+var sizer = null;
+var positiveInfluencer = null;
+var negativeInfluencer = null;
+var negater = null;
+var ignorer = null;
+//var negatedToggler = null;
+var negaterList = null;
+var ignorerList = null;
+$("#controlFo").load("controls.html", function() {
+    neighbourhooder = $("#neighbourhooder");
+    searcher = $("#searcher");
+    sizer = $("#sizer");
+    positiveInfluencer = $("#positiveInfluencer");
+    positiveInfluencer.find(".default")
+        .prop("checked", true)
+        .change();
+    negativeInfluencer = $("#negativeInfluencer");
+    negativeInfluencer.find(".default")
+        .prop("checked", true)
+        .change();
+    negater = $("#negater");
+    //negatedToggler = $("#negatedToggler");
+    negaterList = $("#negaterList");
+    ignorer = $("#ignorer");
+    ignorerList = $("#ignorerList");
+});
+function neighbourhood(event) {
+    if (event.keyCode == 13) {
+        var termname = neighbourhooder.val();
+        neighbourhooder.val("");
+        console.log("term: " + termname);
+        d3.json("neighbourhood")
+            .post("term=" + termname, function(error, data) { draw(data); });
+    }
+}
 function search(event) {
     if (event.keyCode == 13) {
-        var searcher = $("#searcher");
-        selectTerm(searcher.val());
+        var termname = searcher.val();
         searcher.val("");
+        console.log("term: " + termname);
+        d3.json("search")
+            .post("term=" + termname, function(error, data) {
+                if (error != null) {
+                    // TODO
+                } else {
+                    draw(data);
+                }
+            });
     }
 }
 var size = 1;
-function resize(event) {
+function release(event) {
+    svg.selectAll(".node")
+        .each(function(d) {
+            var pyth = pythagoras(d.x, d.y);
+
+            if (pyth.hypotenuse <= pool_radius + 1) {
+                d.fx = null;
+                d.fy = null;
+                d.drag = false
+                //unstick(d);
+            }
+        });
+}
+function influenceConfigure(event) {
     console.log(event);
-    size = event.target.valueAsNumber;
+    console.log(event.target.value);
+    var polarity = event.target.name == "positive-influence" ? "positive" : "negative";
+    d3.json("influence/configure")
+        .post("mode=" + event.target.value + "&polarity=" + polarity, function(error, data) {
+            if (!event.isTrigger) {
+                draw(data);
+            }
+        });
+}
+var negations = new Set();
+var ignores = new Set();
+function negateAdd(event) {
+    //if (!d3.event.active) {
+    //    simulation.alphaTarget(0);
+    //}
+    if (event.keyCode == 13) {
+        let termname = negater.val();
+        negater.val("");
+        d3.json("influence")
+            .post("polarity=negative&term=" + termname + "&mode=add", function(error, data) {
+                if (error == null) {
+                    draw(data);
+                    updateNegations(termname);
+                }
+            });
+        //negater.val("");
+    }
+}
+function ignoreAdd(event) {
+    if (event.keyCode == 13) {
+        let termname = ignorer.val();
+        ignorer.val("");
+        d3.json("ignore")
+            .post("term=" + termname + "&mode=add", function(error, data) {
+                if (error == null) {
+                    draw(data);
+                    updateIgnores(termname);
+                }
+            });
+    }
+}
+function negateRemove(event) {
+    //console.log(event);
+    var termname = event.target.innerText;
+    updateNegations(termname);
+    d3.json("influence")
+        .post("polarity=negative&term=" + termname + "&mode=remove", function(error, data) { draw(data); });
+}
+function ignoreRemove(event) {
+    var termname = event.target.innerText;
+    updateIgnores(termname);
+    d3.json("ignore")
+        .post("term=" + termname + "&mode=remove", function(error, data) { draw(data); });
+}
+function updateNegations(termname) {
+    if (negations.has(termname)) {
+        negations.delete(termname);
+    }
+    else {
+        negations.add(termname);
+    }
+
+    /*if (negations.size == 0) {
+        negatedToggler.css("display", "none");
+        negaterList.css("display", "none");
+    }
+    else {
+        negatedToggler.css("display", "block");
+        var hidden = negaterList.css("display") == "none";
+        negatedToggler.val((hidden ? "Show negations (" : "Hide negations (") + negations.size + ")");*/
+        negaterList.empty();
+        var sortedNegations = Array.from(negations);
+        sortedNegations.sort();
+        sortedNegations.forEach(function(negation) {
+            negaterList.append("<span class='clickable' onclick='negateRemove(event)'>" + negation + "</span></br>");
+        });
+    //}
+}
+function updateIgnores(termname) {
+    if (ignores.has(termname)) {
+        ignores.delete(termname);
+    } else {
+        ignores.add(termname);
+    }
+
+    ignorerList.empty();
+    var sortedIgnores = Array.from(ignores);
+    sortedIgnores.sort();
+    sortedIgnores.forEach(function(ignore) {
+        ignorerList.append("<span class='clickable' onclick='ignoreRemove(event)'>" + ignore + "</span></br>");
+    });
+}
+function toggleNegatedLister() {
+    if (negaterList.css("display") == "none") {
+        negaterList.css("display", "table");
+        negatedToggler.val("Hide negations (" + negations.size + ")");
+    }
+    else {
+        negaterList.css("display", "none");
+        negatedToggler.val("Show negations (" + negations.size + ")");
+    }
 }
 
-/*var textbox = controlFo.append("xhtml:input")
-    .attr("type", "text")
-    .attr("id", "textbox")
-    .on("keydown", function () {
-        if (d3.event.keyCode == 13) {
-            selectTerm(textbox.property("value"));
-            textbox.property("value", "");
-        }
-    });
-var sizer = controlFo.append("xhtml:input")
-    .attr("type", "range")
-    .attr("id", "sizer")
-    .attr("min", "1")
-    .attr("max", "2000")
-    .attr("value", "1")
-    .on("input", function(e) {
-        console.log(d3.event);
-        size = d3.event.target.valueAsNumber;
-        //size = event.value;
-    })
-    .on("change", function(e) {
-        console.log(d3.event);
-        size = d3.event.target.valueAsNumber;
-        //svg.selectAll(".node")
-        //    .enter()
-        //    .attr("r", function(d) { return node_radius(d.rank); });
-        //size = event.value;
-    });*/
-/*var release = controlFo.append("xhtml:input")
-    .attr("type", "button")
-    .text("release")
-    .on("click", function(e) {
-        console.log(d3.event);
-        svg.selectAll(".node")
-            .enter()
-            .attr("fx", null)
-            .attr("fy", null)
-            .attr("drag", false);
-    });*/
 
 var summaryFo = svg.append("foreignObject")
     .attr("transform", "translate(" + (center_x - pool_radius) + "," + (center_y * 1.85) + ")")
@@ -129,17 +257,11 @@ var summary = summaryFo.append("xhtml:div")
     .text("placeholder");
 
 var color = d3.scaleOrdinal(d3.schemeCategory20);
-//var RADIUS_SCALE = 250;
 var MIN_RADIUS = 5;
 var MAX_RADIUS = 50;
 
 function node_radius(rank) {
     return Math.min(Math.max(rank * size, MIN_RADIUS), MAX_RADIUS);
-    /*if (rank < 0.009) {
-        return 0.009 * RADIUS_SCALE;
-    } else {
-        return Math.min(rank * RADIUS_SCALE, MAX_RADIUS);
-    }*/
 }
 
 var simulation = d3.forceSimulation()
@@ -156,7 +278,14 @@ var simulation = d3.forceSimulation()
     .force("x", d3.forceX(center_x).strength(0.05))
     .force("y", d3.forceY(center_y).strength(0.05));
 
-d3.json("search")
+function resize(event) {
+    size = parseInt(sizer.val());
+    simulation.alphaTarget(1);  // Make sure the simulation keeps going, otherwise sometimes the resizer gets "stuck".
+}
+
+d3.json("reset")
+    .post("");
+d3.json("neighbourhood")
     .post("", function(error, data) {
         //console.log(data);
         draw(data);
@@ -182,24 +311,7 @@ function draw(graph) {
     console.log(graph);
 
     svg.selectAll("g").remove();
-    /*summary.selectAll("ul").enter().remove();
-    summary.append("ul")
-        .selectAll("ul")
-        .data(graph.summary)
-        .enter()
-            .append("li")
-            .text(function(s) { return s; });*/
     summary.text(graph.summary);
-    /*svg.selectAll("#summary").remove();
-var summary = summaryFo.append("xhtml:div")
-    .attr("id", "summary")
-    .attr("class", "labels")
-    .style("text-align", "center")
-    .data(graph.summary)
-    .enter()
-        .append("ul")
-        .append("li")
-        .text("placeholder");*/
 
     var link = svg.append("g")
         .attr("class", "links")
@@ -314,6 +426,8 @@ function pool_bound(radius, x, y, ignore) {
     }
 }
 
+var drag_start_x = null;
+var drag_start_y = null;
 function dragstarted(d) {
     if (!d3.event.active) {
         simulation.alphaTarget(0.3).restart();
@@ -322,6 +436,8 @@ function dragstarted(d) {
     d.fy = d.y;
     d.drag = true;
     console.log(d);
+    drag_start_x = d.x;
+    drag_start_y = d.y;
 }
 
 function dragged(d) {
@@ -333,15 +449,20 @@ function dragended(d) {
     if (!d3.event.active) {
         simulation.alphaTarget(0);
     }
+    console.log(d);
+    console.log(d3.event);
 
+    var previous_pyth = pythagoras(drag_start_x, drag_start_y);
+    drag_start_x = null;
+    drag_start_y = null;
     var pyth = pythagoras(d.x, d.y);
 
-    if (pyth.hypotenuse > pool_radius) {
-        d3.json("positive")
-            .post("term=" + d.name + "&mode=add", function(error, data) { console.log(data); } );
-    } else {
-        d3.json("positive")
-            .post("term=" + d.name + "&mode=remove", function(error, data) { console.log(data); } );
+    if (pyth.hypotenuse > pool_radius && previous_pyth.hypotenuse <= pool_radius + 1) {
+        d3.json("influence")
+            .post("polarity=positive&term=" + d.name + "&mode=add", function(error, data) { draw(data); } );
+    } else if (pyth.hypotenuse <= pool_radius && previous_pyth.hypotenuse > pool_radius) {
+        d3.json("influence")
+            .post("polarity=positive&term=" + d.name + "&mode=remove", function(error, data) { draw(data); } );
     }
 }
 
@@ -349,17 +470,10 @@ function unstick(d) {
     d.fx = null;
     d.fy = null;
     d.drag = false
-    d3.json("positive")
-        .post("term=" + d.name + "&mode=remove", function(error, data) { console.log(data); });
+    d3.json("influence")
+        .post("polarity=positive&term=" + d.name + "&mode=remove", function(error, data) { draw(data); });
+    simulation.alphaTarget(0.1);
 }
 
-function selectTerm(termname) {
-    console.log("term: " + termname);
-    d3.json("search")
-        .post("term=" + termname, function(error, data) {
-            //console.log(data);
-            draw(data);
-        });
-}
 </script>
 

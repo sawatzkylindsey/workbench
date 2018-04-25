@@ -25,7 +25,7 @@ import workbench.nlp
 
 
 TOP = 10
-BIAS_RELATED = 0.1
+BIAS_RELATED = 0.05
 BOTTOM_K = 0.1
 
 
@@ -96,8 +96,11 @@ class Termnet:
         self.rank = {n.identifier: self.average for n in self.graph.all_nodes}
         self.marked = False
         self.page_ranks = {}
+        self.positive_influence = lambda x: 0
+        self.negative_influence = lambda x: 0
         self.positive_points = set()
         self.negative_points = set()
+        self.ignore_points = set()
         self._background_calculate_ranks = threading.Thread(target=self.calculate_ranks)
         self._background_calculate_ranks.daemon = True
         self._background_calculate_ranks.start()
@@ -105,7 +108,10 @@ class Termnet:
     def calculate_ranks(self):
         for node in sorted(self.graph.all_nodes):
             user_log.info("page ranking: %s" % node.identifier.name())
-            self.page_ranks[node.identifier] = self.graph.page_rank(biases={d.identifier: BIAS_RELATED for d in node.descendants})
+            # Bias only the node itself
+            self.page_ranks[node.identifier] = self.graph.page_rank(biases={node.identifier: self.average})
+            # Bias the node's descendants
+            #self.page_ranks[node.identifier] = self.graph.page_rank(biases={d.identifier: BIAS_RELATED for d in node.descendants})
 
     def _find(self, value, f, i, j):
         test_i = f(value, i)
@@ -198,31 +204,50 @@ class Termnet:
     def clean_slate(self):
         return len(self.positive_points) == 0 \
             and len(self.negative_points) == 0 \
+            and len(self.ignore_points) == 0 \
             and not self.marked
 
     def reset(self):
         self.rank = {n.identifier: self.average for n in self.graph.all_nodes}
         self.positive_points = set()
         self.negative_points = set()
+        self.ignore_points = set()
+        self.marked = False
 
     def positive_add(self, term):
+        assert term in self.graph
         self.positive_points.add(term)
         self.negative_remove(term)
 
     def positive_remove(self, term):
+        assert term in self.graph
+
         if term in self.positive_points:
             self.positive_points.remove(term)
 
     def negative_add(self, term):
-        self.negative_points[term] = self.negative_points.get(term, 0) + 1
+        assert term in self.graph
+        self.negative_points.add(term)
         self.positive_remove(term)
 
     def negative_remove(self, term):
+        assert term in self.graph
+
         if term in self.negative_points:
             self.negative_points.remove(term)
 
+    def ignore_add(self, term):
+        assert term in self.graph
+        self.ignore_points.add(term)
+
+    def ignore_remove(self, term):
+        assert term in self.graph
+
+        if term in self.ignore_points:
+            self.ignore_points.remove(term)
+
     def mark(self, term):
-        assert term is not None
+        assert term in self.graph
 
         for k, v in self.page_ranks[term].items():
             assert v >= 0.0 and v <= 1.0, v
@@ -232,6 +257,7 @@ class Termnet:
         scale = 1.0 / total
         assert scale >= 0.0
         self.rank = {k: scale * v for k, v in self.rank.items()}
+        self.marked = True
 
     def display(self, term):
         summary = ""
@@ -241,10 +267,11 @@ class Termnet:
         else:
             selection = [identifier for identifier, d in self.graph.neighbourhood(term, 1, True, (2, 0.5))]
 
+        selection = filter(lambda t: t not in self.ignore_points, selection)
         logging.debug("Positives: %s" % self.positive_points)
         logging.debug("Negatives: %s" % self.negative_points)
-        positive_masks = [(point, lambda x: self.rank[point] * (x**1.7)) for point in self.positive_points]
-        negative_masks = [(point, lambda x: self.rank[point] * (x**1.7)) for point in self.negative_points]
+        positive_masks = [(point, lambda x: self.rank[point] * self.positive_influence(x)) for point in self.positive_points]
+        negative_masks = [(point, lambda x: self.rank[point] * self.negative_influence(x)) for point in self.negative_points]
         node_ranks = {}
         sum_subgraph = 0.0
 
@@ -263,6 +290,7 @@ class Termnet:
             for point, mask in negative_masks:
                 d = self.graph.distance(point, identifier)
                 distance = d if d is not None else self.graph.max_distance
+                #distance = self.graph.max_distance - d if d is not None else 0
                 masked_rank += mask(distance) * node_rank
                 masked_count += 1
 

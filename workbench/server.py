@@ -61,44 +61,109 @@ class ServerHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         post_data = self._read()
         logging.debug("POST %s: '%s'" % (self.path, post_data))
-        display_term = None
-        term = None
-        mode = None
-        out = {}
+        query = None
 
         if post_data != "":
             query = urllib.parse.parse_qs(post_data)
-            logging.debug(query)
 
-            if "term" in query:
-                term = Term(query["term"][0].lower().split(" "))
+        #logging.debug(query)
+        out = self.__getattribute__(self.path[1:].replace("/", "_"))(query)
 
-            if "mode" in query:
-                mode = query["mode"][0]
-
-        if self.path == "/reset":
-            self.server.termnet.reset()
-        elif self.path == "/positive":
-            if mode == "add":
-                self.server.termnet.positive_add(term)
-            else:
-                self.server.termnet.positive_remove(term)
-        elif self.path == "/negative":
-            if mode == "add":
-                self.server.termnet.negative_add(term)
-            else:
-                self.server.termnet.negative_remove(term)
-        elif self.path == "/mark":
-            self.server.termnet.mark(term)
-        elif self.path == "/search":
-            self.server.previous = term
-            out = self.server.termnet.display(term)
+        if out == None:
+            out = {}
 
         self._set_headers("application/json")
         self._write(json.dumps(out))
-        ## Doesn't do anything with posted data
-        #self._set_headers()
-        #self.wfile.write("<html><body><h1>POST!</h1></body></html>")
+
+    def term(self, query):
+        return Term(query["term"][0].lower().split(" "))
+
+    def mode(self, query):
+        return query["mode"][0]
+
+    def polarity(self, query):
+        return query["polarity"][0]
+
+    def reset(self, query):
+        self.server.termnet.reset()
+
+    def influence_configure(self, query):
+        polarity = self.polarity(query)
+        mode = self.mode(query)
+
+        if polarity == "positive":
+            self.server.termnet.positive_influence = self._influence_mode(mode)
+        elif polarity == "negative":
+            self.server.termnet.negative_influence = self._influence_mode(mode)
+        else:
+            raise ValueError("invalid polarity: %s" % polarity)
+
+        return self.server.termnet.display(self.server.previous_term)
+
+    def _influence_mode(self, mode):
+        if mode == "none":
+            return lambda x: 0
+        elif mode == "linear":
+            return lambda x: x
+        elif mode == "cubic":
+            return lambda x: x**3
+        elif mode == "exponential":
+            return lambda x: 2**x
+
+    def influence(self, query):
+        polarity = self.polarity(query)
+        mode = self.mode(query)
+        term = self.term(query)
+
+        if polarity == "positive":
+            if mode == "add":
+                self.server.termnet.positive_add(term)
+            elif mode == "remove":
+                self.server.termnet.positive_remove(term)
+            else:
+                raise ValueError("invalid mode: %s" % mode)
+        elif polarity == "negative":
+            if mode == "add":
+                self.server.termnet.negative_add(term)
+            elif mode == "remove":
+                self.server.termnet.negative_remove(term)
+            else:
+                raise ValueError("invalid mode: %s" % mode)
+        else:
+            raise ValueError("invalid polarity: %s" % polarity)
+
+        return self.server.termnet.display(self.server.previous_term)
+
+    def search(self, query):
+        term = self.term(query)
+        self.server.termnet.mark(term)
+        return self.server.termnet.display(self.server.previous_term)
+
+    def neighbourhood(self, query):
+        term = None
+
+        if query is not None:
+            try:
+                term = self.term(query)
+            except KeyError as e:
+                pass
+
+            self.server.previous_term = term
+
+        return self.server.termnet.display(term)
+
+    def ignore(self, query):
+        term = self.term(query)
+        mode = self.mode(query)
+
+        if mode == "add":
+            self.server.termnet.ignore_add(term)
+        elif mode == "remove":
+            self.server.termnet.ignore_remove(term)
+        else:
+            raise ValueError("invalid mode: %s" % mode)
+
+        return self.server.termnet.display(self.server.previous_term)
 
     def _read(self):
         content_length = int(self.headers["Content-Length"])
@@ -112,7 +177,7 @@ def run(port, termnet):
     server_address = ('', port)
     httpd = HTTPServer(server_address, ServerHandler)
     httpd.termnet = termnet
-    httpd.previous = None
+    httpd.previous_term = None
     user_log.info('Starting httpd %d...' % port)
     httpd.serve_forever()
 

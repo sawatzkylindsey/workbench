@@ -54,6 +54,15 @@ var svg = d3.select("svg"),
     height = +svg.attr("height");
 var center_x = width / 2.0;
 var center_y = height / 2.0;
+/* SessionKey from url hash, or generated if not present.
+
+var sessionKey = window.location.hash == null || window.location.hash == "" ?
+    // Makes a 8 character long random string : Excludes the hash symbol (#) from the url's hash.
+    //                        vvvvvvvvvvvvv                       vvvvvvvvvvvvv
+    Math.random().toString(36).substring(5) : window.location.hash.substring(1);
+window.location.hash = sessionKey;
+*/
+var sessionKey = Math.random().toString(36).substring(5);
 var pool_radius = Math.min(width, height) / 2.5;
 var pool = svg.append("circle")
     .style("stroke-width", 5)
@@ -108,6 +117,7 @@ function neighbourhood(event) {
         neighbourhooder.val("");
         console.log("term: " + termname);
         d3.json("neighbourhood")
+            .header("session-key", sessionKey)
             .post("term=" + termname, function(error, data) { draw(data); });
     }
 }
@@ -117,6 +127,7 @@ function search(event) {
         searcher.val("");
         console.log("term: " + termname);
         d3.json("search")
+            .header("session-key", sessionKey)
             .post("term=" + termname, function(error, data) {
                 if (error != null) {
                     // TODO
@@ -140,11 +151,25 @@ function release(event) {
             }
         });
 }
+var firstDraw = true;
+function reset(event) {
+    d3.json("reset")
+        .header("session-key", sessionKey)
+        .post("");
+    firstDraw = true;
+    d3.json("neighbourhood")
+        .header("session-key", sessionKey)
+        .post("", function(error, data) {
+            //console.log(data);
+            draw(data);
+        });
+}
 function influenceConfigure(event) {
     console.log(event);
     console.log(event.target.value);
     var polarity = event.target.name == "positive-influence" ? "positive" : "negative";
     d3.json("influence/configure")
+        .header("session-key", sessionKey)
         .post("mode=" + event.target.value + "&polarity=" + polarity, function(error, data) {
             if (!event.isTrigger) {
                 draw(data);
@@ -161,6 +186,7 @@ function negateAdd(event) {
         let termname = negater.val();
         negater.val("");
         d3.json("influence")
+            .header("session-key", sessionKey)
             .post("polarity=negative&term=" + termname + "&mode=add", function(error, data) {
                 if (error == null) {
                     draw(data);
@@ -175,6 +201,7 @@ function ignoreAdd(event) {
         let termname = ignorer.val();
         ignorer.val("");
         d3.json("ignore")
+            .header("session-key", sessionKey)
             .post("term=" + termname + "&mode=add", function(error, data) {
                 if (error == null) {
                     draw(data);
@@ -188,12 +215,14 @@ function negateRemove(event) {
     var termname = event.target.innerText;
     updateNegations(termname);
     d3.json("influence")
+        .header("session-key", sessionKey)
         .post("polarity=negative&term=" + termname + "&mode=remove", function(error, data) { draw(data); });
 }
 function ignoreRemove(event) {
     var termname = event.target.innerText;
     updateIgnores(termname);
     d3.json("ignore")
+        .header("session-key", sessionKey)
         .post("term=" + termname + "&mode=remove", function(error, data) { draw(data); });
 }
 function updateNegations(termname) {
@@ -283,9 +312,8 @@ function resize(event) {
     simulation.alphaTarget(1);  // Make sure the simulation keeps going, otherwise sometimes the resizer gets "stuck".
 }
 
-d3.json("reset")
-    .post("");
 d3.json("neighbourhood")
+    .header("session-key", sessionKey)
     .post("", function(error, data) {
         //console.log(data);
         draw(data);
@@ -293,23 +321,26 @@ d3.json("neighbourhood")
 
 function draw(graph) {
     console.log(graph);
-
     var previousPositions = {};
-    svg.selectAll(".node")
-        .each(function(n) {
-            //console.log(n);
-            previousPositions[n.name] = {x: n.x, y: n.y, drag: n.drag};
-        });
-    graph.nodes = graph.nodes.map(function(n) {
-        if (n.name in previousPositions) {
-            n.fx = previousPositions[n.name].x;
-            n.fy = previousPositions[n.name].y;
-            n.drag = previousPositions[n.name].drag;
-        }
-        return n;
-    });
-    console.log(graph);
 
+    if (!firstDraw) {
+        svg.selectAll(".node")
+            .each(function(n) {
+                //console.log(n);
+                previousPositions[n.name] = {x: n.x, y: n.y, drag: n.drag};
+            });
+        graph.nodes = graph.nodes.map(function(n) {
+            if (n.name in previousPositions) {
+                n.fx = previousPositions[n.name].x;
+                n.fy = previousPositions[n.name].y;
+                n.drag = previousPositions[n.name].drag;
+            }
+            return n;
+        });
+        console.log(graph);
+    }
+
+    firstDraw = false;
     svg.selectAll("g").remove();
     summary.text(graph.summary);
 
@@ -459,9 +490,11 @@ function dragended(d) {
 
     if (pyth.hypotenuse > pool_radius && previous_pyth.hypotenuse <= pool_radius + 1) {
         d3.json("influence")
+            .header("session-key", sessionKey)
             .post("polarity=positive&term=" + d.name + "&mode=add", function(error, data) { draw(data); } );
     } else if (pyth.hypotenuse <= pool_radius && previous_pyth.hypotenuse > pool_radius) {
         d3.json("influence")
+            .header("session-key", sessionKey)
             .post("polarity=positive&term=" + d.name + "&mode=remove", function(error, data) { draw(data); } );
     }
 }
@@ -471,6 +504,7 @@ function unstick(d) {
     d.fy = null;
     d.drag = false
     d3.json("influence")
+        .header("session-key", sessionKey)
         .post("polarity=positive&term=" + d.name + "&mode=remove", function(error, data) { draw(data); });
     simulation.alphaTarget(0.1);
 }

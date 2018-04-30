@@ -93,14 +93,7 @@ class Termnet:
         self.graph = graph
         self.sentences = sentences
         self.average = 1.0 / len(self.graph.all_nodes)
-        self.rank = {n.identifier: self.average for n in self.graph.all_nodes}
-        self.marked = False
         self.page_ranks = {}
-        self.positive_influence = lambda x: 0
-        self.negative_influence = lambda x: 0
-        self.positive_points = set()
-        self.negative_points = set()
-        self.ignore_points = set()
         self._background_calculate_ranks = threading.Thread(target=self.calculate_ranks)
         self._background_calculate_ranks.daemon = True
         self._background_calculate_ranks.start()
@@ -112,6 +105,19 @@ class Termnet:
             self.page_ranks[node.identifier] = self.graph.page_rank(biases={node.identifier: self.average})
             # Bias the node's descendants
             #self.page_ranks[node.identifier] = self.graph.page_rank(biases={d.identifier: BIAS_RELATED for d in node.descendants})
+
+
+class TermnetSession:
+    def __init__(self, termnet):
+        self.termnet = termnet
+        self.rank = {n.identifier: self.termnet.average for n in self.termnet.graph.all_nodes}
+        self.marked = False
+        self.positive_influence = lambda x: 0
+        self.negative_influence = lambda x: 0
+        self.positive_points = set()
+        self.negative_points = set()
+        self.ignore_points = set()
+        self.previous_term = None
 
     def _find(self, value, f, i, j):
         test_i = f(value, i)
@@ -208,48 +214,48 @@ class Termnet:
             and not self.marked
 
     def reset(self):
-        self.rank = {n.identifier: self.average for n in self.graph.all_nodes}
+        self.rank = {n.identifier: self.termnet.average for n in self.termnet.graph.all_nodes}
         self.positive_points = set()
         self.negative_points = set()
         self.ignore_points = set()
         self.marked = False
 
     def positive_add(self, term):
-        assert term in self.graph
+        assert term in self.termnet.graph
         self.positive_points.add(term)
         self.negative_remove(term)
 
     def positive_remove(self, term):
-        assert term in self.graph
+        assert term in self.termnet.graph
 
         if term in self.positive_points:
             self.positive_points.remove(term)
 
     def negative_add(self, term):
-        assert term in self.graph
+        assert term in self.termnet.graph
         self.negative_points.add(term)
         self.positive_remove(term)
 
     def negative_remove(self, term):
-        assert term in self.graph
+        assert term in self.termnet.graph
 
         if term in self.negative_points:
             self.negative_points.remove(term)
 
     def ignore_add(self, term):
-        assert term in self.graph
+        assert term in self.termnet.graph
         self.ignore_points.add(term)
 
     def ignore_remove(self, term):
-        assert term in self.graph
+        assert term in self.termnet.graph
 
         if term in self.ignore_points:
             self.ignore_points.remove(term)
 
     def mark(self, term):
-        assert term in self.graph
+        assert term in self.termnet.graph
 
-        for k, v in self.page_ranks[term].items():
+        for k, v in self.termnet.page_ranks[term].items():
             assert v >= 0.0 and v <= 1.0, v
             self.rank[k] += v
 
@@ -259,13 +265,17 @@ class Termnet:
         self.rank = {k: scale * v for k, v in self.rank.items()}
         self.marked = True
 
+    def display_previous(self):
+        return self.display(self.previous_term)
+
     def display(self, term):
+        self.previous_term = term
         summary = ""
 
         if term is None:
-            selection = [n.identifier for n in self.graph.all_nodes]
+            selection = [n.identifier for n in self.termnet.graph.all_nodes]
         else:
-            selection = [identifier for identifier, d in self.graph.neighbourhood(term, 1, True, (2, 0.5))]
+            selection = [identifier for identifier, d in self.termnet.graph.neighbourhood(term, 1, True, (2, 0.5))]
 
         selection = filter(lambda t: t not in self.ignore_points, selection)
         logging.debug("Positives: %s" % self.positive_points)
@@ -282,15 +292,15 @@ class Termnet:
             masked_count = 0
 
             for point, mask in positive_masks:
-                d = self.graph.distance(point, identifier)
-                distance = self.graph.max_distance - d if d is not None else 0
+                d = self.termnet.graph.distance(point, identifier)
+                distance = self.termnet.graph.max_distance - d if d is not None else 0
                 masked_rank += mask(distance) * node_rank
                 masked_count += 1
 
             for point, mask in negative_masks:
-                d = self.graph.distance(point, identifier)
-                distance = d if d is not None else self.graph.max_distance
-                #distance = self.graph.max_distance - d if d is not None else 0
+                d = self.termnet.graph.distance(point, identifier)
+                distance = d if d is not None else self.termnet.graph.max_distance
+                #distance = self.termnet.graph.max_distance - d if d is not None else 0
                 masked_rank += mask(distance) * node_rank
                 masked_count += 1
 
@@ -323,14 +333,14 @@ class Termnet:
         neighbour_links = []
         best = 0
 
-        for link in self.graph.links():
+        for link in self.termnet.graph.links():
             if link.source in selected_nodes and link.target in selected_nodes:
                 selected_links += [link]
                 score = node_ranks[link.source] + node_ranks[link.target]
 
                 if score > best:
                     best = score
-                    summary = "|||".join(self.sentences[link.source][link.target])
+                    summary = "|||".join(self.termnet.sentences[link.source][link.target])
             elif (link.source in selected_nodes and link.target in neighbour_nodes) \
                 or (link.source in neighbour_nodes and link.target in selected_nodes) \
                 or (link.source in neighbour_nodes and link.target in neighbour_nodes):
@@ -348,7 +358,7 @@ class Termnet:
         return term.name()
 
     def _coeff(self, term):
-        return self.graph.clustering_coefficients[term]
+        return self.termnet.graph.clustering_coefficients[term]
 
 
 def str_kv(value):

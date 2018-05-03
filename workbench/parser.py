@@ -18,32 +18,54 @@ from workbench.trie import build as build_trie
 
 
 CANONICALIZER = nlp.stem
+CLEANER = lambda text: text.strip().lower()
 
-GLOSSARY = "glossary"
-TEXT = "text"
-WIKIPEDIA = "wikipedia"
+GLOSSARY_CSV = ("gc", "glossary_csv")
+CONTENT_TEXT = ("ct", "content_text")
+WIKIPEDIA_ARTICLES_LIST = ("wal", "wikipedia_articles_list")
+TERMS_CONTENT_TEXT = ("tct", "terms_content_text")
 FORMATS = [
-    GLOSSARY,
-    TEXT,
-    WIKIPEDIA
+    GLOSSARY_CSV,
+    CONTENT_TEXT,
+    WIKIPEDIA_ARTICLES_LIST,
+    TERMS_CONTENT_TEXT,
 ]
 wikipedia = wikipediaapi.Wikipedia("en", extract_format=wikipediaapi.ExtractFormat.NATLANG)
 
 
-def parse_input(input_texts, input_format):
-    if input_format == GLOSSARY:
+def file_to_content(input_file):
+    with open(input_file, "r", encoding="utf-8") as fh:
+        for line in fh.readlines():
+            yield CLEANER(line)
+
+
+def csv_to_content(input_file):
+    with open(input_file, "r", encoding="utf-8") as fh:
+        for row in csv_reader(fh):
+            yield [CLEANER(cell) for cell in row]
+
+
+def parse_input(input_stream, input_format):
+    if format_matches(input_format, GLOSSARY_CSV):
         parser = GlossaryCsv()
-    elif input_format == TEXT:
-        parser = LineText()
-    elif input_format == WIKIPEDIA:
+    elif format_matches(input_format, CONTENT_TEXT):
+        parser = ContentText()
+    elif format_matches(input_format, WIKIPEDIA_ARTICLES_LIST):
         parser = WikipediaArticlesList()
+    elif format_matches(input_format, TERMS_CONTENT_TEXT):
+        parser = TermsContentText()
     else:
-        raise ValueError("Unknown input format '%s'." % input_format)
+        raise ValueError("Unknown input format '%s'." % str(input_format))
 
-    for input_text in input_texts:
-        parser.parse(input_text)
-
+    parser.parse(input_stream)
     return parser
+
+
+def format_matches(input_format, FORMAT):
+    if input_format == FORMAT:
+        return True
+
+    return any([input_format == f for f in FORMAT])
 
 
 def str_kv(value):
@@ -59,42 +81,45 @@ class GlossaryCsv:
         self.cooccurrences = {}
         self.inflections = nlp.Inflections()
 
-    def parse(self, input_text):
+    def parse(self, input_stream):
         if len(self.terms) > 0:
             raise ValueError("cannot invoke parse() multiple times for GlossaryCsv parser.")
 
-        with open(input_text, "r") as fh:
-            for row in csv_reader(fh):
-                row = [item for item in row]
-                term = self._glossary_term(row)
-                inflection = self._glossary_inflection(row)
-                self.terms.add(term)
-                self.inflections.record(term, inflection)
-                self.cooccurrences[term] = set()
+        for row in input_stream:
+            row = [item for item in row]
+            term = self._glossary_term(row)
+            inflection = self._glossary_inflection(row)
+            self.terms.add(term)
+            self.inflections.record(term, inflection)
+            self.cooccurrences[term] = {}
 
         terms_trie = build_trie(self.terms)
 
-        with open(input_text, "r") as fh:
-            for row in csv_reader(fh):
-                row = [item for item in row]
-                term = self._glossary_term(row)
-                reference_terms = nlp.extract_terms(corpus=nlp.SPLITTER(row[1].strip().lower()),
+        for row in input_stream:
+            row = [item for item in row]
+            term = self._glossary_term(row)
+
+            for sentence in nlp.split_sentences(row[1]):
+                reference_terms = nlp.extract_terms(corpus=sentence,
                                                     terms_trie=terms_trie,
                                                     lemmatizer=CANONICALIZER,
                                                     inflection_recorder=self.inflections.record)
 
                 for reference_term in reference_terms:
                     if term != reference_term:
-                        self.cooccurrences[term].add(reference_term)
+                        if reference_term not in self.cooccurrences[term]:
+                            self.cooccurrences[term][reference_term] = []
+
+                        self.cooccurrences[term][reference_term] += [sentence]
 
     def _glossary_term(self, row):
         assert len(row) == 2, row
-        lemmas = [CANONICALIZER(item) for item in nlp.SPLITTER(row[0].strip().lower())]
+        lemmas = [CANONICALIZER(item) for item in nlp.split_words(row[0])]
         return nlp.Term(lemmas)
 
     def _glossary_inflection(self, row):
         assert len(row) == 2, row
-        inflections = [item for item in nlp.SPLITTER(row[0].strip().lower())]
+        inflections = [item for item in nlp.split_words(row[0])]
         return nlp.Term(inflections)
 
 
@@ -113,65 +138,64 @@ class WikipediaArticlesList:
         self.cooccurrences = {}
         self.inflections = nlp.Inflections()
 
-    def parse(self, input_text):
+    def parse(self, input_stream):
         pages = []
         parse_terms = set()
 
-        with open(input_text, "r", encoding="utf-8") as fh:
-            for line in fh.readlines():
-                page_id = line.strip()
+        for line in input_stream:
+            page_id = line.strip()
 
-                if os.path.exists(self._page_file_contents(page_id)):
-                    with open(self._page_file_contents(page_id), "r", encoding="utf-8") as fh:
-                        page_content = fh.read()
-                    with open(self._page_file_links(page_id), "r", encoding="utf-8") as fh:
-                        page_links = [l.strip() for l in fh.readlines()]
+            if os.path.exists(self._page_file_contents(page_id)):
+                with open(self._page_file_contents(page_id), "r", encoding="utf-8") as fh:
+                    page_content = fh.read()
+                with open(self._page_file_links(page_id), "r", encoding="utf-8") as fh:
+                    page_links = [l.strip() for l in fh.readlines()]
+            else:
+                split = page_id.split("#")
+                page = wikipedia.page(split[0])
+
+                if len(split) == 1:
+                    page_content = check.check_not_empty(CLEANER(page.summary))
                 else:
-                    split = page_id.split("#")
-                    page = wikipedia.page(split[0])
+                    page_content = ""
 
-                    if len(split) == 1:
-                        page_content = check.check_not_empty(page.summary).lower()
-                    else:
-                        page_content = ""
+                for section in (page.section_titles if len(split) == 1 else split[1:]):
+                    if section not in self.SECTION_BLACKLIST:
+                        logging.debug("Page '%s' using section '%s'." % (page_id, section))
+                        raw_section_content = page.section_by_title(section).text
 
-                    for section in (page.section_titles if len(split) == 1 else split[1:]):
-                        if section not in self.SECTION_BLACKLIST:
-                            logging.debug("Page '%s' using section '%s'." % (page_id, section))
-                            raw_section_content = page.section_by_title(section).text
+                        if raw_section_content is not None and len(raw_section_content) > 0:
+                            section_content = CLEANER(raw_section_content)
 
-                            if raw_section_content is not None and len(raw_section_content) > 0:
-                                section_content = raw_section_content.lower()
+                            if len(section_content) > 0:
+                                page_content += " " + section_content
 
-                                if len(section_content) > 0:
-                                    page_content += " " + section_content
+                page_links = [CLEANER(l) for l in page.links]
 
-                    page_links = [l.lower() for l in page.links]
+            pages += [page_id]
 
-                pages += [page_id]
+            if not os.path.exists(self._page_file_contents(page_id)):
+                with open(self._page_file_contents(page_id), "w", encoding="utf-8") as fh:
+                    fh.write(page_content)
+                with open(self._page_file_links(page_id), "w", encoding="utf-8") as fh:
+                    for link in page_links:
+                        fh.write("%s\n" % link)
 
-                if not os.path.exists(self._page_file_contents(page_id)):
-                    with open(self._page_file_contents(page_id), "w", encoding="utf-8") as fh:
-                        fh.write(page_content)
-                    with open(self._page_file_links(page_id), "w", encoding="utf-8") as fh:
-                        for link in page_links:
-                            fh.write("%s\n" % link)
+            page_terms = set()
 
-                page_terms = set()
+            #for page_term in self._extract_terms(page_id, page_content):
+            #    page_terms.add(page_term)
 
-                #for page_term in self._extract_terms(page_id, page_content):
-                #    page_terms.add(page_term)
+            for page_term in self._extract_links(page_id, page_links, page_content):
+                page_terms.add(page_term)
 
-                for page_term in self._extract_links(page_id, page_links, page_content):
-                    page_terms.add(page_term)
+            for term in page_terms:
+                self.terms.add(term)
 
-                for term in page_terms:
-                    self.terms.add(term)
-
-                    if term not in parse_terms:
-                        logging.debug("Page '%s' adding term '%s'." % (page_id, term))
-                        parse_terms.add(term)
-                        self.inflections.record(term, term)
+                if term not in parse_terms:
+                    logging.debug("Page '%s' adding term '%s'." % (page_id, term))
+                    parse_terms.add(term)
+                    self.inflections.record(term, term)
 
         terms_trie = build_trie(parse_terms)
 
@@ -179,9 +203,8 @@ class WikipediaArticlesList:
             with open(self._page_file_contents(page_id), "r", encoding="utf-8") as fh:
                 page_content = fh.read()
 
-            for line in page_content.split("."):
-                line = line.strip()
-                reference_terms = nlp.extract_terms(corpus=nlp.SPLITTER(line),
+            for sentence in nlp.split_sentences(page_content):
+                reference_terms = nlp.extract_terms(corpus=sentence,
                                                     terms_trie=terms_trie,
                                                     lemmatizer=CANONICALIZER,
                                                     inflection_recorder=self.inflections.record)
@@ -197,7 +220,7 @@ class WikipediaArticlesList:
                                 self.cooccurrences[a][b] = []
 
                             #self.cooccurrences[a].add(b)
-                            self.cooccurrences[a][b] += [line]
+                            self.cooccurrences[a][b] += [sentence]
 
     def _extract_terms(self, page_id, content):
         page_name = page_id.replace(" ", "_")
@@ -239,7 +262,46 @@ class WikipediaArticlesList:
         return "wiki/.wiki-%s.links-txt" % page_id.replace(" ", "_")
 
 
-class LineText:
+class TermsContentText:
+    TERMS_CONTENT_SEPARATOR = "terms_content_separator"
+
+    def __init__(self):
+        self.terms = set()
+        self.cooccurrences = {}
+        self.inflections = nlp.Inflections()
+
+    def parse(self, input_stream):
+        content_point = False
+
+        for item in input_stream:
+            for sentence in nlp.split_sentences(item):
+                if sentence == [TermsContentText.TERMS_CONTENT_SEPARATOR]:
+                    content_point = True
+                    terms_trie = build_trie(self.terms)
+                elif not content_point:
+                    term = nlp.Term([CANONICALIZER(word) for word in sentence])
+                    self.terms.add(term)
+                    inflection = nlp.Term(sentence)
+                    self.inflections.record(term, inflection)
+                else:
+                    reference_terms = nlp.extract_terms(corpus=sentence,
+                                                        terms_trie=terms_trie,
+                                                        lemmatizer=CANONICALIZER,
+                                                        inflection_recorder=self.inflections.record)
+
+                    for a in reference_terms:
+                        for b in reference_terms:
+                            if a != b:
+                                if a not in self.cooccurrences:
+                                    self.cooccurrences[a] = {}
+
+                                if b not in self.cooccurrences[a]:
+                                    self.cooccurrences[a][b] = []
+
+                                #self.cooccurrences[a].add(b)
+                                self.cooccurrences[a][b] += [sentence]
+
+class ContentText:
     MINIMUM_TERM_LENGTH = 5
 
     def __init__(self):
@@ -247,16 +309,15 @@ class LineText:
         self.cooccurrences = {}
         self.inflections = nlp.Inflections()
 
-    def parse(self, input_texts):
+    def parse(self, input_stream):
         link_counts = {}
         conditional_inflections = {}
 
-        for input_text in input_texts:
-            with open(input_text, "r") as fh:
-                rake = Rake()
-                terms = rake.extract_keywords_from_sentences(fh.readlines())
+        for line in input_stream:
+            rake = Rake()
+            terms = rake.extract_keywords_from_sentences(fh.readlines())
 
-            self._parse(input_text, link_counts, conditional_inflections)
+        self._parse(input_stream, link_counts, conditional_inflections)
 
         flat_link_counts = [(term_a, term_b, count) for term_a, linked_terms in link_counts.items() for term_b, count in linked_terms.items()]
 
@@ -290,11 +351,11 @@ class LineText:
                     for infl in conditional_inflections[term_b]:
                         self.inflections.record(term_b, nlp.Term([infl]))
 
-    def _parse(self, input_text, link_counts, conditional_inflections):
-        with open(input_text, "r") as fh:
+    def _parse(self, input_stream, link_counts, conditional_inflections):
+        with open(input_stream, "r") as fh:
             for line in fh:
                 print(line)
-                tokens = [re.sub(r'[^A-Za-z]', r'', item.strip().lower()) for item in line.split(" ")]
+                tokens = [re.sub(r'[^A-Za-z]', r'', item) for item in line.split(" ")]
                 print(tokens)
                 terms = [CANONICALIZER(item) for item in tokens]
 

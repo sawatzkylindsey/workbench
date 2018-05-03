@@ -1,0 +1,32 @@
+.links line {
+  stroke: #999;
+  stroke-opacity: 0.6;
+}
+
+.nodes circle {
+  stroke: #fff;
+  stroke-width: 1.5px;
+}
+
+.labels {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+}
+
+//input {
+//  display: block;
+//  margin: 2px;
+//}
+
+.description {
+  text-align: right;
+}
+
+.clickable:hover {
+  cursor: pointer;
+}
+
+ul {
+  list-style-type: none;
+  padding: 0;
+}

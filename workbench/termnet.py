@@ -21,7 +21,7 @@ from workbench.frontend import d3node, d3link
 from workbench.graph import GraphBuilder, Graph
 from pytils.log import setup_logging, user_log
 import workbench.parser
-import workbench.nlp
+from workbench.nlp import Term
 
 
 TOP = 10
@@ -39,52 +39,54 @@ def main():
                         help="Turn on verbose logging.  " + \
                         "**This will SIGNIFICANTLY slow down the program.**")
     ap.add_argument("-f", "--input-format", default=workbench.parser.WIKIPEDIA, help="One of %s" % workbench.parser.FORMATS)
-    ap.add_argument("input_text", nargs="+")
+    ap.add_argument("input_texts", nargs="+")
     args = ap.parse_args()
     setup_logging(".%s.log" % os.path.splitext(os.path.basename(__file__))[0], args.verbose, True)
     logging.debug(args)
-    net = build(args.input_text, args.input_format)
+    net = build(args.input_texts, args.input_format)
     return 0
 
 
 def build(input_text, input_format):
-    check.check_instance(input_text, list)
-    check.check_one_of(check.check_instance(input_format, str), workbench.parser.FORMATS)
+    check.check_iterable(input_text)
     parse = workbench.parser.parse_input(input_text, input_format)
     builder = GraphBuilder(Graph.UNDIRECTED)
-    maximum = max([max([len(l) for l in subd.values()]) for subd in parse.cooccurrences.values()])
+    # Count the number of cooccurrences per termA-termB pairing, and take the maximum.
+    sub_maximums = [0 if len(subd) == 0 else max([len(l) for l in subd.values()]) for subd in parse.cooccurrences.values()]
+    maximum = 0 if len(sub_maximums) == 0 else max(sub_maximums)
     k = max(int(maximum * BOTTOM_K), 1)
     user_log.info("maximum: %s, k: %s" % (maximum, k))
     inflection_sentences = {}
 
-    with open("cooccurrences.csv", "w") as fh:
-        fh.write("a,b,sentence\n")
+    for term_a, term_sentences in sorted(parse.cooccurrences.items()):
+        source = parse.inflections.to_inflection(term_a)
+        targets = {parse.inflections.to_inflection(term_b): sentences for term_b, sentences in filter(lambda item: len(item[1]) >= k, term_sentences.items())}
 
-        for term_a, term_sentences in sorted(parse.cooccurrences.items()):
-            source = parse.inflections.to_inflection(term_a)
-            targets = {parse.inflections.to_inflection(term_b): sentences for term_b, sentences in filter(lambda item: len(item[1]) >= k, term_sentences.items())}
+        if len(targets) > 0:
+            builder.add(source, [t for t in targets.keys()])
 
-            if len(targets) > 0:
-                builder.add(source, [t for t in targets.keys()])
+            if source not in inflection_sentences:
+                inflection_sentences[source] = {}
 
-                if source not in inflection_sentences:
-                    inflection_sentences[source] = {}
+            for target, sentences in targets.items():
+                if target not in inflection_sentences[source]:
+                    inflection_sentences[source][target] = set()
 
-                for target, sentences in targets.items():
-                    if target not in inflection_sentences[source]:
-                        inflection_sentences[source][target] = set()
-
-                    for sentence in sentences:
-                        inflection_sentences[source][target].add(sentence)
-
-            for term_b, sentences in sorted(term_sentences.items()):
                 for sentence in sentences:
-                    fh.write("%s,%s,\"%s\"\n" % (term_a.name(), term_b.name(), sentence.replace("\"", "'")))
+                    inflection_sentences[source][target].add(" ".join(sentence))
 
-    with open("infl-sents.json", "w" ) as fh:
-        fh.write(json.dumps(str_kv(inflection_sentences), indent=4, sort_keys=True))
+    graph = builder.build()
 
-    net = Termnet(builder.build(), inflection_sentences)
+    if len(graph) > 0:
+        return Termnet(graph, inflection_sentences)
+    else:
+        builder = GraphBuilder(Graph.UNDIRECTED)
+        empty = Term(["empty"])
+        example = Term(["example"])
+        builder.add(empty, [example])
+        inflection_sentences[empty] = {example: ["empty example"]}
+        return Termnet(builder.build(), inflection_sentences)
+
     return net
 
 
@@ -340,7 +342,18 @@ class TermnetSession:
 
                 if score > best:
                     best = score
-                    summary = "|||".join(self.termnet.sentences[link.source][link.target])
+
+                    try:
+                        alpha = [s for s in self.termnet.sentences[link.source][link.target]]
+                    except KeyError as e:
+                        alpha = []
+
+                    try:
+                        beta = [s for s in self.termnet.sentences[link.target][link.source]]
+                    except KeyError as e:
+                        beta = []
+
+                    summary = "|||".join(alpha + beta)
             elif (link.source in selected_nodes and link.target in neighbour_nodes) \
                 or (link.source in neighbour_nodes and link.target in selected_nodes) \
                 or (link.source in neighbour_nodes and link.target in neighbour_nodes):

@@ -16,20 +16,10 @@ import urllib
 
 from workbench.graph import GraphBuilder, Graph
 from workbench.nlp import Term
-import workbench.parser
+from workbench import parser
 from pytils.log import setup_logging, user_log
-from workbench.termnet import build as build_termnet, TermnetSession
-
-
-#worker = termnet.Termnet("glossary1.csv", termnet.GLOSSARY_CSV)
-#worker = termnet.Termnet("glossary2.csv", termnet.GLOSSARY_CSV)
-#worker = termnet.Termnet("Astronomy.csv", termnet.GLOSSARY_CSV)
-#worker = termnet.Termnet(["cog.txt", "direct.txt", "mayer.txt", "reduce.txt"], termnet.LINE_TEXT)
-#worker = termnet.Termnet(["astro1.txt", "astro2.txt", "astro3.txt"], termnet.LINE_TEXT)
-#global net
-#net = None
-#global previous
-#previous = None
+from workbench.termnet import TermnetSession
+from workbench.processor import TermnetBuilder
 
 
 class ServerHandler(BaseHTTPRequestHandler):
@@ -38,37 +28,65 @@ class ServerHandler(BaseHTTPRequestHandler):
     #    pdb.set_trace()
     #    termnet_session = check_not_none(termnet)
     #    self.previous = None
-    def _session(self, session_key):
-        if session_key not in self.server.sessions:
-            self.server.sessions[session_key] = TermnetSession(self.server.termnet)
 
-        return self.server.sessions[session_key]
+    #def _session(self, session_key):
+    #    if session_key not in self.server.sessions:
+    #        self.server.sessions[session_key] = TermnetSession(self.server.termnet)
 
-    def _set_headers(self, ct):
+    #    return self.server.sessions[session_key]
+
+    def _set_headers(self, content_type, others={}):
         self.send_response(200)
-        self.send_header('Content-type', ct)
+        self.send_header('Content-type', content_type)
+
+        for key, value in others.items():
+            self.send_header(key, value)
+
         self.end_headers()
 
     def do_GET(self):
-        (path, session, content) = self._read()
+        (path, session, data) = self._read_request()
         logging.debug("GET %s session: %s" % (path, session))
         file_path = os.path.join(".", "javascript", path.strip("/"))
+        logging.debug(file_path)
 
         if os.path.exists(file_path):
             mimetype, _ = mimetypes.guess_type(path)
             self._set_headers(mimetype)
-
-            with open(file_path, "r") as fh:
-                for line in fh:
-                    self._write(line)
+            self._read_write_file(file_path)
         else:
             self.send_error(404,'File Not Found: %s ' % path)
 
+    def _read_write_file(self, file_path):
+        with open(file_path, "r") as fh:
+            for line in fh:
+                self._write(line)
+
     def do_POST(self):
-        (path, session_key, content) = self._read()
-        logging.debug("POST %s session: %s content: %s" % (path, session_key, content))
-        termnet_session = self._session(session_key)
-        out = self.__getattribute__(self.path[1:].replace("/", "_"))(termnet_session, content)
+        (path, session_key, data) = self._read_request()
+        logging.debug("POST %s session: %s data: %s" % (path, session_key, data))
+
+        if path.startswith("/termnet.html"):
+            self._set_headers("text/html")
+
+            if data["format"][0] == "content":
+                input_text = "%s %s. %s" % (data["terms"][0], parser.TermsContentText.TERMS_CONTENT_SEPARATOR, data["content"][0])
+                logging.debug("'%s' input_text: %s" % (data["sessionKey"][0], input_text))
+                termnet = self.server.termnet_builder.from_text(input_text, parser.TERMS_CONTENT_TEXT)
+            elif data["format"][0] == "glossary":
+                termnet = self.server.termnet_builder.from_text(data["content"][0], parser.GLOSSARY_CSV)
+            elif data["format"][0] == "wikipedia":
+                termnet = self.server.termnet_builder.from_text(data["content"][0], parser.WIKIPEDIA_ARTICLES_LIST)
+            else:
+                raise ValueError("unknown format '%s'" % data["format"][0])
+
+            termnet_session = TermnetSession(termnet)
+            self.server.sessions[data["sessionKey"][0]] = termnet_session
+            self._read_write_file("./javascript/termnet.html")
+            return
+
+        termnet_session = self.server.sessions[session_key]
+        out = self.__getattribute__(self.path[1:].replace("/", "_"))(termnet_session, data)
 
         if out == None:
             out = {}
@@ -164,26 +182,33 @@ class ServerHandler(BaseHTTPRequestHandler):
 
         return termnet_session.display_previous()
 
-    def _read(self):
+    def _read_request(self):
         url = urllib.parse.urlparse(self.path)
         session_key = self.headers["Session-Key"]
-        content_params = {}
+        data = {}
 
         if "Content-Length" in self.headers:
             content_length = int(self.headers["Content-Length"])
             content_data = self.rfile.read(content_length).decode("utf-8")
-            content_params = urllib.parse.parse_qs(content_data)
+            data = urllib.parse.parse_qs(content_data)
 
-        return (url.path, session_key, content_params)
+            #for k, v in qs_data.items():
+            #    pdb.set_trace()
+            #    if isinstance(v, list):
+            #        data[k] = v[0]
+            #    else:
+            #        data[k] = v
+
+        return (url.path, session_key, data)
 
     def _write(self, text):
         self.wfile.write(text.encode("utf-8"))
 
 
-def run(port, termnet):
+def run(port, termnet_builder):
     server_address = ('', port)
     httpd = HTTPServer(server_address, ServerHandler)
-    httpd.termnet = termnet
+    httpd.termnet_builder = termnet_builder
     httpd.sessions = {}
     user_log.info('Starting httpd %d...' % port)
     httpd.serve_forever()
@@ -199,13 +224,14 @@ def main(argv):
                         help="Turn on verbose logging.  " + \
                         "**This will SIGNIFICANTLY slow down the program.**")
     ap.add_argument("-p", "--port", default=8888, type=int)
-    ap.add_argument("-f", "--input-format", default=workbench.parser.WIKIPEDIA, help="One of %s" % workbench.parser.FORMATS)
-    ap.add_argument("input_text", nargs="+")
+    ap.add_argument("-f", "--input-format", default=parser.WIKIPEDIA_ARTICLES_LIST[1], help="One of %s" % parser.FORMATS)
+    ap.add_argument("input_text")
     args = ap.parse_args(argv)
     setup_logging(".%s.log" % os.path.splitext(os.path.basename(__file__))[0], args.verbose, True)
     logging.debug(args)
-    termnet = build_termnet(args.input_text, args.input_format)
-    run(args.port, termnet)
+    termnet_builder = TermnetBuilder()
+    termnet_builder.from_stream(parser.file_to_content(args.input_text), args.input_format)
+    run(args.port, termnet_builder)
 
 
 if __name__ == "__main__":

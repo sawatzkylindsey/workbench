@@ -7,7 +7,7 @@ from pytils.invigilator import create_suite
 from unittest import TestCase
 
 
-from workbench.nlp import extract_terms, SPLITTER
+from workbench.nlp import extract_terms, split_words, split_sentences, stem
 from workbench.nlp import Term
 from workbench.trie import build as build_trie
 
@@ -28,9 +28,9 @@ class Tests(TestCase):
         little_man = Term(["little", "man"])
         terms = set([little, little_man])
         terms_trie = build_trie(terms)
-        self.assertEqual(extract_terms(SPLITTER(corpus1), terms_trie), set([little, little_man]))
-        self.assertEqual(extract_terms(SPLITTER(corpus2), terms_trie), set([little]))
-        self.assertEqual(extract_terms(SPLITTER(corpus3), terms_trie), set([little_man]))
+        self.assertEqual(extract_terms(split_words(corpus1), terms_trie), set([little, little_man]))
+        self.assertEqual(extract_terms(split_words(corpus2), terms_trie), set([little]))
+        self.assertEqual(extract_terms(split_words(corpus3), terms_trie), set([little_man]))
 
     def test_extract_terms_overlap(self):
         corpus = "once there was a little man"
@@ -39,7 +39,7 @@ class Tests(TestCase):
         was_a = Term(["was", "a"])
         terms = set([once_there, there_was, was_a])
         terms_trie = build_trie(terms)
-        self.assertEqual(extract_terms(SPLITTER(corpus), terms_trie), set([once_there, was_a]))
+        self.assertEqual(extract_terms(split_words(corpus), terms_trie), set([once_there, was_a]))
 
     def test_extract_terms_end(self):
         corpus = "once there was a little man"
@@ -47,8 +47,8 @@ class Tests(TestCase):
         man_trie = build_trie([man])
         little_man = Term(["little", "man"])
         little_man_trie = build_trie([little_man])
-        self.assertEqual(extract_terms(SPLITTER(corpus), man_trie), set([man]))
-        self.assertEqual(extract_terms(SPLITTER(corpus), little_man_trie), set([little_man]))
+        self.assertEqual(extract_terms(split_words(corpus), man_trie), set([man]))
+        self.assertEqual(extract_terms(split_words(corpus), little_man_trie), set([little_man]))
 
 
 def tests():

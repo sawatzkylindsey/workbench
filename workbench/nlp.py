@@ -13,14 +13,36 @@ from workbench.trie import Node
 
 
 STEMMER = SnowballStemmer("english")
-SPLITTER = nltk.word_tokenize
 
 
 def stem(word):
-    if word == "ares":
+    # Avoid stemming "Ares" as "are".
+    if word.lower() == "ares":
         return word
 
     return STEMMER.stem(word)
+
+
+def split_words(corpus):
+    return nltk.word_tokenize(corpus)
+
+
+def split_sentences(corpus):
+    words = split_words(corpus)
+    sentences = []
+    sentence = []
+
+    for word in words:
+        if word == ".":
+            sentences += [sentence]
+            sentence = []
+        else:
+            sentence += [word]
+
+    if len(sentence) != 0:
+        sentences += [sentence]
+
+    return sentences
 
 
 def extract_terms(corpus, terms_trie, lemmatizer=lambda x: x, inflection_recorder=lambda x, y: 0):

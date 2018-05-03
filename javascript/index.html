@@ -1,513 +1,218 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
-<style>
-
-.links line {
-  stroke: #999;
-  stroke-opacity: 0.6;
-}
-
-.nodes circle {
-  stroke: #fff;
-  stroke-width: 1.5px;
-}
-
-.labels {
-  font-family: "Helvetica Neue", Arial, sans-serif;
-  font-size: 14px;
-}
-
-//input {
-//  display: block;
-//  margin: 2px;
-//}
-
-.description {
-  text-align: right;
-}
-
-.clickable:hover {
-  cursor: pointer;
-}
-
-ul {
-  list-style-type: none;
-  padding: 0;
-}
-
-</style>
-<svg width="1200" height="700"></svg>
-<!--<script src="https://d3js.org/d3.v4.min.js"></script>-->
-<!--<script src="https://d3js.org/d3-selection-multi.v0.4.min.js"></script>-->
+<head>
+<link rel="stylesheet" type="text/css" href="style.css"/>
+</head>
 <script src="js/d3.min.js"></script>
 <script src="js/d3-selection-multi.v0.4.min.js"></script>
 <script src="js/jquery-3.2.1.min.js"></script>
+<script src="js/jquery.redirect.js"></script>
 <script src="js/rainbowvis.js"></script>
 <script>
-
-var rainbow = new Rainbow();
-rainbow.setNumberRange(0, 1.0);
-rainbow.setSpectrum("#96afff", "#001e84");
-
-var svg = d3.select("svg"),
-    width = +svg.attr("width"),
-    height = +svg.attr("height");
+var width = 1200;
+var height = 700;
 var center_x = width / 2.0;
 var center_y = height / 2.0;
-/* SessionKey from url hash, or generated if not present.
-
-var sessionKey = window.location.hash == null || window.location.hash == "" ?
-    // Makes a 8 character long random string : Excludes the hash symbol (#) from the url's hash.
-    //                        vvvvvvvvvvvvv                       vvvvvvvvvvvvv
-    Math.random().toString(36).substring(5) : window.location.hash.substring(1);
-window.location.hash = sessionKey;
-*/
-var sessionKey = Math.random().toString(36).substring(5);
 var pool_radius = Math.min(width, height) / 2.5;
-var pool = svg.append("circle")
-    .style("stroke-width", 5)
-    .style("stroke", "black")
-    .style("fill", "white")
-    .attrs({
-        class: "pool",
-        r: pool_radius,
-        cx: 0,
-        cy: 0,
-        transform: "translate(" + center_x + "," + center_y + ")"
-        //x: center_x,
-        //y: center_y
-    });
-
-var controlFo = svg.append("foreignObject")
-    .attr("id", "controlFo")
-    .attr("transform", "translate(10, 10)")
-    .attr("width", center_x - pool_radius - 40)
-    .attr("height", height - 40);
-var neighbourhooder = null;
-var searcher = null;
-var sizer = null;
-var positiveInfluencer = null;
-var negativeInfluencer = null;
-var negater = null;
-var ignorer = null;
-//var negatedToggler = null;
-var negaterList = null;
-var ignorerList = null;
-$("#controlFo").load("controls.html", function() {
-    neighbourhooder = $("#neighbourhooder");
-    searcher = $("#searcher");
-    sizer = $("#sizer");
-    positiveInfluencer = $("#positiveInfluencer");
-    positiveInfluencer.find(".default")
+// center_x - pool_radius - 40)
+// height - 40
+var controls = null;
+var kinder = null;
+var preseter = null;
+var formater = null;
+var inputer = null;
+var contentInputer = null;
+var glossaryInputer = null;
+var wikipediaInputer = null;
+var contenter = null;
+var termer = null;
+$(document).ready(function () {
+    controls = $("#controls");
+    kinder = $("#kinder");
+    preseter = $("#preseter");
+    formater = $("#formater");
+    inputer = $("#inputer");
+    contentInputer = $("#contentInputer");
+    glossaryInputer = $("#glossaryInputer");
+    wikipediaInputer = $("#wikipediaInputer");
+    contenter = $("#contenter");
+    termer = $("#termer");
+    controls.attr("width", center_x - pool_radius - 40)
+        .attr("height", height - 40);
+    inputer.css("left", center_x - pool_radius);
+    kinder.find(".default")
         .prop("checked", true)
         .change();
-    negativeInfluencer = $("#negativeInfluencer");
-    negativeInfluencer.find(".default")
-        .prop("checked", true)
-        .change();
-    negater = $("#negater");
-    //negatedToggler = $("#negatedToggler");
-    negaterList = $("#negaterList");
-    ignorer = $("#ignorer");
-    ignorerList = $("#ignorerList");
 });
-function neighbourhood(event) {
-    if (event.keyCode == 13) {
-        var termname = neighbourhooder.val();
-        neighbourhooder.val("");
-        console.log("term: " + termname);
-        d3.json("neighbourhood")
-            .header("session-key", sessionKey)
-            .post("term=" + termname, function(error, data) { draw(data); });
-    }
-}
-function search(event) {
-    if (event.keyCode == 13) {
-        var termname = searcher.val();
-        searcher.val("");
-        console.log("term: " + termname);
-        d3.json("search")
-            .header("session-key", sessionKey)
-            .post("term=" + termname, function(error, data) {
-                if (error != null) {
-                    // TODO
-                } else {
-                    draw(data);
-                }
-            });
-    }
-}
-var size = 1;
-function release(event) {
-    svg.selectAll(".node")
-        .each(function(d) {
-            var pyth = pythagoras(d.x, d.y);
-
-            if (pyth.hypotenuse <= pool_radius + 1) {
-                d.fx = null;
-                d.fy = null;
-                d.drag = false
-                //unstick(d);
-            }
-        });
-}
-var firstDraw = true;
-function reset(event) {
-    d3.json("reset")
-        .header("session-key", sessionKey)
-        .post("");
-    firstDraw = true;
-    d3.json("neighbourhood")
-        .header("session-key", sessionKey)
-        .post("", function(error, data) {
-            //console.log(data);
-            draw(data);
-        });
-}
-function influenceConfigure(event) {
+var kind = null;
+function selectKind(event) {
     console.log(event);
-    console.log(event.target.value);
-    var polarity = event.target.name == "positive-influence" ? "positive" : "negative";
-    d3.json("influence/configure")
-        .header("session-key", sessionKey)
-        .post("mode=" + event.target.value + "&polarity=" + polarity, function(error, data) {
-            if (!event.isTrigger) {
-                draw(data);
-            }
+    if (event.target.value == "preset") {
+        preseter.css("display", "table-row");
+        preseter.find("select")
+            .val(preseter.find(".default").val())
+            .change();
+        //inputer.css("display", "none");
+        formater.css("display", "none");
+        kind = "preset";
+    }
+    else if (event.target.value == "custom") {
+        preseter.css("display", "none");
+        //inputer.css("display", "block");
+        formater.css("display", "table-row");
+        formater.find("select")
+            .val(formater.find(".default").val())
+            .change();
+        $(".content").val("");
+        kind = "custom";
+    }
+}
+function selectPreset(event) {
+    console.log(event);
+    if (event.target.value == "astronomy-glossary") {
+        selectFormatValue("glossary");
+        $.get("Astronomy.glossary", function(data) {
+            glossaryInputer.find(".content").val(data);
         });
-}
-var negations = new Set();
-var ignores = new Set();
-function negateAdd(event) {
-    //if (!d3.event.active) {
-    //    simulation.alphaTarget(0);
-    //}
-    if (event.keyCode == 13) {
-        let termname = negater.val();
-        negater.val("");
-        d3.json("influence")
-            .header("session-key", sessionKey)
-            .post("polarity=negative&term=" + termname + "&mode=add", function(error, data) {
-                if (error == null) {
-                    draw(data);
-                    updateNegations(termname);
-                }
-            });
-        //negater.val("");
     }
-}
-function ignoreAdd(event) {
-    if (event.keyCode == 13) {
-        let termname = ignorer.val();
-        ignorer.val("");
-        d3.json("ignore")
-            .header("session-key", sessionKey)
-            .post("term=" + termname + "&mode=add", function(error, data) {
-                if (error == null) {
-                    draw(data);
-                    updateIgnores(termname);
-                }
-            });
-    }
-}
-function negateRemove(event) {
-    //console.log(event);
-    var termname = event.target.innerText;
-    updateNegations(termname);
-    d3.json("influence")
-        .header("session-key", sessionKey)
-        .post("polarity=negative&term=" + termname + "&mode=remove", function(error, data) { draw(data); });
-}
-function ignoreRemove(event) {
-    var termname = event.target.innerText;
-    updateIgnores(termname);
-    d3.json("ignore")
-        .header("session-key", sessionKey)
-        .post("term=" + termname + "&mode=remove", function(error, data) { draw(data); });
-}
-function updateNegations(termname) {
-    if (negations.has(termname)) {
-        negations.delete(termname);
-    }
-    else {
-        negations.add(termname);
-    }
-
-    /*if (negations.size == 0) {
-        negatedToggler.css("display", "none");
-        negaterList.css("display", "none");
-    }
-    else {
-        negatedToggler.css("display", "block");
-        var hidden = negaterList.css("display") == "none";
-        negatedToggler.val((hidden ? "Show negations (" : "Hide negations (") + negations.size + ")");*/
-        negaterList.empty();
-        var sortedNegations = Array.from(negations);
-        sortedNegations.sort();
-        sortedNegations.forEach(function(negation) {
-            negaterList.append("<span class='clickable' onclick='negateRemove(event)'>" + negation + "</span></br>");
-        });
-    //}
-}
-function updateIgnores(termname) {
-    if (ignores.has(termname)) {
-        ignores.delete(termname);
-    } else {
-        ignores.add(termname);
-    }
-
-    ignorerList.empty();
-    var sortedIgnores = Array.from(ignores);
-    sortedIgnores.sort();
-    sortedIgnores.forEach(function(ignore) {
-        ignorerList.append("<span class='clickable' onclick='ignoreRemove(event)'>" + ignore + "</span></br>");
-    });
-}
-function toggleNegatedLister() {
-    if (negaterList.css("display") == "none") {
-        negaterList.css("display", "table");
-        negatedToggler.val("Hide negations (" + negations.size + ")");
-    }
-    else {
-        negaterList.css("display", "none");
-        negatedToggler.val("Show negations (" + negations.size + ")");
-    }
-}
-
-
-var summaryFo = svg.append("foreignObject")
-    .attr("transform", "translate(" + (center_x - pool_radius) + "," + (center_y * 1.85) + ")")
-    .attr("width", pool_radius * 2)
-    .attr("height", 50);
-var summary = summaryFo.append("xhtml:div")
-    .attr("id", "summary")
-    .attr("class", "labels")
-    .style("text-align", "center")
-    .text("placeholder");
-
-var color = d3.scaleOrdinal(d3.schemeCategory20);
-var MIN_RADIUS = 5;
-var MAX_RADIUS = 50;
-
-function node_radius(rank) {
-    return Math.min(Math.max(rank * size, MIN_RADIUS), MAX_RADIUS);
-}
-
-var simulation = d3.forceSimulation()
-    .force("link", d3.forceLink()
-        .distance(80)
-        //.strength(0.005)
-        .id(function(d) { return d.name; })
-    )
-    .force("charge", d3.forceManyBody().strength(-100))
-    /*.force("collide", d3.forceCollide(function (d) {
-        return node_radius(d.rank) * 2;
-    }).strength(0.005).iterations(16))*/
-    //.force("center", d3.forceCenter(center_x, center_y))
-    .force("x", d3.forceX(center_x).strength(0.05))
-    .force("y", d3.forceY(center_y).strength(0.05));
-
-function resize(event) {
-    size = parseInt(sizer.val());
-    simulation.alphaTarget(1);  // Make sure the simulation keeps going, otherwise sometimes the resizer gets "stuck".
-}
-
-d3.json("neighbourhood")
-    .header("session-key", sessionKey)
-    .post("", function(error, data) {
-        //console.log(data);
-        draw(data);
-    });
-
-function draw(graph) {
-    console.log(graph);
-    var previousPositions = {};
-
-    if (!firstDraw) {
-        svg.selectAll(".node")
-            .each(function(n) {
-                //console.log(n);
-                previousPositions[n.name] = {x: n.x, y: n.y, drag: n.drag};
-            });
-        graph.nodes = graph.nodes.map(function(n) {
-            if (n.name in previousPositions) {
-                n.fx = previousPositions[n.name].x;
-                n.fy = previousPositions[n.name].y;
-                n.drag = previousPositions[n.name].drag;
-            }
-            return n;
-        });
-        console.log(graph);
-    }
-
-    firstDraw = false;
-    svg.selectAll("g").remove();
-    summary.text(graph.summary);
-
-    var link = svg.append("g")
-        .attr("class", "links")
-        .selectAll("links")
-        .data(graph.links, function (links) {
-            return links;
-        })
-        .enter()
-            .append("line")
-            .attr("term-source", function(l) { return l.source; })
-            .attr("term-target", function(l) { return l.target; })
-            .attr("stroke-width", function(l) { return Math.sqrt(l.value); })
-            .style("opacity", function(l) { return l.alpha; } );
-
-    var node = svg.append("g")
-        .attr("class", "nodes")
-        .selectAll("bob")
-        .data(graph.nodes)
-        .enter()
-            .append("circle")
-            .attr("class", "node")
-            .attr("id", function(d) { return "node-" + d.name; })
-            .attr("fill", function(d) {
-                return "#" + rainbow.colourAt(d.coeff);
-            })
-            .attr("term", function(d) { return d.name; })
-            .attr("r", function(d) { return node_radius(d.rank); })
-            .style("opacity", function(d) { return d.alpha; })
-            .on("click", unstick)
-            .call(d3.drag()
-                .on("start", dragstarted)
-                .on("drag", dragged)
-                .on("end", dragended));
-
-    var labels = svg.append("g")
-        .attr("class", "label")
-        .selectAll("bobbobobo")
-        .data(graph.nodes)
-        .enter()
-            .append("text")
-            .style("pointer-events", "none")
-            .attr("class", "labels")
-            .attr("stroke", "black")
-            .attr("term", function(d) { return d.name; })
-            .style("opacity", function(d) { return d.alpha / 1.5; })
-            .text(function (d) { return d.name; });
-
-    simulation.nodes(graph.nodes)
-        .on("tick", ticked);
-
-    simulation.force("link")
-        .links(graph.links);
-
-    simulation.alphaTarget(0.5).restart();
-
-    function ticked() {
-        node.attrs(function(d) {
-            var coordinates = pool_bound(node_radius(d.rank), d.x, d.y, d.drag);
-            d.x = coordinates.x;
-            d.y = coordinates.y;
-            return {
-                cx: coordinates.x,
-                cy: coordinates.y,
-                r: node_radius(d.rank)
-            };
-        });
-
-        link.attr("x1", function(d) { return d.source.x; })
-            .attr("y1", function(d) { return d.source.y; })
-            .attr("x2", function(d) { return d.target.x; })
-            .attr("y2", function(d) { return d.target.y; });
-
-        labels.attrs(function(d) {
-            var radius = node_radius(d.rank);
-            return {
-                x: d.x + 4.5 + radius,
-                y: d.y + 4.5
-            };
+    else if (event.target.value == "astronomy-wikipedia") {
+        selectFormatValue("wikipedia");
+        $.get("Astronomy.wikipedia", function(data) {
+            wikipediaInputer.find(".content").val(data);
         });
     }
 }
-
-function xbounded(d) { return Math.max(Math.min(d.x, width - 50), 10); }
-function ybounded(d) { return Math.max(Math.min(d.y, height - 10), 10); }
-
-function pythagoras(x, y) {
-    var distance_x = Math.abs(center_x - x);
-    var distance_y = Math.abs(center_y - y);
-    return {
-        distance_x: distance_x,
-        distance_y: distance_y,
-        hypotenuse: Math.sqrt(Math.pow(distance_x, 2) + Math.pow(distance_y, 2))
+var format = null;
+function selectFormat(event) {
+    console.log(event);
+    selectFormatValue(event.target.value);
+}
+function selectFormatValue(value) {
+    if (value == "content") {
+        contentInputer.css("display", "block");
+        glossaryInputer.css("display", "none");
+        wikipediaInputer.css("display", "none");
+        format = "content";
+    }
+    else if (value == "glossary") {
+        contentInputer.css("display", "none");
+        glossaryInputer.css("display", "block");
+        wikipediaInputer.css("display", "none");
+        format = "glossary";
+    }
+    else if (value == "wikipedia") {
+        contentInputer.css("display", "none");
+        glossaryInputer.css("display", "none");
+        wikipediaInputer.css("display", "block");
+        format = "wikipedia";
+    }
+}
+function load(event) {
+    var sessionKey = Math.random().toString(36).substring(5);
+    var data = {
+        "sessionKey": sessionKey,
+        "format": format
     };
-}
-
-function pool_bound(radius, x, y, ignore) {
-    var pyth = pythagoras(x, y);
-
-    if (pyth.hypotenuse > pool_radius && !ignore) {
-        var distance_total = pyth.distance_x + pyth.distance_y;
-        var excess = pyth.hypotenuse - pool_radius;
-        var excess_squared = Math.pow(excess, 2);
-        var sign_x = x > center_x ? 1 : -1;
-        var sign_y = y > center_y ? 1 : -1;
-        return {
-            x: x - (sign_x * Math.sqrt(excess_squared * (pyth.distance_x / distance_total))),
-            y: y - (sign_y * Math.sqrt(excess_squared * (pyth.distance_y / distance_total)))
-        };
+    if (format == "content") {
+        data["content"] = contentInputer.find(".content").val();
+        data["terms"] = contentInputer.find(".terms").val();
     }
-    else {
-        return {x: x, y: y}
+    else if (format == "glossary") {
+        data["content"] = glossaryInputer.find(".content").val();
     }
-}
-
-var drag_start_x = null;
-var drag_start_y = null;
-function dragstarted(d) {
-    if (!d3.event.active) {
-        simulation.alphaTarget(0.3).restart();
+    else if (format == "wikipedia") {
+        data["content"] = wikipediaInputer.find(".content").val();
     }
-    d.fx = d.x;
-    d.fy = d.y;
-    d.drag = true;
-    console.log(d);
-    drag_start_x = d.x;
-    drag_start_y = d.y;
+    // The sessionKey in the hash is for the browser to use.
+    // The sessionKey in the post data is for the server to use.
+    // This way both browser and server agree!
+    $.redirect("termnet.html#" + sessionKey, data);
 }
-
-function dragged(d) {
-    d.fx = d3.event.x;
-    d.fy = d3.event.y;
-}
-
-function dragended(d) {
-    if (!d3.event.active) {
-        simulation.alphaTarget(0);
-    }
-    console.log(d);
-    console.log(d3.event);
-
-    var previous_pyth = pythagoras(drag_start_x, drag_start_y);
-    drag_start_x = null;
-    drag_start_y = null;
-    var pyth = pythagoras(d.x, d.y);
-
-    if (pyth.hypotenuse > pool_radius && previous_pyth.hypotenuse <= pool_radius + 1) {
-        d3.json("influence")
-            .header("session-key", sessionKey)
-            .post("polarity=positive&term=" + d.name + "&mode=add", function(error, data) { draw(data); } );
-    } else if (pyth.hypotenuse <= pool_radius && previous_pyth.hypotenuse > pool_radius) {
-        d3.json("influence")
-            .header("session-key", sessionKey)
-            .post("polarity=positive&term=" + d.name + "&mode=remove", function(error, data) { draw(data); } );
-    }
-}
-
-function unstick(d) {
-    d.fx = null;
-    d.fy = null;
-    d.drag = false
-    d3.json("influence")
-        .header("session-key", sessionKey)
-        .post("polarity=positive&term=" + d.name + "&mode=remove", function(error, data) { draw(data); });
-    simulation.alphaTarget(0.1);
-}
-
 </script>
 
+<body>
+    <div id="controls" style="position: absolute; left: 10px; top: 10px;">
+    <table>
+        <tr id="kinder">
+            <td class="description">Kind:</td>
+            <td>
+                <input class="default" type="radio" name="kind" onchange="selectKind(event)" value="preset">Preset</input>
+                <input type="radio" name="kind" onchange="selectKind(event)" value="custom">Custom</input>
+            </td>
+        </tr>
+        <tr id="preseter">
+            <td class="description">Presets:</td>
+            <td>
+                <select onchange="selectPreset(event)">
+                    <option class="default" value="astronomy-glossary">Astronomy Glossary</option>
+                    <!--<option value="astronomy-wikipedia">Astronomy Wikipedia (curated)</option>-->
+                </select>
+            </td>
+        </tr>
+        <tr id="formater">
+            <td class="description">Format:</td>
+            <td>
+                <select onchange="selectFormat(event)">
+                    <option class="default" value="content">Content Terms</input>
+                    <option value="glossary">Glossary Definitions</input>
+                    <!--<option value="wikipedia">Wikipedia Pages</input>-->
+                </select>
+            </td>
+        </tr>
+        <tr>
+            <td class="description"></td>
+            <td>
+                <input type="button" id="loader" onclick="load(event)" value="Load"/>
+            </td>
+        </tr>
+    </table>
+    </div>
+    <div id="inputer" style="position: absolute; top: 10px;">
+        <table id="contentInputer">
+            <tr>
+                <td style="text-align: center;">Content</td>
+                <td style="text-align: center;">Terms</td>
+            </tr>
+            <tr>
+                <td><textarea class="content" cols="80" rows="20"></textarea></td>
+                <td><textarea class="terms" cols="40" rows="20"></textarea></td>
+            </tr>
+            <tr>
+                <td style="text-align: center; opacity: 0.70;" width="80"><i>Example</i>:</br>
+One morning, when Gregor Samsa woke from troubled dreams, he found himself transformed in his bed into a horrible vermin.
+                </td>
+                <td style="text-align: center; opacity: 0.70;" width="40"><i>Example</i>:</br>
+Gregor Samsa. Dream. Vermin.
+                </td>
+            </tr>
+        </table>
+        <table id="glossaryInputer">
+            <tr>
+                <td style="text-align: center;">Glossary</td>
+            </tr>
+            <tr>
+                <td><textarea class="content" cols="80" rows="20"></textarea></td>
+            </tr>
+            <tr>
+                <td style="text-align: center; opacity: 0.70;" width="80"><i>Example</i>:</br>
+=:Book:= A written or printed work consisting of pages glued or sewn together along one side and bound in covers.</br>
+A bound set of blank sheets for writing or keeping records in.</br>
+=:Blank Sheet:= Moot.
+                </td>
+            </tr>
+        </table>
+        <table id="wikipediaInputer">
+            <tr>
+                <td style="text-align: center;">Wikipedia Articles List</td>
+            </tr>
+            <tr>
+                <td><textarea class="content" cols="80" rows="20"></textarea></td>
+            </tr>
+            <tr>
+                <td style="text-align: center; opacity: 0.70;" width="80"><i>Example</i>:</br>
+Dinosaur. Jurassic Park (film).
+                </td>
+            </tr>
+        </table>
+    </div>
+</body>

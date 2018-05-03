@@ -103,6 +103,9 @@ class Graph(object):
     def __getitem__(self, identifier):
         return self.indexes[identifier]
 
+    def __len__(self):
+        return len(self.all_nodes)
+
     def _calculate_clustering_coefficients(self):
         ccs = {}
 

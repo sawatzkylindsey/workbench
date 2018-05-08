@@ -20,6 +20,8 @@ var controls = null;
 var kinder = null;
 var preseter = null;
 var formater = null;
+var loader = null;
+var noticer = null;
 var inputer = null;
 var contentInputer = null;
 var glossaryInputer = null;
@@ -31,6 +33,8 @@ $(document).ready(function () {
     kinder = $("#kinder");
     preseter = $("#preseter");
     formater = $("#formater");
+    loader = $("#loader");
+    noticer = $("#noticer");
     inputer = $("#inputer");
     contentInputer = $("#contentInputer");
     glossaryInputer = $("#glossaryInputer");
@@ -108,6 +112,8 @@ function selectFormatValue(value) {
     }
 }
 function load(event) {
+    loader.prop("disabled", true);
+    noticer.css("display", "block");
     var sessionKey = Math.random().toString(36).substring(5);
     var data = {
         "sessionKey": sessionKey,
@@ -163,6 +169,12 @@ function load(event) {
             <td class="description"></td>
             <td>
                 <input type="button" id="loader" onclick="load(event)" value="Load"/>
+            </td>
+        </tr>
+        <tr>
+            <td class="description"></td>
+            <td>
+                <span id="noticer" style="display: none;">Loading..</br>This may take several seconds.</span>
             </td>
         </tr>
     </table>

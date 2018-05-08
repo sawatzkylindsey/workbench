@@ -4,7 +4,7 @@
 from pytils.invigilator import create_suite
 
 
-from test import graph, nlp, parser
+from test import graph, nlp, parser, processor
 
 
 def all():
@@ -16,5 +16,6 @@ def unit():
         graph.tests(),
         nlp.tests(),
         parser.tests(),
+        processor.tests(),
     ]
 

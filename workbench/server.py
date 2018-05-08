@@ -19,7 +19,8 @@ from workbench.nlp import Term
 from workbench import parser
 from pytils.log import setup_logging, user_log
 from workbench.termnet import TermnetSession
-from workbench.processor import TermnetBuilder
+from workbench.termnet import build as build_termnet
+from workbench.processor import FeConverter
 
 
 class ServerHandler(BaseHTTPRequestHandler):
@@ -72,14 +73,11 @@ class ServerHandler(BaseHTTPRequestHandler):
             if data["format"][0] == "content":
                 input_text = "%s %s. %s" % (data["terms"][0], parser.TermsContentText.TERMS_CONTENT_SEPARATOR, data["content"][0])
                 logging.debug("'%s' input_text: %s" % (data["sessionKey"][0], input_text))
-                termnet = self.server.termnet_builder.from_text(input_text, parser.TERMS_CONTENT_TEXT)
-            elif data["format"][0] == "glossary":
-                termnet = self.server.termnet_builder.from_text(data["content"][0], parser.GLOSSARY_CSV)
-            elif data["format"][0] == "wikipedia":
-                termnet = self.server.termnet_builder.from_text(data["content"][0], parser.WIKIPEDIA_ARTICLES_LIST)
+                (input_stream, input_format) = self.server.fe_converter.from_text(input_text, data["format"][0])
             else:
-                raise ValueError("unknown format '%s'" % data["format"][0])
+                (input_stream, input_format) = self.server.fe_converter.from_text(data["content"][0], data["format"][0])
 
+            termnet = build_termnet(input_stream, input_format)
             termnet_session = TermnetSession(termnet)
             self.server.sessions[data["sessionKey"][0]] = termnet_session
             self._read_write_file("./javascript/termnet.html")
@@ -205,10 +203,10 @@ class ServerHandler(BaseHTTPRequestHandler):
         self.wfile.write(text.encode("utf-8"))
 
 
-def run(port, termnet_builder):
+def run(port, fe_converter):
     server_address = ('', port)
     httpd = HTTPServer(server_address, ServerHandler)
-    httpd.termnet_builder = termnet_builder
+    httpd.fe_converter = fe_converter
     httpd.sessions = {}
     user_log.info('Starting httpd %d...' % port)
     httpd.serve_forever()
@@ -224,14 +222,12 @@ def main(argv):
                         help="Turn on verbose logging.  " + \
                         "**This will SIGNIFICANTLY slow down the program.**")
     ap.add_argument("-p", "--port", default=8888, type=int)
-    ap.add_argument("-f", "--input-format", default=parser.WIKIPEDIA_ARTICLES_LIST[1], help="One of %s" % parser.FORMATS)
-    ap.add_argument("input_text")
     args = ap.parse_args(argv)
     setup_logging(".%s.log" % os.path.splitext(os.path.basename(__file__))[0], args.verbose, True)
     logging.debug(args)
-    termnet_builder = TermnetBuilder()
-    termnet_builder.from_stream(parser.file_to_content(args.input_text), args.input_format)
-    run(args.port, termnet_builder)
+    fe_converter = FeConverter()
+    #fe_converter.from_stream(parser.file_to_content(args.input_text), args.input_format)
+    run(args.port, fe_converter)
 
 
 if __name__ == "__main__":

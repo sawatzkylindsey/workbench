@@ -22,25 +22,30 @@ from pytils.log import setup_logging, user_log
 from workbench.termnet import build as build_termnet
 
 
-class TermnetBuilder:
+GLOSSARY = "glossary"
+CONTENT = "content"
+
+
+class FeConverter:
     def __init__(self):
         self.cache = {}
 
     def from_text(self, input_text, input_format):
         logging.debug("%s: %s" % (str(input_format), input_text))
 
-        if (input_text, input_format) in self.cache:
-            return self.cache[(input_text, input_format)]
+        #if (input_text, input_format) in self.cache:
+        #    return self.cache[(input_text, input_format)]
 
-        if parser.format_matches(input_format, parser.GLOSSARY_CSV):
-            input_stream = []
+        if input_format == GLOSSARY:
+            output_format = parser.GLOSSARY_CSV
+            output_stream = []
             working_text = input_text
             left = None
             right = None
 
             while len(working_text) > 0:
                 if left is None:
-                    term_m = re.search("=:(.*):=(.*)", working_text)
+                    term_m = re.search("=:(.*?):=(.*)", working_text)
 
                     if term_m is not None:
                         left = term_m.group(1)
@@ -48,7 +53,7 @@ class TermnetBuilder:
                     else:
                         raise ValueError("cannot parse: %s" % working_text)
                 else:
-                    definition_m = re.search("(.*)(=:.*:=.*)", working_text, re.DOTALL)
+                    definition_m = re.search("(.*?)(=:.*:=.*)", working_text, re.DOTALL)
 
                     if definition_m is not None:
                         right = definition_m.group(1)
@@ -58,17 +63,21 @@ class TermnetBuilder:
                         working_text = ""
 
                 if left is not None and right is not None:
-                    input_stream += [[parser.CLEANER(left), parser.CLEANER(right)]]
+                    output_stream += [[parser.CLEANER(left), parser.CLEANER(right)]]
                     left = None
                     right = None
         else:
-            input_stream = [parser.CLEANER(input_text)]
+            output_stream = [parser.CLEANER(input_text)]
 
-        logging.debug(input_stream)
-        termnet = build_termnet(input_stream, input_format)
-        self.cache[(input_text, input_format)] = termnet
-        return termnet
+            if input_format == CONTENT:
+                output_format = parser.TERMS_CONTENT_TEXT
+            else:
+                raise ValueError("unknown format '%s'" % input_format)
 
-    def from_stream(self, input_stream, input_format):
-        return build_termnet(input_stream, input_format)
+        #termnet = build_termnet(input_stream, input_format)
+        #self.cache[(input_text, input_format)] = input_stream
+        return (output_stream, output_format)
+
+    #def from_stream(self, input_stream, input_format):
+    #    return build_termnet(input_stream, input_format)
 

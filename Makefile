@@ -21,4 +21,4 @@ build:
 
 run:
 #	python setup.py sdist
-	python dev-server.py -v ${WAL}
+	python dev-server.py -v

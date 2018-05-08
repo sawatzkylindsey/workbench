@@ -1,6 +1,7 @@
+<span style="text-align: center;"><i>Hover for help text.</i></span></br>
 <table style="margin: auto;">
     <tr>
-        <td class="description">Nodes:</td>
+        <td class="description" title="Affect the nodes in the termnet in some way.">Nodes:</td>
         <td>
             <input type="button" id="releaser" onclick="release(event)" value="Release" title="Allow the nodes to move freely based off the animation rules."/>
             <input type="button" id="locker" onclick="lock(event)" value="Lock" title="Stop the nodes from moving freely."/>
@@ -8,31 +9,31 @@
         </td>
     </tr>
     <tr>
-        <td class="description">Neighbourhood:</td>
-        <td><input type="text" id="neighbourhooder" onkeydown="neighbourhood(event)"/></td>
+        <td class="description" title="Constrain the termnet by terms most local to the specified neighbourhood.">Neighbourhood:</td>
+        <td><input type="text" id="neighbourhooder" onkeydown="neighbourhood(event)" title="Constrain the termnet by terms most local to the specified neighbourhood."/></td>
     </tr>
     <tr>
-        <td class="description">Search:</td>
-        <td><input type="text" id="searcher" onkeydown="search(event)"/></td>
+        <td class="description" title="Indicate what the learner is interested in.  This alters the weights of the termnet towards the searhed term and terms that relate to it.">Search:</td>
+        <td><input type="text" id="searcher" onkeydown="search(event)" title="Indicate what the learner is interested in.  This alters the weights of the termnet towards the searhed term and terms that relate to it."/></td>
     </tr>
     <tr>
-        <td class="description">Size:</td>
-        <td><input type="range" id="sizer" min="1" max="2000" value="1" oninput="resize(event)" onchange="resize(event)"/></td>
+        <td class="description" title="Re-size the nodes.">Size:</td>
+        <td><input type="range" id="sizer" min="1" max="2000" value="1" oninput="resize(event)" onchange="resize(event)" title="Re-size the nodes."/></td>
     </tr>
     <tr id="positiveInfluencer">
-        <td class="description">+ Influence:</td>
+        <td class="description" title="Affect the weighting of positive influence, which is controlled by dragging nodes outside of the circle.">+ Influence:</td>
         <td>
-            <input class="default" type="radio" name="positive-influence" value="linear" onchange="influenceConfigure(event)">x</input>
-            <input type="radio" name="positive-influence" value="cubic" onchange="influenceConfigure(event)">x<sup>2</sup></input>
-            <input type="radio" name="positive-influence" value="exponential" onchange="influenceConfigure(event)">2<sup>x</sup></input>
+            <input class="default" type="radio" name="positive-influence" value="linear" onchange="influenceConfigure(event)" title="Use linear weighting for positive influence.">x</input>
+            <input type="radio" name="positive-influence" value="cubic" onchange="influenceConfigure(event)" title="Use cubic weighting for positive influence.">x<sup>2</sup></input>
+            <input type="radio" name="positive-influence" value="exponential" onchange="influenceConfigure(event)" title="Use exponential weighting for positive influence.">2<sup>x</sup></input>
         </td>
     </tr>
     <tr id="negativeInfluencer">
-        <td class="description">- Influence:</td>
+        <td class="description" title="Affect the weighting of negative influence, which is controlled by the Negate textbox.">- Influence:</td>
         <td>
-            <input class="default" type="radio" name="negative-influence" value="linear" onchange="influenceConfigure(event)">x</input>
-            <input type="radio" name="negative-influence" value="cubic" onchange="influenceConfigure(event)">x<sup>2</sup></input>
-            <input type="radio" name="negative-influence" value="exponential" onchange="influenceConfigure(event)">2<sup>x</sup></input>
+            <input class="default" type="radio" name="negative-influence" value="linear" onchange="influenceConfigure(event)" title="Use linear weighting for negative influence.">x</input>
+            <input type="radio" name="negative-influence" value="cubic" onchange="influenceConfigure(event)" title="Use cubic weighting for negative influence.">x<sup>2</sup></input>
+            <input type="radio" name="negative-influence" value="exponential" onchange="influenceConfigure(event)" title="Use exponential weighting for negative influence.">2<sup>x</sup></input>
         </td>
     </tr>
     <tr>
@@ -44,12 +45,12 @@
     <tr>
     </tr>
     <tr>
-        <td class="description">Negate:</td>
-        <td><input type="text" id="negater" onkeydown="negateAdd(event)"></td>
+        <td class="description" title="Transiently alter the weights of the termnet, with less preference towards the supplied term.  This is the opposite of positive influence, controlled by dragging the node outside of the circle.">Negate:</td>
+        <td><input type="text" id="negater" onkeydown="negateAdd(event)" title="Transiently alter the weights of the termnet, with less preference towards the supplied term.  This is the opposite of positive influence, controlled by dragging the node outside of the circle."></td>
     </tr>
     <tr>
-        <td class="description">Ignore:</td>
-        <td><input type="text" id="ignorer" onkeydown="ignoreAdd(event)"></td>
+        <td class="description" title="Completely remove the term from the termnet.">Ignore:</td>
+        <td><input type="text" id="ignorer" onkeydown="ignoreAdd(event)" title="Completely remove the term from the termnet."></td>
     </tr>
 </table>
 <!--<div style="width: 50%; margin: auto;">

@@ -2,8 +2,9 @@
     <tr>
         <td class="description">Nodes:</td>
         <td>
-            <input type="button" id="releaser" onclick="release(event)" value="Release"/>
-            <input type="button" id="reseter" onclick="reset(event)" value="Reset"/>
+            <input type="button" id="releaser" onclick="release(event)" value="Release" title="Allow the nodes to move freely based off the animation rules."/>
+            <input type="button" id="locker" onclick="lock(event)" value="Lock" title="Stop the nodes from moving freely."/>
+            <input type="button" id="reseter" onclick="reset(event)" value="Reset" title="Remove the alterations (search, negate, ignore) up to this point."/>
         </td>
     </tr>
     <tr>

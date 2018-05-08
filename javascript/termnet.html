@@ -115,8 +115,20 @@ function release(event) {
             if (pyth.hypotenuse <= pool_radius + 1) {
                 d.fx = null;
                 d.fy = null;
-                d.drag = false
+                d.drag = false;
                 //unstick(d);
+            }
+        });
+}
+function lock(event) {
+    svg.selectAll(".node")
+        .each(function(d) {
+            var pyth = pythagoras(d.x, d.y);
+
+            if (pyth.hypotenuse <= pool_radius + 1) {
+                d.fx = d.x;
+                d.fy = d.y;
+                d.drag = true;
             }
         });
 }

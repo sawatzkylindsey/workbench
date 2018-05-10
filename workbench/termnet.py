@@ -364,7 +364,8 @@ class TermnetSession:
                 + [d3node(self._name(identifier), node_ranks[identifier], 0.15, self._coeff(identifier)).__dict__ for identifier in neighbour_nodes],
             "links": [d3link(self._name(link.source), self._name(link.target), 1.0).__dict__ for link in selected_links] \
                 + [d3link(self._name(link.source), self._name(link.target), 0.15).__dict__ for link in neighbour_links],
-            "summary": summary
+            "summary": summary,
+            "size": len(selected_nodes) + len(neighbour_nodes),
         }
 
     def _name(self, term):

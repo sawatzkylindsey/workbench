@@ -46,17 +46,17 @@ class ServerHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        (path, session, data) = self._read_request()
-        logging.debug("GET %s session: %s" % (path, session))
+        (path, session_key, data) = self._read_request()
+        logging.debug("GET %s session_key: %s" % (path, session_key))
         file_path = os.path.join(".", "javascript", path.strip("/"))
         logging.debug(file_path)
 
-        if os.path.exists(file_path):
+        if os.path.exists(file_path) and os.path.isfile(file_path):
             mimetype, _ = mimetypes.guess_type(path)
             self._set_headers(mimetype)
             self._read_write_file(file_path)
         else:
-            self.send_error(404,'File Not Found: %s ' % path)
+            self.send_error(404, "File Not Found: %s." % path)
 
     def _read_write_file(self, file_path):
         with open(file_path, "r") as fh:
@@ -83,7 +83,12 @@ class ServerHandler(BaseHTTPRequestHandler):
             self._read_write_file("./javascript/termnet.html")
             return
 
-        termnet_session = self.server.sessions[session_key]
+        try:
+            termnet_session = self.server.sessions[session_key]
+        except KeyError as e:
+            self.send_error(400, "Unknown session: %s." % session_key)
+            return
+
         out = self.__getattribute__(self.path[1:].replace("/", "_"))(termnet_session, data)
 
         if out == None:

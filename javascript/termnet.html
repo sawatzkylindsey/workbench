@@ -137,10 +137,16 @@ function lock(event) {
         });
 }
 var firstDraw = true;
+var negations = new Set();
+var ignores = new Set();
 function reset(event) {
     d3.json("reset")
         .header("session-key", sessionKey)
         .post("");
+    negations = new Set();
+    ignores = new Set();
+    updateNegations(null);
+    updateIgnores(null);
     firstDraw = true;
     d3.json("neighbourhood")
         .header("session-key", sessionKey)
@@ -165,8 +171,6 @@ function influenceConfigure(event) {
             }
         });
 }
-var negations = new Set();
-var ignores = new Set();
 function negateAdd(event) {
     //if (!d3.event.active) {
     //    simulation.alphaTarget(0);
@@ -215,42 +219,41 @@ function ignoreRemove(event) {
         .post("term=" + termname + "&mode=remove", function(error, data) { draw(data); });
 }
 function updateNegations(termname) {
-    if (negations.has(termname)) {
-        negations.delete(termname);
-    }
-    else {
-        negations.add(termname);
+    if (termname != null) {
+        if (negations.has(termname)) {
+            negations.delete(termname);
+        }
+        else {
+            negations.add(termname);
+        }
     }
 
-    /*if (negations.size == 0) {
-        negatedToggler.css("display", "none");
-        negaterList.css("display", "none");
-    }
-    else {
-        negatedToggler.css("display", "block");
-        var hidden = negaterList.css("display") == "none";
-        negatedToggler.val((hidden ? "Show negations (" : "Hide negations (") + negations.size + ")");*/
+    if (negaterList != null) {
         negaterList.empty();
         var sortedNegations = Array.from(negations);
         sortedNegations.sort();
         sortedNegations.forEach(function(negation) {
             negaterList.append("<span class='clickable' onclick='negateRemove(event)'>" + negation + "</span></br>");
         });
-    //}
+    }
 }
 function updateIgnores(termname) {
-    if (ignores.has(termname)) {
-        ignores.delete(termname);
-    } else {
-        ignores.add(termname);
+    if (termname != null) {
+        if (ignores.has(termname)) {
+            ignores.delete(termname);
+        } else {
+            ignores.add(termname);
+        }
     }
 
-    ignorerList.empty();
-    var sortedIgnores = Array.from(ignores);
-    sortedIgnores.sort();
-    sortedIgnores.forEach(function(ignore) {
-        ignorerList.append("<span class='clickable' onclick='ignoreRemove(event)'>" + ignore + "</span></br>");
-    });
+    if (ignorerList != null) {
+        ignorerList.empty();
+        var sortedIgnores = Array.from(ignores);
+        sortedIgnores.sort();
+        sortedIgnores.forEach(function(ignore) {
+            ignorerList.append("<span class='clickable' onclick='ignoreRemove(event)'>" + ignore + "</span></br>");
+        });
+    }
 }
 function toggleNegatedLister() {
     if (negaterList.css("display") == "none") {

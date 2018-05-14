@@ -143,59 +143,61 @@ class WikipediaArticlesList:
         parse_terms = set()
 
         for line in input_stream:
-            page_id = line.strip()
+            for item in line.split("."):
+                page_id = item.strip()
 
-            if os.path.exists(self._page_file_contents(page_id)):
-                with open(self._page_file_contents(page_id), "r", encoding="utf-8") as fh:
-                    page_content = fh.read()
-                with open(self._page_file_links(page_id), "r", encoding="utf-8") as fh:
-                    page_links = [l.strip() for l in fh.readlines()]
-            else:
-                split = page_id.split("#")
-                page = wikipedia.page(split[0])
+                if page_id != "":
+                    if os.path.exists(self._page_file_contents(page_id)):
+                        with open(self._page_file_contents(page_id), "r", encoding="utf-8") as fh:
+                            page_content = fh.read()
+                        with open(self._page_file_links(page_id), "r", encoding="utf-8") as fh:
+                            page_links = [l.strip() for l in fh.readlines()]
+                    else:
+                        split = page_id.split("#")
+                        page = wikipedia.page(split[0])
 
-                if len(split) == 1:
-                    page_content = check.check_not_empty(CLEANER(page.summary))
-                else:
-                    page_content = ""
+                        if len(split) == 1:
+                            page_content = check.check_not_empty(CLEANER(page.summary))
+                        else:
+                            page_content = ""
 
-                for section in (page.section_titles if len(split) == 1 else split[1:]):
-                    if section not in self.SECTION_BLACKLIST:
-                        logging.debug("Page '%s' using section '%s'." % (page_id, section))
-                        raw_section_content = page.section_by_title(section).text
+                        for section in (page.section_titles if len(split) == 1 else split[1:]):
+                            if section not in self.SECTION_BLACKLIST:
+                                logging.debug("Page '%s' using section '%s'." % (page_id, section))
+                                raw_section_content = page.section_by_title(section).text
 
-                        if raw_section_content is not None and len(raw_section_content) > 0:
-                            section_content = CLEANER(raw_section_content)
+                                if raw_section_content is not None and len(raw_section_content) > 0:
+                                    section_content = CLEANER(raw_section_content)
 
-                            if len(section_content) > 0:
-                                page_content += " " + section_content
+                                    if len(section_content) > 0:
+                                        page_content += " " + section_content
 
-                page_links = [CLEANER(l) for l in page.links]
+                        page_links = [CLEANER(l) for l in page.links]
 
-            pages += [page_id]
+                    pages += [page_id]
 
-            if not os.path.exists(self._page_file_contents(page_id)):
-                with open(self._page_file_contents(page_id), "w", encoding="utf-8") as fh:
-                    fh.write(page_content)
-                with open(self._page_file_links(page_id), "w", encoding="utf-8") as fh:
-                    for link in page_links:
-                        fh.write("%s\n" % link)
+                    if not os.path.exists(self._page_file_contents(page_id)):
+                        with open(self._page_file_contents(page_id), "w", encoding="utf-8") as fh:
+                            fh.write(page_content)
+                        with open(self._page_file_links(page_id), "w", encoding="utf-8") as fh:
+                            for link in page_links:
+                                fh.write("%s\n" % link)
 
-            page_terms = set()
+                    page_terms = set()
 
-            #for page_term in self._extract_terms(page_id, page_content):
-            #    page_terms.add(page_term)
+                    #for page_term in self._extract_terms(page_id, page_content):
+                    #    page_terms.add(page_term)
 
-            for page_term in self._extract_links(page_id, page_links, page_content):
-                page_terms.add(page_term)
+                    for page_term in self._extract_links(page_id, page_links, page_content):
+                        page_terms.add(page_term)
 
-            for term in page_terms:
-                self.terms.add(term)
+                    for term in page_terms:
+                        self.terms.add(term)
 
-                if term not in parse_terms:
-                    logging.debug("Page '%s' adding term '%s'." % (page_id, term))
-                    parse_terms.add(term)
-                    self.inflections.record(term, term)
+                        if term not in parse_terms:
+                            logging.debug("Page '%s' adding term '%s'." % (page_id, term))
+                            parse_terms.add(term)
+                            self.inflections.record(term, term)
 
         terms_trie = build_trie(parse_terms)
 

@@ -12,9 +12,6 @@ class Node:
     def __repr__(self):
         return "Node{%s, %s}" % (self.children, self.final)
 
-    def __repr__(self):
-        return str(self)
-
 
 def build(terms, tokenizer=lambda t: iter(t)):
     trie_dict = {}

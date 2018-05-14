@@ -22,8 +22,9 @@ from pytils.log import setup_logging, user_log
 from workbench.termnet import build as build_termnet
 
 
-GLOSSARY = "glossary"
 CONTENT = "content"
+GLOSSARY = "glossary"
+WIKIPEDIA = "wikipedia"
 
 
 class FeConverter:
@@ -67,10 +68,12 @@ class FeConverter:
                     left = None
                     right = None
         else:
-            output_stream = [parser.CLEANER(input_text)]
-
             if input_format == CONTENT:
+                output_stream = [parser.CLEANER(input_text)]
                 output_format = parser.TERMS_CONTENT_TEXT
+            elif input_format == WIKIPEDIA:
+                output_stream = [input_text]
+                output_format = parser.WIKIPEDIA_ARTICLES_LIST
             else:
                 raise ValueError("unknown format '%s'" % input_format)
 

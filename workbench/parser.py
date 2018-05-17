@@ -9,10 +9,12 @@ import pdb
 from pytils import check
 from rake_nltk import Rake
 import re
+import requests
 import textrank
 import wikipediaapi
 
 
+from workbench import errors
 import workbench.nlp as nlp
 from workbench.trie import build as build_trie
 
@@ -155,6 +157,12 @@ class WikipediaArticlesList:
                     else:
                         split = page_id.split("#")
                         page = wikipedia.page(split[0])
+
+                        try:
+                            if not page.exists():
+                                raise errors.Invalid("Missing wikipedia page '%s'." % split[0])
+                        except requests.exceptions.ReadTimeout as e:
+                            raise errors.Invalid("Missing wikipedia page '%s'." % split[0])
 
                         if len(split) == 1:
                             page_content = check.check_not_empty(CLEANER(page.summary))

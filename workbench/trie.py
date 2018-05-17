@@ -8,9 +8,16 @@ class Node:
     def __init__(self, children, final):
         self.children = children
         self.final = final
+        self._hash = hash((tuple([(k, v._hash) for k, v in self.children.items()]), final))
 
     def __repr__(self):
         return "Node{%s, %s}" % (self.children, self.final)
+
+    def __eq__(self, other):
+        return self._hash == other._hash
+
+    def __hash__(self):
+        return self._hash
 
 
 def build(terms, tokenizer=lambda t: iter(t)):

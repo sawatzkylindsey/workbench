@@ -71,6 +71,7 @@ function selectKind(event) {
             .val(formater.find(".default").val())
             .change();
         $(".content").val("");
+        $(".terms").val("");
         sessioner.css("display", "none");
         kind = "custom";
     }
@@ -85,7 +86,16 @@ function selectKind(event) {
 }
 function selectPreset(event) {
     console.log(event);
-    if (event.target.value == "astronomy-glossary") {
+    if (event.target.value == "sample-content-terms") {
+        selectFormatValue("content-terms");
+        $.get("SampleContentTerms.content", function(data) {
+            contentInputer.find(".content").val(data);
+        });
+        $.get("SampleContentTerms.terms", function(data) {
+            contentInputer.find(".terms").val(data);
+        });
+    }
+    else if (event.target.value == "astronomy-glossary") {
         selectFormatValue("glossary");
         $.get("Astronomy.glossary", function(data) {
             glossaryInputer.find(".content").val(data);
@@ -104,11 +114,11 @@ function selectFormat(event) {
     selectFormatValue(event.target.value);
 }
 function selectFormatValue(value) {
-    if (value == "content") {
+    if (value == "content-terms") {
         contentInputer.css("display", "block");
         glossaryInputer.css("display", "none");
         wikipediaInputer.css("display", "none");
-        format = "content";
+        format = "content-terms";
     }
     else if (value == "glossary") {
         contentInputer.css("display", "none");
@@ -135,7 +145,7 @@ function load(event) {
             "sessionKey": sessionKey,
             "format": format
         };
-        if (format == "content") {
+        if (format == "content-terms") {
             data["content"] = contentInputer.find(".content").val();
             data["terms"] = contentInputer.find(".terms").val();
         }
@@ -168,7 +178,8 @@ function load(event) {
             <td class="description">Presets:</td>
             <td>
                 <select onchange="selectPreset(event)">
-                    <option class="default" value="astronomy-glossary">Astronomy Glossary</option>
+                    <option class="default" value="sample-content-terms">Sample Content Terms</option>
+                    <option value="astronomy-glossary">Astronomy Glossary</option>
                     <option value="astronomy-wikipedia">Astronomy Wikipedia (curated)</option>
                 </select>
             </td>
@@ -177,7 +188,7 @@ function load(event) {
             <td class="description">Format:</td>
             <td>
                 <select onchange="selectFormat(event)">
-                    <option class="default" value="content">Content Terms</input>
+                    <option class="default" value="content-terms">Content Terms</input>
                     <option value="glossary">Glossary Definitions</input>
                     <option value="wikipedia">Wikipedia Pages</input>
                 </select>

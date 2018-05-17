@@ -13,6 +13,11 @@ from workbench.trie import Node
 
 
 STEMMER = SnowballStemmer("english")
+SENTENCE_SEPARATORS = {
+    ".": True,
+    "?": True,
+    "!": True,
+}
 
 
 def stem(word):
@@ -33,7 +38,7 @@ def split_sentences(corpus):
     sentence = []
 
     for word in words:
-        if word == ".":
+        if word in SENTENCE_SEPARATORS:
             sentences += [sentence]
             sentence = []
         else:

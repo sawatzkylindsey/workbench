@@ -14,6 +14,8 @@ import sys
 import urllib
 
 
+from workbench import errors
+from workbench.handler import errorhandler
 from workbench.graph import GraphBuilder, Graph
 from workbench.nlp import Term
 from workbench import parser
@@ -24,18 +26,6 @@ from workbench.processor import FeConverter
 
 
 class ServerHandler(BaseHTTPRequestHandler):
-    #def __init__(self, termnet, *args, **kwargs):
-    #    super(ServerHandler, self).__init__(*args, **kwargs)
-    #    pdb.set_trace()
-    #    termnet_session = check_not_none(termnet)
-    #    self.previous = None
-
-    #def _session(self, session_key):
-    #    if session_key not in self.server.sessions:
-    #        self.server.sessions[session_key] = TermnetSession(self.server.termnet)
-
-    #    return self.server.sessions[session_key]
-
     def _set_headers(self, content_type, others={}):
         self.send_response(200)
         self.send_header('Content-type', content_type)
@@ -45,6 +35,7 @@ class ServerHandler(BaseHTTPRequestHandler):
 
         self.end_headers()
 
+    @errorhandler
     def do_GET(self):
         (path, session_key, data) = self._read_request()
         logging.debug("GET %s session_key: %s" % (path, session_key))
@@ -56,46 +47,38 @@ class ServerHandler(BaseHTTPRequestHandler):
             self._set_headers(mimetype)
             self._read_write_file(file_path)
         else:
-            self.send_error(404, "File Not Found: %s." % path)
+            raise errors.NotFound(path)
 
     def _read_write_file(self, file_path):
         with open(file_path, "r") as fh:
             for line in fh:
                 self._write(line)
 
+    @errorhandler
     def do_POST(self):
         (path, session_key, data) = self._read_request()
         logging.debug("POST %s session: %s data: %s" % (path, session_key, data))
 
         if path.startswith("/termnet.html"):
             self._set_headers("text/html")
-
-            if data["format"][0] == "content":
-                input_text = "%s %s. %s" % (data["terms"][0], parser.TermsContentText.TERMS_CONTENT_SEPARATOR, data["content"][0])
-                logging.debug("'%s' input_text: %s" % (data["sessionKey"][0], input_text))
-                (input_stream, input_format) = self.server.fe_converter.from_text(input_text, data["format"][0])
-            else:
-                (input_stream, input_format) = self.server.fe_converter.from_text(data["content"][0], data["format"][0])
-
+            (input_stream, input_format) = self.server.fe_converter.from_data(data)
             termnet = build_termnet(input_stream, input_format)
             termnet_session = TermnetSession(termnet)
             self.server.sessions[data["sessionKey"][0]] = termnet_session
             self._read_write_file("./javascript/termnet.html")
-            return
+        else:
+            try:
+                termnet_session = self.server.sessions[session_key]
+            except KeyError as e:
+                raise errors.Invalid("Unknown session '%s'." % session_key).with_traceback(e.__traceback__)
 
-        try:
-            termnet_session = self.server.sessions[session_key]
-        except KeyError as e:
-            self.send_error(400, "Unknown session: %s." % session_key)
-            return
+            out = self.__getattribute__(self.path[1:].replace("/", "_"))(termnet_session, data)
 
-        out = self.__getattribute__(self.path[1:].replace("/", "_"))(termnet_session, data)
+            if out == None:
+                out = {}
 
-        if out == None:
-            out = {}
-
-        self._set_headers("application/json")
-        self._write(json.dumps(out))
+            self._set_headers("application/json")
+            self._write(json.dumps(out))
 
     def term(self, query):
         return Term(query["term"][0].lower().split(" "))

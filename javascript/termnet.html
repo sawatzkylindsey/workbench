@@ -63,7 +63,10 @@ var negater = null;
 var ignorer = null;
 //var negatedToggler = null;
 var negaterList = null;
+var negaterToggler = null;
 var ignorerList = null;
+var ignorerToggler = null;
+var historyList = null;
 $("#controlFo").load("controls.html", function() {
     sessioner = $("#sessioner");
     sessioner.text("Session: " + sessionKey);
@@ -79,10 +82,14 @@ $("#controlFo").load("controls.html", function() {
         .prop("checked", true)
         .change();
     negater = $("#negater");
-    //negatedToggler = $("#negatedToggler");
     negaterList = $("#negaterList");
+    negaterToggler = $("#negaterToggler");
     ignorer = $("#ignorer");
     ignorerList = $("#ignorerList");
+    ignorerToggler = $("#ignorerToggler");
+    $("#negaterWrapper").width((center_x - pool_radius - 40) / 2);
+    $("#ignorerWrapper").width((center_x - pool_radius - 40) / 2);
+    historyList = $("#historyList");
 });
 function neighbourhood(event) {
     if (event.keyCode == 13) {
@@ -106,6 +113,7 @@ function search(event) {
                     // TODO
                 } else {
                     draw(data);
+                    historyList.append("<span style='font-size: 11pt;'>&bull; " + termname + "</span></br>");
                 }
             });
     }
@@ -183,6 +191,7 @@ function negateAdd(event) {
             .post("polarity=negative&term=" + termname + "&mode=add", function(error, data) {
                 if (error == null) {
                     draw(data);
+                    negations.add(termname);
                     updateNegations(termname);
                 }
             });
@@ -198,6 +207,7 @@ function ignoreAdd(event) {
             .post("term=" + termname + "&mode=add", function(error, data) {
                 if (error == null) {
                     draw(data);
+                    ignores.add(termname);
                     updateIgnores(termname);
                 }
             });
@@ -206,63 +216,71 @@ function ignoreAdd(event) {
 function negateRemove(event) {
     //console.log(event);
     var termname = event.target.innerText;
-    updateNegations(termname);
     d3.json("influence")
         .header("session-key", sessionKey)
-        .post("polarity=negative&term=" + termname + "&mode=remove", function(error, data) { draw(data); });
+        .post("polarity=negative&term=" + termname + "&mode=remove", function(error, data) { 
+            draw(data);
+            negations.delete(termname);
+            updateNegations(termname);
+        });
 }
 function ignoreRemove(event) {
     var termname = event.target.innerText;
     updateIgnores(termname);
     d3.json("ignore")
         .header("session-key", sessionKey)
-        .post("term=" + termname + "&mode=remove", function(error, data) { draw(data); });
+        .post("term=" + termname + "&mode=remove", function(error, data) {
+            draw(data);
+            ignores.delete(termname);
+            updateIgnores(termname);
+        });
 }
 function updateNegations(termname) {
-    if (termname != null) {
-        if (negations.has(termname)) {
-            negations.delete(termname);
-        }
-        else {
-            negations.add(termname);
-        }
-    }
-
     if (negaterList != null) {
         negaterList.empty();
         var sortedNegations = Array.from(negations);
         sortedNegations.sort();
         sortedNegations.forEach(function(negation) {
-            negaterList.append("<span class='clickable' onclick='negateRemove(event)'>" + negation + "</span></br>");
+            negaterList.append("<span class='clickable' onclick='negateRemove(event)' style='font-size: 11pt;'>&bull; " + negation + "</span></br>");
         });
+        if (negaterToggler.val() != "Hide") {
+            var suffix = negations.size == 0 ? "" : " (" + negations.size + ")";
+            negaterToggler.val("Show" + suffix);
+        }
+    }
+}
+function toggleNegations(event) {
+    if (negaterToggler.val() == "Hide") {
+        var suffix = negations.size == 0 ? "" : " (" + negations.size + ")";
+        negaterToggler.val("Show" + suffix);
+        negaterList.css("display", "none");
+    } else {
+        negaterToggler.val("Hide");
+        negaterList.css("display", "block");
     }
 }
 function updateIgnores(termname) {
-    if (termname != null) {
-        if (ignores.has(termname)) {
-            ignores.delete(termname);
-        } else {
-            ignores.add(termname);
-        }
-    }
-
     if (ignorerList != null) {
         ignorerList.empty();
         var sortedIgnores = Array.from(ignores);
         sortedIgnores.sort();
         sortedIgnores.forEach(function(ignore) {
-            ignorerList.append("<span class='clickable' onclick='ignoreRemove(event)'>" + ignore + "</span></br>");
+            ignorerList.append("<span class='clickable' onclick='ignoreRemove(event)' style='font-size: 11pt;'>&bull; " + ignore + "</span></br>");
         });
+        if (ignorerToggler.val() != "Hide") {
+            var suffix = ignores.size == 0 ? "" : " (" + ignores.size + ")";
+            ignorerToggler.val("Show" + suffix);
+        }
     }
 }
-function toggleNegatedLister() {
-    if (negaterList.css("display") == "none") {
-        negaterList.css("display", "table");
-        negatedToggler.val("Hide negations (" + negations.size + ")");
-    }
-    else {
-        negaterList.css("display", "none");
-        negatedToggler.val("Show negations (" + negations.size + ")");
+function toggleIgnores(event) {
+    if (ignorerToggler.val() == "Hide") {
+        var suffix = ignores.size == 0 ? "" : " (" + ignores.size + ")";
+        ignorerToggler.val("Show" + suffix);
+        ignorerList.css("display", "none");
+    } else {
+        ignorerToggler.val("Hide");
+        ignorerList.css("display", "block");
     }
 }
 

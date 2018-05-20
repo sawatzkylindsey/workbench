@@ -1,5 +1,5 @@
 <div id="sessioner" style="text-align: center;"></div></br>
-<div style="text-align: center;"><i>Hover for help text.</i></div></br>
+<div style="text-align: center; font-size: 10pt;"><i>Hover for help text.</i></div></br>
 <table style="margin: auto;">
     <tr>
         <td class="description" title="Affect the nodes in the termnet in some way.">Nodes:</td>
@@ -57,7 +57,7 @@
 <!--<div style="width: 50%; margin: auto;">
     <input type="button" id="negatedToggler" style="display: none;" onclick="toggleNegatedLister()"/>
 </div>-->
-<table id="asdfnegatedLister" style="margin: auto;">
+<!--<table style="margin: auto;">
     <tr>
         <td align="left">Negations</td>
         <td align="left">Ignores</td>
@@ -66,4 +66,36 @@
         <td align="left"><div id="negaterList"/></td>
         <td align="left"><div id="ignorerList"/></td>
     </tr>
-</table>
+</table>-->
+<!--<table style="margin: auto;">
+    <tr>
+        <td align="left">Negations
+        <input type="button" id="negaterToggler" onclick="toggleNegations(event)" value="Hide"/></td>
+        <td align="left">Ignores
+        <input type="button" id="ignorerToggler" onclick="toggleIgnores(event)" value="Hide"/></td>
+    </tr>
+    <tr>
+        <td align="left"><div id="negaterList"></div></td>
+        <td align="left"><div id="ignorerList"></div></td>
+    </div>
+</div>-->
+
+<div style="display: flex; min-height: 100px;">
+    <div id="negaterWrapper" style="float: left; padding: 2px;">
+        <span>Negations</span>
+        <input type="button" id="negaterToggler" onclick="toggleNegations(event)" value="Hide" title="Toggle the negations list."/>
+        <div id="negaterList"></div>
+    </div>
+    <div id="ignorerWrapper" style="float left; padding: 2px;">
+        <span>Ignores</span>
+        <input type="button" id="ignorerToggler" onclick="toggleIgnores(event)" value="Hide" title="Toggle the ignores list."/>
+        <div id="ignorerList"></div>
+    </div>
+</div>
+<div style="padding: 2px;">
+    <div id="historyWrapper" align="left">
+        <span>Search History</span>
+        <div id="historyList"></div>
+    </div>
+</div>
+

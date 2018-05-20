@@ -2,14 +2,13 @@
 # -*- coding: utf-8 -*-
 
 from argparse import ArgumentParser
-#from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
 import logging
 import mimetypes
 import os
 import pdb
-#import SocketServer
+from socketserver import ThreadingMixIn
 import sys
 import urllib
 
@@ -178,13 +177,6 @@ class ServerHandler(BaseHTTPRequestHandler):
             content_data = self.rfile.read(content_length).decode("utf-8")
             data = urllib.parse.parse_qs(content_data)
 
-            #for k, v in qs_data.items():
-            #    pdb.set_trace()
-            #    if isinstance(v, list):
-            #        data[k] = v[0]
-            #    else:
-            #        data[k] = v
-
         return (url.path, session_key, data)
 
     def _write(self, text):
@@ -192,8 +184,12 @@ class ServerHandler(BaseHTTPRequestHandler):
 
 
 def run(port, fe_converter):
+    class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
+        pass
+
     server_address = ('', port)
-    httpd = HTTPServer(server_address, ServerHandler)
+    httpd = ThreadingHTTPServer(server_address, ServerHandler)
+    httpd.daemon_threads = True
     httpd.fe_converter = fe_converter
     httpd.sessions = {}
     user_log.info('Starting httpd %d...' % port)
@@ -214,7 +210,6 @@ def main(argv):
     setup_logging(".%s.log" % os.path.splitext(os.path.basename(__file__))[0], args.verbose, True)
     logging.debug(args)
     fe_converter = FeConverter()
-    #fe_converter.from_stream(parser.file_to_content(args.input_text), args.input_format)
     run(args.port, fe_converter)
 
 

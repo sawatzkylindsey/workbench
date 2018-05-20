@@ -55,7 +55,7 @@ def build(input_text, input_format):
     sub_maximums = [0 if len(subd) == 0 else max([len(l) for l in subd.values()]) for subd in parse.cooccurrences.values()]
     maximum = 0 if len(sub_maximums) == 0 else max(sub_maximums)
     k = max(int(maximum * BOTTOM_K), 1)
-    user_log.info("maximum: %s, k: %s" % (maximum, k))
+    logging.debug("maximum: %s, k: %s" % (maximum, k))
     inflection_sentences = {}
 
     for term_a, term_sentences in sorted(parse.cooccurrences.items()):
@@ -102,7 +102,7 @@ class Termnet:
 
     def calculate_ranks(self):
         for node in sorted(self.graph.all_nodes):
-            user_log.info("page ranking: %s" % node.identifier.name())
+            logging.debug("page ranking: %s" % node.identifier.name())
             # Bias only the node itself
             self.page_ranks[node.identifier] = self.graph.page_rank(biases={node.identifier: self.average})
             # Bias the node's descendants

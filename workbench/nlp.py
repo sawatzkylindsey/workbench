@@ -89,6 +89,7 @@ class Term(base.Comparable):
     def __init__(self, words):
         super(Term, self).__init__()
         self.words = tuple(check.check_not_empty(words))
+        self._hash = None
 
     def __len__(self):
         return len(self.words)
@@ -100,7 +101,10 @@ class Term(base.Comparable):
         return self.words == other.words
 
     def __hash__(self):
-        return hash(self.words)
+        if self._hash is None:
+            self._hash = hash(self.words)
+
+        return self._hash
 
     def __repr__(self):
         return "Term{%s}" % str(self.words)

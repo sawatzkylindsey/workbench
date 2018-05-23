@@ -8,8 +8,10 @@ import logging
 import mimetypes
 import os
 import pdb
+import random
 from socketserver import ThreadingMixIn
 import sys
+from threading import Thread
 import urllib
 
 
@@ -187,6 +189,7 @@ def run(port, fe_converter):
     class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
         pass
 
+    #patch_Thread_for_profiling()
     server_address = ('', port)
     httpd = ThreadingHTTPServer(server_address, ServerHandler)
     httpd.daemon_threads = True
@@ -211,6 +214,23 @@ def main(argv):
     logging.debug(args)
     fe_converter = FeConverter()
     run(args.port, fe_converter)
+
+
+def patch_Thread_for_profiling():
+    Thread.stats = None
+    thread_run = Thread.run
+
+    def profile_run(self):
+        import cProfile
+        import pstats
+        self._prof = cProfile.Profile()
+        self._prof.enable()
+        thread_run(self)
+        self._prof.disable()
+        (_, number) = self.name.split("-")
+        self._prof.dump_stats("Thread-%.3d-%s.profile" % (int(number), "".join([chr(97 + random.randrange(26)) for i in range(0, 2)])))
+
+    Thread.run = profile_run
 
 
 if __name__ == "__main__":

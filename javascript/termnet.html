@@ -52,7 +52,8 @@ var controlFo = svg.append("foreignObject")
     .attr("id", "controlFo")
     .attr("transform", "translate(10, 10)")
     .attr("width", center_x - pool_radius - 40)
-    .attr("height", height - 40);
+    .attr("height", height - 40)
+    .text("loading..");
 var sessioner = null;
 var neighbourhooder = null;
 var searcher = null;
@@ -293,7 +294,7 @@ var graphMeta = metaFo.append("xhtml:div")
     .attr("id", "graphMeta")
     .attr("class", "labels")
     .style("text-align", "center")
-    .text("placeholder");
+    .text("loading..");
 var summaryFo = svg.append("foreignObject")
     .attr("transform", "translate(" + (center_x - pool_radius) + "," + (center_y * 1.85) + ")")
     .attr("width", pool_radius * 2)
@@ -302,7 +303,7 @@ var graphSummary = summaryFo.append("xhtml:div")
     .attr("id", "graphSummary")
     .attr("class", "labels")
     .style("text-align", "center")
-    .text("placeholder");
+    .text("loading..");
 
 var color = d3.scaleOrdinal(d3.schemeCategory20);
 var MIN_RADIUS = 5;

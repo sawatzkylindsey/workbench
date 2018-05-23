@@ -60,6 +60,45 @@ class Tests(TestCase):
         graph_ud = Graph([a.finalize(), b.finalize()], Graph.UNDIRECTED)
         self.assertEqual(graph_ud.links(), set([UndirectedLink("a", "b")]))
 
+    def test_graph_empty(self):
+        graph_d = Graph([], Graph.DIRECTED)
+        self.assertEqual(graph_d.links(), set())
+        self.assertEqual(graph_d.global_max_distance(), None)
+        self.assertEqual(graph_d._max_distances, {})
+        self.assertEqual(graph_d._distances, {})
+
+        graph_ud = Graph([], Graph.UNDIRECTED)
+        self.assertEqual(graph_ud.links(), set())
+        self.assertEqual(graph_ud.global_max_distance(), None)
+        self.assertEqual(graph_ud._max_distances, {})
+        self.assertEqual(graph_ud._distances, {})
+
+    def test_graph_single(self):
+        bobo = Node("bobo")
+        graph_d = Graph([bobo.finalize()], Graph.DIRECTED)
+        self.assertEqual(graph_d.links(), set())
+        self.assertEqual(graph_d.global_max_distance(), 0)
+        self.assertEqual(graph_d._max_distances, {
+            "bobo": 0
+        })
+        self.assertEqual(graph_d._distances, {
+            "bobo": {
+                "bobo": 0
+            }
+        })
+
+        graph_ud = Graph([bobo.finalize()], Graph.UNDIRECTED)
+        self.assertEqual(graph_ud.links(), set())
+        self.assertEqual(graph_ud.global_max_distance(), 0)
+        self.assertEqual(graph_ud._max_distances, {
+            "bobo": 0
+        })
+        self.assertEqual(graph_ud._distances, {
+            "bobo": {
+                "bobo": 0
+            }
+        })
+
     def test_graph_builder_undirected(self):
         gb = GraphBuilder(Graph.UNDIRECTED)
         graph = gb.add("bobo", ["jack", "jill", "jane"]) \
@@ -69,7 +108,17 @@ class Tests(TestCase):
             .build()
         self.assertEqual(graph.links(), set([UndirectedLink("bobo", "jack"), UndirectedLink("bobo", "jill"), \
             UndirectedLink("bobo", "jane"), UndirectedLink("jack", "colt"), UndirectedLink("alik", "peny")]))
-        self.assertEqual(graph.distances, {
+        self.assertEqual(graph.global_max_distance(), 3)
+        self.assertEqual(graph._max_distances, {
+            "bobo": 2,
+            "jack": 2,
+            "jill": 3,
+            "jane": 3,
+            "colt": 3,
+            "alik": 1,
+            "peny": 1,
+        })
+        self.assertEqual(graph._distances, {
             "bobo": {
                 "bobo": 0,
                 "jack": 1,
@@ -145,7 +194,17 @@ class Tests(TestCase):
             .build()
         self.assertEqual(graph.links(), set([DirectedLink("bobo", "jack"), DirectedLink("bobo", "jill"), \
             DirectedLink("bobo", "jane"), DirectedLink("jack", "colt"), DirectedLink("jane", "bobo"), DirectedLink("alik", "peny")]))
-        self.assertEqual(graph.distances, {
+        self.assertEqual(graph.global_max_distance(), 3)
+        self.assertEqual(graph._max_distances, {
+            "bobo": 2,
+            "jack": 1,
+            "jill": 0,
+            "jane": 3,
+            "colt": 0,
+            "alik": 1,
+            "peny": 0,
+        })
+        self.assertEqual(graph._distances, {
             "bobo": {
                 "bobo": 0,
                 "jack": 1,
@@ -210,7 +269,6 @@ class Tests(TestCase):
                 "peny": 0,
             },
         })
-
 
     def test_neighbourhood_directed(self):
         gb = GraphBuilder(Graph.DIRECTED)

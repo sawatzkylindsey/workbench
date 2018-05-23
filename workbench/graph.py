@@ -5,6 +5,8 @@ import json
 import logging
 import math
 import pdb
+import threading
+
 from pytils import base, check
 
 
@@ -15,6 +17,7 @@ class Node(base.Comparable):
         self.identifier = check.check_not_instance(identifier, Node)
         self.descendants = set()
         self.finalized = False
+        self._hash = None
 
     def add_descendant(self, descendant):
         check.check_equal(self.finalized, False)
@@ -38,7 +41,10 @@ class Node(base.Comparable):
 
     # We do indeed want object identity (writing a __cmp__ method forces us to write __eq__ and __hash__).
     def __hash__(self):
-        return id(self)
+        if self._hash is None:
+            self._hash = id(self)
+
+        return self._hash
 
 
 class DirectedLink(object):
@@ -46,6 +52,7 @@ class DirectedLink(object):
         super(DirectedLink, self).__init__()
         self.source = check.check_not_instance(source, Node)
         self.target = check.check_not_instance(target, Node)
+        self._hash = None
 
     def __repr__(self):
         return "DirectedLink{source:%s, target:%s}" % (self.source, self.target)
@@ -55,7 +62,10 @@ class DirectedLink(object):
             self.target == other.target
 
     def __hash__(self):
-        return hash((self.source, self.target))
+        if self._hash is None:
+            self._hash = hash((self.source, self.target))
+
+        return self._hash
 
 
 class UndirectedLink(object):
@@ -63,6 +73,7 @@ class UndirectedLink(object):
         super(UndirectedLink, self).__init__()
         self.source = check.check_not_instance(source, Node)
         self.target = check.check_not_instance(target, Node)
+        self._hash = None
 
     def __repr__(self):
         return "UndirectedLink{%s, %s}" % (self.source, self.target)
@@ -72,7 +83,10 @@ class UndirectedLink(object):
             (self.source == other.target and self.target == other.source)
 
     def __hash__(self):
-        return hash(self.source) + hash(self.target)
+        if self._hash is None:
+            self._hash = hash(self.source) + hash(self.target)
+
+        return self._hash
 
 
 class Graph(object):
@@ -95,7 +109,12 @@ class Graph(object):
             self.indexes[node.identifier] = node
 
         self.clustering_coefficients = self._calculate_clustering_coefficients()
-        self.distances, self.max_distance = self._calculate_distances()
+        self._distances = {}
+        self._max_distances = {}
+        self._global_max_distance = None
+        self._background_calculations = threading.Thread(target=self._submit_calculations)
+        self._background_calculations.daemon = True
+        self._background_calculations.start()
 
     def __contains__(self, identifier):
         return identifier in self.indexes
@@ -134,24 +153,26 @@ class Graph(object):
 
         return ccs
 
-    def _calculate_distances(self):
-        ds = {}
+    def _submit_calculations(self):
+        for node in self.all_nodes:
+            self._calculate_distance(node)
+
+    def _calculate_distance(self, node):
+        distances = {}
         maximum = 0
 
-        for node in self.all_nodes:
-            ds[node.identifier] = {}
+        for neighbour, distance in self.neighbourhood(node, None, True, None):
+            distances[neighbour] = distance
 
-            for neighbour, distance in self.neighbourhood(node, None, True, None):
-                ds[node.identifier][neighbour] = distance
+            if distance > maximum:
+                maximum = distance
 
-                if distance > maximum:
-                    maximum = distance
+        for neighbour in self.all_nodes:
+            if neighbour.identifier not in distances:
+                distances[neighbour.identifier] = None
 
-            for neighbour in self.all_nodes:
-                if neighbour.identifier not in ds[node.identifier]:
-                    ds[node.identifier][neighbour.identifier] = None
-
-        return ds, maximum
+        self._distances[node.identifier] = distances
+        self._max_distances[node.identifier] = maximum
 
     def links(self):
         links = set()
@@ -167,11 +188,41 @@ class Graph(object):
 
                 links.add(link)
 
-        logging.debug("links(%s): nodes=%d -> links=%d." % (self.kind, len(self.all_nodes), len(links)))
+        logging.debug("links(%s): nodes=%d -> links=%d." % (self.kind, len(self), len(links)))
         return links
 
-    def distance(self, a, b):
-        return self.distances[a][b]
+    def distance(self, identifier_a, identifier_b):
+        if identifier_a not in self._distances:
+            # The background calculation hasn't yet processed identifier_a.
+            # So just quickly run it on demand.
+            try:
+                node = self[identifier_a]
+                self._calculate_distance(node)
+            except KeyError as e:
+                pass
+
+        return self._distances[identifier_a][identifier_b]
+
+    def max_distance(self, identifier):
+        if identifier not in self._max_distances:
+            # The background calculation hasn't yet processed identifier_a.
+            # So just quickly run it on demand.
+            try:
+                node = self[identifier_a]
+                self._calculate_distance(node)
+            except KeyError as e:
+                pass
+
+        return self._max_distances[identifier]
+
+    def global_max_distance(self):
+        if self._global_max_distance is None:
+            # The background calculation hasn't yet processed all the distances.
+            # So wait for it to complete, and then calculate the global maximum.
+            self._background_calculations.join()
+            self._global_max_distance = None if len(self._max_distances) == 0 else max(self._max_distances.values())
+
+        return self._global_max_distance
 
     def sub_graph(self, identifiers):
         gb = GraphBuilder(self.kind)

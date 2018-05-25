@@ -23,12 +23,10 @@ CANONICALIZER = nlp.stem
 CLEANER = lambda text: text.strip().lower()
 
 GLOSSARY_CSV = ("gc", "glossary_csv")
-CONTENT_TEXT = ("ct", "content_text")
 WIKIPEDIA_ARTICLES_LIST = ("wal", "wikipedia_articles_list")
 TERMS_CONTENT_TEXT = ("tct", "terms_content_text")
 FORMATS = [
     GLOSSARY_CSV,
-    CONTENT_TEXT,
     WIKIPEDIA_ARTICLES_LIST,
     TERMS_CONTENT_TEXT,
 ]
@@ -47,11 +45,9 @@ def csv_to_content(input_file):
             yield [CLEANER(cell) for cell in row]
 
 
-def parse_input(input_stream, input_format):
+def parse_input(input_stream, input_format, window=0):
     if format_matches(input_format, GLOSSARY_CSV):
         parser = GlossaryCsv()
-    elif format_matches(input_format, CONTENT_TEXT):
-        parser = ContentText()
     elif format_matches(input_format, WIKIPEDIA_ARTICLES_LIST):
         parser = WikipediaArticlesList()
     elif format_matches(input_format, TERMS_CONTENT_TEXT):
@@ -59,7 +55,7 @@ def parse_input(input_stream, input_format):
     else:
         raise ValueError("Unknown input format '%s'." % str(input_format))
 
-    parser.parse(input_stream)
+    parser.parse(input_stream, window)
     return parser
 
 
@@ -83,7 +79,7 @@ class GlossaryCsv:
         self.cooccurrences = {}
         self.inflections = nlp.Inflections()
 
-    def parse(self, input_stream):
+    def parse(self, input_stream, window):
         if len(self.terms) > 0:
             raise ValueError("cannot invoke parse() multiple times for GlossaryCsv parser.")
 
@@ -140,7 +136,7 @@ class WikipediaArticlesList:
         self.cooccurrences = {}
         self.inflections = nlp.Inflections()
 
-    def parse(self, input_stream):
+    def parse(self, input_stream, window):
         pages = []
         parse_terms = set()
 
@@ -193,9 +189,6 @@ class WikipediaArticlesList:
 
                     page_terms = set()
 
-                    #for page_term in self._extract_terms(page_id, page_content):
-                    #    page_terms.add(page_term)
-
                     for page_term in self._extract_links(page_id, page_links, page_content):
                         page_terms.add(page_term)
 
@@ -213,8 +206,12 @@ class WikipediaArticlesList:
             with open(self._page_file_contents(page_id), "r", encoding="utf-8") as fh:
                 page_content = fh.read()
 
-            for sentence in nlp.split_sentences(page_content):
-                reference_terms = nlp.extract_terms(corpus=sentence,
+            sentences = nlp.split_sentences(page_content)
+
+            for i in range(0, len(sentences)):
+                # List of lists                    vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+                sub_corpus = [word for sentence in sentences[max(i - window, 0):min(i + window + 1, len(sentences))] for word in sentence]
+                reference_terms = nlp.extract_terms(corpus=sub_corpus,
                                                     terms_trie=terms_trie,
                                                     lemmatizer=CANONICALIZER,
                                                     inflection_recorder=self.inflections.record)
@@ -230,9 +227,9 @@ class WikipediaArticlesList:
                                 self.cooccurrences[a][b] = []
 
                             #self.cooccurrences[a].add(b)
-                            self.cooccurrences[a][b] += [sentence]
+                            self.cooccurrences[a][b] += [sub_corpus]
 
-    def _extract_terms(self, page_id, content):
+    def _automatic_term_extract(self, page_id, content):
         page_name = page_id.replace(" ", "_")
         terms_textrank = set(textrank.extract_key_phrases(content, self.top_percent))
         logging.debug("textranks: %s" % terms_textrank)
@@ -280,21 +277,25 @@ class TermsContentText:
         self.cooccurrences = {}
         self.inflections = nlp.Inflections()
 
-    def parse(self, input_stream):
+    def parse(self, input_stream, window):
         content_point = False
 
         for item in input_stream:
-            for sentence in nlp.split_sentences(item):
-                if sentence == [TermsContentText.TERMS_CONTENT_SEPARATOR]:
+            sentences = nlp.split_sentences(item)
+
+            for i in range(0, len(sentences)):
+                if sentences[i] == [TermsContentText.TERMS_CONTENT_SEPARATOR]:
                     content_point = True
                     terms_trie = build_trie(self.terms)
                 elif not content_point:
-                    term = nlp.Term([CANONICALIZER(word) for word in sentence])
+                    term = nlp.Term([CANONICALIZER(word) for word in sentences[i]])
                     self.terms.add(term)
-                    inflection = nlp.Term(sentence)
+                    inflection = nlp.Term(sentences[i])
                     self.inflections.record(term, inflection)
                 else:
-                    reference_terms = nlp.extract_terms(corpus=sentence,
+                    # List of lists                    vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+                    sub_corpus = [word for sentence in sentences[max(i - window, 0):min(i + window + 1, len(sentences))] for word in sentence]
+                    reference_terms = nlp.extract_terms(corpus=sub_corpus,
                                                         terms_trie=terms_trie,
                                                         lemmatizer=CANONICALIZER,
                                                         inflection_recorder=self.inflections.record)
@@ -309,94 +310,5 @@ class TermsContentText:
                                     self.cooccurrences[a][b] = []
 
                                 #self.cooccurrences[a].add(b)
-                                self.cooccurrences[a][b] += [sentence]
-
-class ContentText:
-    MINIMUM_TERM_LENGTH = 5
-
-    def __init__(self):
-        self.terms = set()
-        self.cooccurrences = {}
-        self.inflections = nlp.Inflections()
-
-    def parse(self, input_stream):
-        link_counts = {}
-        conditional_inflections = {}
-
-        for line in input_stream:
-            rake = Rake()
-            terms = rake.extract_keywords_from_sentences(fh.readlines())
-
-        self._parse(input_stream, link_counts, conditional_inflections)
-
-        flat_link_counts = [(term_a, term_b, count) for term_a, linked_terms in link_counts.items() for term_b, count in linked_terms.items()]
-
-        with open("asdf.csv", "w") as fh:
-            fh.write("a,b,count\n")
-
-            for item in sorted(flat_link_counts, key=lambda item: item[2], reverse=True):
-                fh.write(item[0].name())
-                fh.write(",")
-                fh.write(item[1].name())
-                fh.write(",")
-                fh.write(str(item[2]))
-                fh.write("\n")
-
-        for term_a, linked_terms in link_counts.items():
-            is_first = True
-
-            for term_b, count in linked_terms.items():
-                if count >= 2:
-                    if term_a not in self.cooccurrences:
-                        self.cooccurrences[term_a] = set()
-
-                    self.cooccurrences[term_a].add(term_b)
-
-                    if is_first:
-                        is_first = False
-
-                        for infl in conditional_inflections[term_a]:
-                            self.inflections.record(term_a, nlp.Term([infl]))
-
-                    for infl in conditional_inflections[term_b]:
-                        self.inflections.record(term_b, nlp.Term([infl]))
-
-    def _parse(self, input_stream, link_counts, conditional_inflections):
-        with open(input_stream, "r") as fh:
-            for line in fh:
-                print(line)
-                tokens = [re.sub(r'[^A-Za-z]', r'', item) for item in line.split(" ")]
-                print(tokens)
-                terms = [CANONICALIZER(item) for item in tokens]
-
-                for inflection_a in tokens:
-                    if len(inflection_a) >= self.MINIMUM_TERM_LENGTH:
-                        for inflection_b in tokens:
-                            if len(inflection_b) >= self.MINIMUM_TERM_LENGTH and \
-                                inflection_a != inflection_b:
-                                lemma_a = CANONICALIZER(inflection_a)
-                                lemma_b = CANONICALIZER(inflection_b)
-
-                                if lemma_a != lemma_b:
-                                    term_a = nlp.Term([lemma_a])
-                                    term_b = nlp.Term([lemma_b])
-
-                                    if term_a not in link_counts:
-                                        link_counts[term_a] = {}
-
-                                    if term_b not in link_counts[term_a]:
-                                        link_counts[term_a][term_b] = 0
-
-                                    link_counts[term_a][term_b] += 1
-
-                                    if term_a not in conditional_inflections:
-                                        conditional_inflections[term_a] = []
-
-                                    if term_b not in conditional_inflections:
-                                        conditional_inflections[term_b] = []
-
-                                    conditional_inflections[term_a] += [inflection_a]
-                                    conditional_inflections[term_b] += [inflection_b]
-                                    #self.inflections.record(term_a, nlp.Term([inflection_a]))
-                                    #self.inflections.record(term_b, nlp.Term([inflection_b]))
+                                self.cooccurrences[a][b] += [sub_corpus]
 

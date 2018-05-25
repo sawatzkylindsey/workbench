@@ -39,17 +39,18 @@ def main():
                         help="Turn on verbose logging.  " + \
                         "**This will SIGNIFICANTLY slow down the program.**")
     ap.add_argument("-f", "--input-format", default=workbench.parser.WIKIPEDIA, help="One of %s" % workbench.parser.FORMATS)
+    ap.add_argument("-w", "--window", default=0)
     ap.add_argument("input_texts", nargs="+")
     args = ap.parse_args()
     setup_logging(".%s.log" % os.path.splitext(os.path.basename(__file__))[0], args.verbose, True)
     logging.debug(args)
-    net = build(args.input_texts, args.input_format)
+    net = build(args.input_texts, args.input_format, args.window)
     return 0
 
 
-def build(input_text, input_format):
+def build(input_text, input_format, window):
     check.check_iterable(input_text)
-    parse = workbench.parser.parse_input(input_text, input_format)
+    parse = workbench.parser.parse_input(input_text, input_format, window)
     builder = GraphBuilder(Graph.UNDIRECTED)
     # Count the number of cooccurrences per termA-termB pairing, and take the maximum.
     sub_maximums = [0 if len(subd) == 0 else max([len(l) for l in subd.values()]) for subd in parse.cooccurrences.values()]

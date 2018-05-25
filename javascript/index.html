@@ -20,6 +20,9 @@ var controls = null;
 var kinder = null;
 var preseter = null;
 var formater = null;
+var windower = null;
+var windowDescriptor = null;
+var windowSizer = null;
 var sessioner = null;
 var loader = null;
 var noticer = null;
@@ -34,6 +37,11 @@ $(document).ready(function () {
     kinder = $("#kinder");
     preseter = $("#preseter");
     formater = $("#formater");
+    windower = $("#windower");
+    windowDescriptor = $("#windowDescriptor");
+    windowSizer = $("#windowSizer")
+        .val("0")
+        .change();
     sessioner = $("#sessioner");
     loader = $("#loader");
     noticer = $("#noticer");
@@ -54,6 +62,7 @@ var kind = null;
 function selectKind(event) {
     console.log(event);
     if (event.target.value == "preset") {
+        windower.css("display", "table-row");
         preseter.css("display", "table-row");
         preseter.find("select")
             .val(preseter.find(".default").val())
@@ -64,6 +73,7 @@ function selectKind(event) {
         kind = "preset";
     }
     else if (event.target.value == "custom") {
+        windower.css("display", "table-row");
         preseter.css("display", "none");
         inputer.css("display", "block");
         formater.css("display", "table-row");
@@ -76,6 +86,7 @@ function selectKind(event) {
         kind = "custom";
     }
     else if (event.target.value == "session") {
+        windower.css("display", "none");
         preseter.css("display", "none");
         formater.css("display", "none");
         inputer.css("display", "none");
@@ -84,9 +95,13 @@ function selectKind(event) {
         format = null;
     }
 }
+function selectWindowSize(event) {
+    windowDescriptor.text("Window (" + event.target.value + "):");
+}
 function selectPreset(event) {
     console.log(event);
     if (event.target.value == "sample-content-terms") {
+        windower.css("display", "table-row");
         selectFormatValue("content-terms");
         $.get("SampleContentTerms.content", function(data) {
             contentInputer.find(".content").val(data);
@@ -96,12 +111,14 @@ function selectPreset(event) {
         });
     }
     else if (event.target.value == "astronomy-glossary") {
+        windower.css("display", "none");
         selectFormatValue("glossary");
         $.get("Astronomy.glossary", function(data) {
             glossaryInputer.find(".content").val(data);
         });
     }
     else if (event.target.value == "astronomy-wikipedia") {
+        windower.css("display", "table-row");
         selectFormatValue("wikipedia");
         $.get("Astronomy.wikipedia", function(data) {
             wikipediaInputer.find(".content").val(data);
@@ -115,18 +132,21 @@ function selectFormat(event) {
 }
 function selectFormatValue(value) {
     if (value == "content-terms") {
+        windower.css("display", "table-row");
         contentInputer.css("display", "block");
         glossaryInputer.css("display", "none");
         wikipediaInputer.css("display", "none");
         format = "content-terms";
     }
     else if (value == "glossary") {
+        windower.css("display", "none");
         contentInputer.css("display", "none");
         glossaryInputer.css("display", "block");
         wikipediaInputer.css("display", "none");
         format = "glossary";
     }
     else if (value == "wikipedia") {
+        windower.css("display", "table-row");
         contentInputer.css("display", "none");
         glossaryInputer.css("display", "none");
         wikipediaInputer.css("display", "block");
@@ -143,7 +163,8 @@ function load(event) {
         var sessionKey = Math.random().toString(36).substring(5);
         var data = {
             "sessionKey": sessionKey,
-            "format": format
+            "format": format,
+            "window": parseInt(windowSizer.val()),
         };
         if (format == "content-terms") {
             data["content"] = contentInputer.find(".content").val();
@@ -192,6 +213,12 @@ function load(event) {
                     <option value="glossary">Glossary Definitions</input>
                     <option value="wikipedia">Wikipedia Pages</input>
                 </select>
+            </td>
+        </tr>
+        <tr id="windower">
+            <td id="windowDescriptor" class="description" title="Select the co-occurrence window size.">Window (0):</td>
+            <td>
+                <input type="range" id="windowSizer" min="0" max="9" value="0" oninput="selectWindowSize(event)" onchange="selectWindowSize(event)" title="Select the co-occurrence window size."/>
             </td>
         </tr>
         <tr id="sessioner">

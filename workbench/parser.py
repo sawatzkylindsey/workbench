@@ -45,7 +45,7 @@ def csv_to_content(input_file):
             yield [CLEANER(cell) for cell in row]
 
 
-def parse_input(input_stream, input_format, window=0):
+def parse_input(input_stream, input_format, window=1):
     if format_matches(input_format, GLOSSARY_CSV):
         parser = GlossaryCsv()
     elif format_matches(input_format, WIKIPEDIA_ARTICLES_LIST):
@@ -80,6 +80,8 @@ class GlossaryCsv:
         self.inflections = nlp.Inflections()
 
     def parse(self, input_stream, window):
+        assert window >= 1, window
+
         if len(self.terms) > 0:
             raise ValueError("cannot invoke parse() multiple times for GlossaryCsv parser.")
 
@@ -137,6 +139,7 @@ class WikipediaArticlesList:
         self.inflections = nlp.Inflections()
 
     def parse(self, input_stream, window):
+        assert window >= 1, window
         pages = []
         parse_terms = set()
 
@@ -208,9 +211,9 @@ class WikipediaArticlesList:
 
             sentences = nlp.split_sentences(page_content)
 
-            for i in range(0, len(sentences)):
-                # List of lists                    vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-                sub_corpus = [word for sentence in sentences[max(i - window, 0):min(i + window + 1, len(sentences))] for word in sentence]
+            for i in range(window - 1, len(sentences)):
+                # List of lists                    vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+                sub_corpus = [word for sentence in sentences[i - window + 1:i + 1] for word in sentence]
                 reference_terms = nlp.extract_terms(corpus=sub_corpus,
                                                     terms_trie=terms_trie,
                                                     lemmatizer=CANONICALIZER,
@@ -278,23 +281,24 @@ class TermsContentText:
         self.inflections = nlp.Inflections()
 
     def parse(self, input_stream, window):
-        content_point = False
+        assert window >= 1, window
+        content_point = None
 
         for item in input_stream:
             sentences = nlp.split_sentences(item)
 
             for i in range(0, len(sentences)):
                 if sentences[i] == [TermsContentText.TERMS_CONTENT_SEPARATOR]:
-                    content_point = True
+                    content_point = i
                     terms_trie = build_trie(self.terms)
-                elif not content_point:
+                elif content_point is None:
                     term = nlp.Term([CANONICALIZER(word) for word in sentences[i]])
                     self.terms.add(term)
                     inflection = nlp.Term(sentences[i])
                     self.inflections.record(term, inflection)
-                else:
-                    # List of lists                    vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-                    sub_corpus = [word for sentence in sentences[max(i - window, 0):min(i + window + 1, len(sentences))] for word in sentence]
+                elif i - content_point >= window:
+                    # List of lists                    vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+                    sub_corpus = [word for sentence in sentences[i - window + 1:i + 1] for word in sentence]
                     reference_terms = nlp.extract_terms(corpus=sub_corpus,
                                                         terms_trie=terms_trie,
                                                         lemmatizer=CANONICALIZER,

@@ -40,7 +40,7 @@ $(document).ready(function () {
     windower = $("#windower");
     windowDescriptor = $("#windowDescriptor");
     windowSizer = $("#windowSizer")
-        .val("0")
+        .val("1")
         .change();
     sessioner = $("#sessioner");
     loader = $("#loader");
@@ -218,7 +218,7 @@ function load(event) {
         <tr id="windower">
             <td id="windowDescriptor" class="description" title="Select the co-occurrence window size.">Window (0):</td>
             <td>
-                <input type="range" id="windowSizer" min="0" max="9" value="0" oninput="selectWindowSize(event)" onchange="selectWindowSize(event)" title="Select the co-occurrence window size."/>
+                <input type="range" id="windowSizer" min="1" max="9" oninput="selectWindowSize(event)" onchange="selectWindowSize(event)" title="Select the co-occurrence window size."/>
             </td>
         </tr>
         <tr id="sessioner">

@@ -20,6 +20,9 @@ var controls = null;
 var kinder = null;
 var preseter = null;
 var formater = null;
+var keeper = null;
+var keepDescriptor = null;
+var keepSizer = null;
 var windower = null;
 var windowDescriptor = null;
 var windowSizer = null;
@@ -37,6 +40,11 @@ $(document).ready(function () {
     kinder = $("#kinder");
     preseter = $("#preseter");
     formater = $("#formater");
+    keeper = $("#keeper");
+    keepDescriptor = $("#keepDescriptor");
+    keepSizer = $("#keepSizer")
+        .val("80")
+        .change();
     windower = $("#windower");
     windowDescriptor = $("#windowDescriptor");
     windowSizer = $("#windowSizer")
@@ -62,6 +70,7 @@ var kind = null;
 function selectKind(event) {
     console.log(event);
     if (event.target.value == "preset") {
+        keeper.css("display", "table-row");
         windower.css("display", "table-row");
         preseter.css("display", "table-row");
         preseter.find("select")
@@ -73,6 +82,7 @@ function selectKind(event) {
         kind = "preset";
     }
     else if (event.target.value == "custom") {
+        keeper.css("display", "table-row");
         windower.css("display", "table-row");
         preseter.css("display", "none");
         inputer.css("display", "block");
@@ -86,6 +96,7 @@ function selectKind(event) {
         kind = "custom";
     }
     else if (event.target.value == "session") {
+        keeper.css("display", "none");
         windower.css("display", "none");
         preseter.css("display", "none");
         formater.css("display", "none");
@@ -94,6 +105,12 @@ function selectKind(event) {
         kind = "session";
         format = null;
     }
+}
+function selectKeepSize(event) {
+    var padding = event.target.value < 10
+        ? "\u00A0\u00A0\u00A0\u00A0" : event.target.value < 100
+        ? "\u00A0\u00A0" : "";
+    keepDescriptor.text(padding + "Keep (" + event.target.value + "%):");
 }
 function selectWindowSize(event) {
     windowDescriptor.text("Window (" + event.target.value + "):");
@@ -165,6 +182,7 @@ function load(event) {
             "sessionKey": sessionKey,
             "format": format,
             "window": parseInt(windowSizer.val()),
+            "keep": parseInt(keepSizer.val()),
         };
         if (format == "content-terms") {
             data["content"] = contentInputer.find(".content").val();
@@ -215,10 +233,16 @@ function load(event) {
                 </select>
             </td>
         </tr>
-        <tr id="windower">
-            <td id="windowDescriptor" class="description" title="Select the co-occurrence window size.">Window (0):</td>
+        <tr id="keeper">
+            <td id="keepDescriptor" class="description" title="Select the top percentage of co-occurrence counts keep."></td>
             <td>
-                <input type="range" id="windowSizer" min="1" max="9" oninput="selectWindowSize(event)" onchange="selectWindowSize(event)" title="Select the co-occurrence window size."/>
+                <input type="range" id="keepSizer" min="0" max="100" step="5" oninput="selectKeepSize(event)" onchange="selectKeepSize(event)" title="Select the top percentage of co-occurrence counts keep."/>
+            </td>
+        </tr>
+        <tr id="windower">
+            <td id="windowDescriptor" class="description" title="Select the co-occurrence sentence window size."></td>
+            <td>
+                <input type="range" id="windowSizer" min="1" max="9" oninput="selectWindowSize(event)" onchange="selectWindowSize(event)" title="Select the co-occurrence sentence window size."/>
             </td>
         </tr>
         <tr id="sessioner">
@@ -236,7 +260,7 @@ function load(event) {
         <tr>
             <td class="description"></td>
             <td>
-                <span id="noticer" style="display: none;">Loading..</br>This may take several seconds to</br>minutes, depending on the size</br>of the input.</span>
+                <span id="noticer" style="display: none;">Loading..</br>This may take several seconds</br>to minutes, depending on</br>the size of the input.</span>
             </td>
         </tr>
     </table>

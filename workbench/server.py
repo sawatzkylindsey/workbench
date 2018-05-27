@@ -63,7 +63,7 @@ class ServerHandler(BaseHTTPRequestHandler):
         if path.startswith("/termnet.html"):
             self._set_headers("text/html")
             (input_stream, input_format) = self.server.fe_converter.from_data(data)
-            termnet = build_termnet(input_stream, input_format, int(data["window"][0]))
+            termnet = build_termnet(input_stream, input_format, int(data["window"][0]), int(data["keep"][0]))
             termnet_session = TermnetSession(termnet)
             self.server.sessions[data["sessionKey"][0]] = termnet_session
             self._read_write_file("./javascript/termnet.html")

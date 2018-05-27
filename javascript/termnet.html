@@ -216,7 +216,7 @@ function ignoreAdd(event) {
 }
 function negateRemove(event) {
     //console.log(event);
-    var termname = event.target.innerText;
+    var termname = event.target.innerText.substring(2, event.target.innerText.length);
     d3.json("influence")
         .header("session-key", sessionKey)
         .post("polarity=negative&term=" + termname + "&mode=remove", function(error, data) { 
@@ -226,7 +226,7 @@ function negateRemove(event) {
         });
 }
 function ignoreRemove(event) {
-    var termname = event.target.innerText;
+    var termname = event.target.innerText.substring(2, event.target.innerText.length);
     updateIgnores(termname);
     d3.json("ignore")
         .header("session-key", sessionKey)

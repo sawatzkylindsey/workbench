@@ -27,6 +27,7 @@ from workbench.nlp import Term
 TOP = 10
 BIAS_RELATED = 0.05
 BOTTOM_K = 0.1
+HARD_CAP = 1000
 
 
 def main():
@@ -48,14 +49,46 @@ def main():
     return 0
 
 
-def build(input_text, input_format, window):
+def build(input_text, input_format, window, keep):
     check.check_iterable(input_text)
+    assert window > 0, window
+    assert keep >= 0 and keep <= 100, keep
     parse = workbench.parser.parse_input(input_text, input_format, window)
     builder = GraphBuilder(Graph.UNDIRECTED)
+    #count_histogram = {}
+
+    #for subd in parse.cooccurrences.values():
+    #    for sentences in subd.values():
+    #        if len(sentences) not in count_histogram:
+    #            count_histogram[len(sentences)] = 0
+
+    #        count_histogram[len(sentences)] += 1
+
+    #print(count_histogram)
+    #crossover = (keep / 100.0) * sum(count_histogram.values())
+    #print("crossover: %f" % crossover)
+    #running = 0
+    #threshold = 0 if len(count_histogram) == 0 else max(count_histogram.keys())
+
+    #for key, value in sorted(count_histogram.items(), reverse=True):
+    #    if running < crossover:
+    #        threshold = key - 1
+    #        running += value
+    #    else:
+    #        break
+
+    #    if running > HARD_CAP:
+    #        logging.debug("passing hard cap: %d" % running)
+    #        break
+
+    #print("threshold: %d" % threshold)
     # Count the number of cooccurrences per termA-termB pairing, and take the maximum.
     sub_maximums = [0 if len(subd) == 0 else max([len(l) for l in subd.values()]) for subd in parse.cooccurrences.values()]
     maximum = 0 if len(sub_maximums) == 0 else max(sub_maximums)
-    k = max(int(maximum * BOTTOM_K), 1)
+    #print("maximum: %d" % maximum)
+    bottom_percent = (100.0 - keep) / 100.0
+    k = max(int(maximum * bottom_percent), 1)
+    #print("k: %d" % k)
     logging.debug("maximum: %s, k: %s" % (maximum, k))
     inflection_sentences = {}
 
@@ -77,16 +110,13 @@ def build(input_text, input_format, window):
                     inflection_sentences[source][target].add(" ".join(sentence))
 
     graph = builder.build()
+    #print(len(graph))
 
     if len(graph) > 0:
         return Termnet(graph, inflection_sentences)
     else:
         builder = GraphBuilder(Graph.UNDIRECTED)
-        empty = Term(["empty"])
-        example = Term(["example"])
-        builder.add(empty, [example])
-        inflection_sentences[empty] = {example: ["empty example"]}
-        return Termnet(builder.build(), inflection_sentences)
+        return Termnet(builder.build(), {}, {})
 
     return net
 
@@ -95,7 +125,7 @@ class Termnet:
     def __init__(self, graph, sentences):
         self.graph = graph
         self.sentences = sentences
-        self.average = 1.0 / len(self.graph.all_nodes)
+        self.average = 0 if len(self.graph) == 0 else 1.0 / len(self.graph.all_nodes)
         self.page_ranks = {}
         self._background_calculate_ranks = threading.Thread(target=self.calculate_ranks)
         self._background_calculate_ranks.daemon = True
@@ -291,10 +321,11 @@ class TermnetSession:
         for identifier in selection:
             assert self.rank[identifier] >= 0.0 and self.rank[identifier] <= 1.0
             node_rank = self.rank[identifier]
-            masked_rank = 0.0
-            masked_count = 0
+            masked_rank = node_rank
+            masked_count = 1
 
             for point, mask in positive_masks:
+                #pdb.set_trace()
                 d = self.termnet.graph.distance(point, identifier)
                 distance = self.termnet.graph.max_distance(point) - d if d is not None else 0
                 masked_rank += mask(distance) * node_rank
@@ -307,15 +338,24 @@ class TermnetSession:
                 masked_rank += mask(distance) * node_rank
                 masked_count += 1
 
-            if masked_count == 0:
-                masked_rank = node_rank
-                masked_count = 1
+            #if masked_count == 0:
+            #    masked_rank = node_rank
+            #    masked_count = 1
 
             logging.debug("%s: masked rank: %s, base rank: %s" % (identifier.name(), masked_rank, node_rank))
             node_ranks[identifier] = (masked_rank / masked_count)
             sum_subgraph += self.rank[identifier]
 
+        if len(node_ranks) == 0:
+            return {
+                "nodes": [],
+                "links": [],
+                "summary": "",
+                "size": 0,
+            }
+
         total = sum(node_ranks.values())
+        #pdb.set_trace()
         scale = 1.0 / total
         assert scale >= 0.0
         node_ranks = {k: scale * v for k, v in node_ranks.items()}

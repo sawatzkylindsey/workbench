@@ -55,16 +55,16 @@ def build(input_text, input_format, window, keep):
     assert keep >= 0 and keep <= 100, keep
     parse = workbench.parser.parse_input(input_text, input_format, window)
     builder = GraphBuilder(Graph.UNDIRECTED)
-    #count_histogram = {}
+    count_histogram = {}
 
-    #for subd in parse.cooccurrences.values():
-    #    for sentences in subd.values():
-    #        if len(sentences) not in count_histogram:
-    #            count_histogram[len(sentences)] = 0
+    for subd in parse.cooccurrences.values():
+        for sentences in subd.values():
+            if len(sentences) not in count_histogram:
+                count_histogram[len(sentences)] = 0
 
-    #        count_histogram[len(sentences)] += 1
+            count_histogram[len(sentences)] += 1
 
-    #print(count_histogram)
+    logging.debug("count_histogram: %s" % count_histogram)
     #crossover = (keep / 100.0) * sum(count_histogram.values())
     #print("crossover: %f" % crossover)
     #running = 0
@@ -116,7 +116,7 @@ def build(input_text, input_format, window, keep):
         return Termnet(graph, inflection_sentences)
     else:
         builder = GraphBuilder(Graph.UNDIRECTED)
-        return Termnet(builder.build(), {}, {})
+        return Termnet(builder.build(), {})
 
     return net
 

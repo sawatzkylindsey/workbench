@@ -89,6 +89,32 @@ class Tests(TestCase):
             Term(["explor"]): ["Explore Crater sphere termy".split()],
         })
 
+    def test_term_content_text_one_sentence(self):
+        stream = ["Apple. Goat .\nexplore. \ncrater Sphere. " \
+            + TermsContentText.TERMS_CONTENT_SEPARATOR \
+            + ". Apples something explores and goats."]
+
+        for window in range(1, 4):
+            parse = parse_input(stream, TERMS_CONTENT_TEXT, window)
+            self.assertEqual(parse.terms, set([
+                Term(["appl"]),
+                Term(["goat"]),
+                Term(["explor"]),
+                Term(["crater", "sphere"]),
+            ]), "window %d" % window)
+            self.assertEqual(parse.cooccurrences[Term(["appl"])], {
+                Term(["goat"]): ["Apples something explores and goats".split()],
+                Term(["explor"]): ["Apples something explores and goats".split()],
+            }, "window %d" % window)
+            self.assertEqual(parse.cooccurrences[Term(["goat"])], {
+                Term(["appl"]): ["Apples something explores and goats".split()],
+                Term(["explor"]): ["Apples something explores and goats".split()],
+            }, "window %d" % window)
+            self.assertEqual(parse.cooccurrences[Term(["explor"])], {
+                Term(["appl"]): ["Apples something explores and goats".split()],
+                Term(["goat"]): ["Apples something explores and goats".split()],
+            }, "window %d" % window)
+
 
 def tests():
     return create_suite(Tests)

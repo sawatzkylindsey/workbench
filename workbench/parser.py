@@ -4,6 +4,7 @@
 from csv import reader as csv_reader
 import json
 import logging
+import math
 import os
 import pdb
 from pytils import check
@@ -49,13 +50,13 @@ def parse_input(input_stream, input_format, window=1):
     if format_matches(input_format, GLOSSARY_CSV):
         parser = GlossaryCsv()
     elif format_matches(input_format, WIKIPEDIA_ARTICLES_LIST):
-        parser = WikipediaArticlesList()
+        parser = WikipediaArticlesList(window)
     elif format_matches(input_format, TERMS_CONTENT_TEXT):
-        parser = TermsContentText()
+        parser = TermsContentText(window)
     else:
         raise ValueError("Unknown input format '%s'." % str(input_format))
 
-    parser.parse(input_stream, window)
+    parser.parse(input_stream)
     return parser
 
 
@@ -79,9 +80,7 @@ class GlossaryCsv:
         self.cooccurrences = {}
         self.inflections = nlp.Inflections()
 
-    def parse(self, input_stream, window):
-        assert window >= 1, window
-
+    def parse(self, input_stream):
         if len(self.terms) > 0:
             raise ValueError("cannot invoke parse() multiple times for GlossaryCsv parser.")
 
@@ -132,14 +131,15 @@ class WikipediaArticlesList:
         "See also",
     ]
 
-    def __init__(self):
+    def __init__(self, window):
+        assert window >= 1, window
+        self.window = window
         self.top_percent = 0.05
         self.terms = set()
         self.cooccurrences = {}
         self.inflections = nlp.Inflections()
 
-    def parse(self, input_stream, window):
-        assert window >= 1, window
+    def parse(self, input_stream):
         pages = []
         parse_terms = set()
 
@@ -210,10 +210,11 @@ class WikipediaArticlesList:
                 page_content = fh.read()
 
             sentences = nlp.split_sentences(page_content)
+            maximum_offset = math.ceil(float(len(sentences)) / self.window)
 
-            for i in range(window - 1, len(sentences)):
-                # List of lists                    vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-                sub_corpus = [word for sentence in sentences[i - window + 1:i + 1] for word in sentence]
+            for offset in range(0, maximum_offset):
+                # List of lists                    vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+                sub_corpus = [word for sentence in sentences[offset:offset + self.window] for word in sentence]
                 reference_terms = nlp.extract_terms(corpus=sub_corpus,
                                                     terms_trie=terms_trie,
                                                     lemmatizer=CANONICALIZER,
@@ -275,44 +276,50 @@ class WikipediaArticlesList:
 class TermsContentText:
     TERMS_CONTENT_SEPARATOR = "terms_content_separator"
 
-    def __init__(self):
+    def __init__(self, window):
+        assert window >= 1, window
+        self.window = window
         self.terms = set()
         self.cooccurrences = {}
         self.inflections = nlp.Inflections()
 
-    def parse(self, input_stream, window):
-        assert window >= 1, window
+    def parse(self, input_stream):
         content_point = None
 
         for item in input_stream:
             sentences = nlp.split_sentences(item)
+            i = -1
 
-            for i in range(0, len(sentences)):
+            while content_point is None:
+                i += 1
+
                 if sentences[i] == [TermsContentText.TERMS_CONTENT_SEPARATOR]:
-                    content_point = i
+                    content_point = i + 1
                     terms_trie = build_trie(self.terms)
-                elif content_point is None:
+                else:
                     term = nlp.Term([CANONICALIZER(word) for word in sentences[i]])
                     self.terms.add(term)
                     inflection = nlp.Term(sentences[i])
                     self.inflections.record(term, inflection)
-                elif i - content_point >= window:
-                    # List of lists                    vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-                    sub_corpus = [word for sentence in sentences[i - window + 1:i + 1] for word in sentence]
-                    reference_terms = nlp.extract_terms(corpus=sub_corpus,
-                                                        terms_trie=terms_trie,
-                                                        lemmatizer=CANONICALIZER,
-                                                        inflection_recorder=self.inflections.record)
 
-                    for a in reference_terms:
-                        for b in reference_terms:
-                            if a != b:
-                                if a not in self.cooccurrences:
-                                    self.cooccurrences[a] = {}
+            maximum_offset = math.ceil((float(len(sentences)) - content_point) / self.window)
 
-                                if b not in self.cooccurrences[a]:
-                                    self.cooccurrences[a][b] = []
+            for offset in range(0, maximum_offset):
+                # List of lists                    vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+                sub_corpus = [word for sentence in sentences[content_point + offset:content_point + offset + self.window] for word in sentence]
+                reference_terms = nlp.extract_terms(corpus=sub_corpus,
+                                                    terms_trie=terms_trie,
+                                                    lemmatizer=CANONICALIZER,
+                                                    inflection_recorder=self.inflections.record)
 
-                                #self.cooccurrences[a].add(b)
-                                self.cooccurrences[a][b] += [sub_corpus]
+                for a in reference_terms:
+                    for b in reference_terms:
+                        if a != b:
+                            if a not in self.cooccurrences:
+                                self.cooccurrences[a] = {}
+
+                            if b not in self.cooccurrences[a]:
+                                self.cooccurrences[a][b] = []
+
+                            self.cooccurrences[a][b] += [sub_corpus]
 

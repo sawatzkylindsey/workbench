@@ -45,15 +45,26 @@ class ServerHandler(BaseHTTPRequestHandler):
 
         if os.path.exists(file_path) and os.path.isfile(file_path):
             mimetype, _ = mimetypes.guess_type(path)
+
+            if mimetype is None:
+                mimetype = "text/plain"
+
             self._set_headers(mimetype)
-            self._read_write_file(file_path)
+            encode = "text" in mimetype
+            self._read_write_file(file_path, encode)
         else:
             raise errors.NotFound(path)
 
-    def _read_write_file(self, file_path):
-        with open(file_path, "r") as fh:
-            for line in fh:
-                self._write(line)
+    def _read_write_file(self, file_path, encode=True):
+        if encode:
+            with open(file_path, "r") as fh:
+                self._write(fh.read())
+        else:
+            with open(file_path, "rb") as fh:
+                self.wfile.write(fh.read())
+
+    def _write(self, content):
+        self.wfile.write(content.encode("utf-8"))
 
     @errorhandler
     def do_POST(self):
@@ -169,6 +180,9 @@ class ServerHandler(BaseHTTPRequestHandler):
 
         return termnet_session.display_previous()
 
+    def properties(self, termnet_session, query):
+        return termnet_session.termnet.meta_data()
+
     def _read_request(self):
         url = urllib.parse.urlparse(self.path)
         session_key = self.headers["Session-Key"]
@@ -180,9 +194,6 @@ class ServerHandler(BaseHTTPRequestHandler):
             data = urllib.parse.parse_qs(content_data)
 
         return (url.path, session_key, data)
-
-    def _write(self, text):
-        self.wfile.write(text.encode("utf-8"))
 
 
 def run(port, fe_converter):

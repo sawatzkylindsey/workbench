@@ -65,39 +65,34 @@ def build(input_text, input_format, window, keep):
             count_histogram[len(sentences)] += 1
 
     logging.debug("count_histogram: %s" % count_histogram)
-    #crossover = (keep / 100.0) * sum(count_histogram.values())
-    #print("crossover: %f" % crossover)
-    #running = 0
-    #threshold = 0 if len(count_histogram) == 0 else max(count_histogram.keys())
+    sub_lengths = [[] if len(subd) == 0 else [len(l) for l in subd.values()] for subd in parse.cooccurrences.values()]
 
-    #for key, value in sorted(count_histogram.items(), reverse=True):
-    #    if running < crossover:
-    #        threshold = key - 1
-    #        running += value
-    #    else:
-    #        break
+    if len(sub_lengths) > 0:
+        maximum = max([0 if len(l) == 0 else max(l) for l in sub_lengths])
+        minimum = min([0 if len(l) == 0 else min(l) for l in sub_lengths])
+        average = sum([i for l in sub_lengths for i in l]) / sum([len(l) for l in sub_lengths])
+    else:
+        maximum = 0
+        minimum = 0
+        average = 0.0
 
-    #    if running > HARD_CAP:
-    #        logging.debug("passing hard cap: %d" % running)
-    #        break
-
-    #print("threshold: %d" % threshold)
-    # Count the number of cooccurrences per termA-termB pairing, and take the maximum.
-    sub_maximums = [0 if len(subd) == 0 else max([len(l) for l in subd.values()]) for subd in parse.cooccurrences.values()]
-    maximum = 0 if len(sub_maximums) == 0 else max(sub_maximums)
-    #print("maximum: %d" % maximum)
     bottom_percent = (100.0 - keep) / 100.0
-    k = max(int(maximum * bottom_percent), 1)
-    #print("k: %d" % k)
-    logging.debug("maximum: %s, k: %s" % (maximum, k))
+    cutoff = max(int(maximum * bottom_percent), 1)
+    #print("cutoff: %d" % cutoff)
+    logging.debug("maximum: %s, cutoff: %s" % (maximum, cutoff))
     inflection_sentences = {}
+    excluded_terms = set()
+    included_terms = set()
 
     for term_a, term_sentences in sorted(parse.cooccurrences.items()):
         source = parse.inflections.to_inflection(term_a)
-        targets = {parse.inflections.to_inflection(term_b): sentences for term_b, sentences in filter(lambda item: len(item[1]) >= k, term_sentences.items())}
+        excluded_terms.add(source)
+        targets = {parse.inflections.to_inflection(term_b): sentences for term_b, sentences in filter(lambda item: len(item[1]) >= cutoff, term_sentences.items())}
 
         if len(targets) > 0:
             builder.add(source, [t for t in targets.keys()])
+            included_terms.add(source)
+            excluded_terms.remove(source)
 
             if source not in inflection_sentences:
                 inflection_sentences[source] = {}
@@ -110,21 +105,45 @@ def build(input_text, input_format, window, keep):
                     inflection_sentences[source][target].add(" ".join(sentence))
 
     graph = builder.build()
+    properties = Properties(minimum, maximum, average, cutoff, len(included_terms) + len(excluded_terms), included_terms, excluded_terms)
     #print(len(graph))
 
     if len(graph) > 0:
-        return Termnet(graph, inflection_sentences)
+        return Termnet(graph, inflection_sentences, properties)
     else:
         builder = GraphBuilder(Graph.UNDIRECTED)
-        return Termnet(builder.build(), {})
+        return Termnet(builder.build(), {}, Properties())
 
     return net
 
 
+class Properties:
+    def __init__(self, minimum_cooccurrence_count=0, maximum_cooccurrence_count=0, average_cooccurrence_count=0, cutoff_cooccurrence_count=0, total_terms=0, included_terms=[], excluded_terms=[]):
+        self.minimum_cooccurrence_count = minimum_cooccurrence_count
+        self.maximum_cooccurrence_count = maximum_cooccurrence_count
+        self.average_cooccurrence_count = average_cooccurrence_count
+        self.cutoff_cooccurrence_count = cutoff_cooccurrence_count
+        self.total_terms = total_terms
+        self.included_terms = [term.name() for term in included_terms]
+        self.excluded_terms = [term.name() for term in excluded_terms]
+
+    def dump(self):
+        return {
+            "minimum_cooccurrence_count": self.minimum_cooccurrence_count,
+            "maximum_cooccurrence_count": self.maximum_cooccurrence_count,
+            "average_cooccurrence_count": self.average_cooccurrence_count,
+            "cutoff_cooccurrence_count": self.cutoff_cooccurrence_count,
+            "total_terms": self.total_terms,
+            "included": self.included_terms,
+            "excluded": self.excluded_terms,
+        }
+
+
 class Termnet:
-    def __init__(self, graph, sentences):
+    def __init__(self, graph, sentences, properties):
         self.graph = graph
         self.sentences = sentences
+        self.properties = properties
         self.average = 0 if len(self.graph) == 0 else 1.0 / len(self.graph.all_nodes)
         self.page_ranks = {}
         self._background_calculate_ranks = threading.Thread(target=self.calculate_ranks)
@@ -138,6 +157,9 @@ class Termnet:
             self.page_ranks[node.identifier] = self.graph.page_rank(biases={node.identifier: self.average})
             # Bias the node's descendants
             #self.page_ranks[node.identifier] = self.graph.page_rank(biases={d.identifier: BIAS_RELATED for d in node.descendants})
+
+    def meta_data(self):
+        return self.properties.dump()
 
 
 class TermnetSession:

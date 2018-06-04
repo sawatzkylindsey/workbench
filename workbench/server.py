@@ -181,7 +181,7 @@ class ServerHandler(BaseHTTPRequestHandler):
         return termnet_session.display_previous()
 
     def properties(self, termnet_session, query):
-        return termnet_session.termnet.meta_data()
+        return termnet_session.termnet.properties.dump()
 
     def _read_request(self):
         url = urllib.parse.urlparse(self.path)

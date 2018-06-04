@@ -39,15 +39,18 @@ class FeConverter:
             raise errors.Invalid("Submission invalid - missing 'format'.").with_traceback(e.__traceback__)
 
         try:
-            content = data["content"][0]
+            content = data["content"][0].strip()
         except KeyError as e:
             raise errors.Invalid("Submission invalid - missing 'content'.").with_traceback(e.__traceback__)
 
         if web_format == CONTENT_TERMS:
             try:
-                terms = data["terms"][0]
+                terms = data["terms"][0].strip()
             except KeyError as e:
                 raise errors.Invalid("Submission invalid - missing 'terms'.").with_traceback(e.__traceback__)
+
+            if not terms.endswith("."):
+                terms += "."
 
             input_text = "%s %s. %s" % (terms, parser.TermsContentText.TERMS_CONTENT_SEPARATOR, content)
             return self.from_text(input_text, web_format)

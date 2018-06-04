@@ -92,6 +92,72 @@ $("#controlFo").load("controls.html", function() {
     $("#ignorerWrapper").width((center_x - pool_radius - 40) / 2);
     historyList = $("#historyList");
 });
+var metaFo = svg.append("foreignObject")
+    .attr("transform", "translate(" + (center_x - pool_radius) + "," + 15 + ")")
+    .attr("width", pool_radius * 2)
+    .attr("height", 50);
+var graphMeta = metaFo.append("xhtml:div")
+    .attr("id", "graphMeta")
+    .attr("class", "labels")
+    .style("text-align", "center")
+    .text("loading..");
+var summaryFo = svg.append("foreignObject")
+    .attr("transform", "translate(" + (center_x - pool_radius) + "," + (center_y * 1.85) + ")")
+    .attr("width", pool_radius * 2)
+    .attr("height", 50);
+var graphSummary = summaryFo.append("xhtml:div")
+    .attr("id", "graphSummary")
+    .attr("class", "labels")
+    .style("text-align", "center")
+    .text("loading..");
+var propertiesFo = svg.append("foreignObject")
+    .attr("id", "propertiesFo")
+    .attr("transform", "translate(" + (center_x + pool_radius + 20) + ",10)")
+    .attr("width", center_x - pool_radius - 40)
+    .attr("height", height - 40);
+var termCount = null;
+var termCooccurrenceMinimum = null;
+var termCooccurrenceMaximum = null;
+var termCooccurrenceAverage = null;
+var termCooccurrenceCutoff = null;
+var includedList = null;
+var includedToggler = null;
+var included = null;
+var excludedList = null;
+var excludedToggler = null;
+var excluded = null;
+$("#propertiesFo").load("properties.html", function() {
+    termCount = $("#termCount");
+    termCooccurrenceMinimum = $("#termCooccurrenceMinimum");
+    termCooccurrenceMaximum = $("#termCooccurrenceMaximum");
+    termCooccurrenceAverage = $("#termCooccurrenceAverage");
+    termCooccurrenceCutoff = $("#termCooccurrenceCutoff");
+    includedList = $("#includedList");
+    includedToggler = $("#includedToggler");
+    excludedList = $("#excludedList");
+    excludedToggler = $("#excludedToggler");
+d3.json("properties")
+    .header("session-key", sessionKey)
+    .post("", function(error, data) {
+        termCount.text("" + data.total_terms);
+        termCooccurrenceMinimum.text("" + data.minimum_cooccurrence_count);
+        termCooccurrenceMaximum.text("" + data.maximum_cooccurrence_count);
+        termCooccurrenceAverage.text(("" + data.average_cooccurrence_count).substring(0, 4));
+        termCooccurrenceCutoff.text("" + data.cutoff_cooccurrence_count);
+        included = Array.from(data.included);
+        included.sort();
+        included.forEach(function(item) {
+            includedList.append("<span style='font-size: 8pt;'>&bull; " + item + "</span></br>");
+        });
+        excluded = Array.from(data.excluded);
+        excluded.sort();
+        excluded.forEach(function(item) {
+            excludedList.append("<span style='font-size: 8pt;'>&bull; " + item + "</span></br>");
+        });
+    });
+});
+
+
 function neighbourhood(event) {
     if (event.keyCode == 13) {
         var termname = neighbourhooder.val();
@@ -284,26 +350,27 @@ function toggleIgnores(event) {
         ignorerList.css("display", "block");
     }
 }
+function toggleIncluded(event) {
+    if (includedToggler.val() == "Hide") {
+        var suffix = included.length == 0 ? "" : " (" + included.length + ")";
+        includedToggler.val("Show" + suffix);
+        includedList.css("display", "none");
+    } else {
+        includedToggler.val("Hide");
+        includedList.css("display", "block");
+    }
+}
+function toggleExcluded(event) {
+    if (excludedToggler.val() == "Hide") {
+        var suffix = excluded.length == 0 ? "" : " (" + excluded.length + ")";
+        excludedToggler.val("Show" + suffix);
+        excludedList.css("display", "none");
+    } else {
+        excludedToggler.val("Hide");
+        excludedList.css("display", "block");
+    }
+}
 
-
-var metaFo = svg.append("foreignObject")
-    .attr("transform", "translate(" + (center_x - pool_radius) + "," + 15 + ")")
-    .attr("width", pool_radius * 2)
-    .attr("height", 50);
-var graphMeta = metaFo.append("xhtml:div")
-    .attr("id", "graphMeta")
-    .attr("class", "labels")
-    .style("text-align", "center")
-    .text("loading..");
-var summaryFo = svg.append("foreignObject")
-    .attr("transform", "translate(" + (center_x - pool_radius) + "," + (center_y * 1.85) + ")")
-    .attr("width", pool_radius * 2)
-    .attr("height", 50);
-var graphSummary = summaryFo.append("xhtml:div")
-    .attr("id", "graphSummary")
-    .attr("class", "labels")
-    .style("text-align", "center")
-    .text("loading..");
 
 var color = d3.scaleOrdinal(d3.schemeCategory20);
 var MIN_RADIUS = 5;

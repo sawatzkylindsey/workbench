@@ -15,8 +15,12 @@ html_prefix = """<html>
 <head>
 </head>
 <body>
-<div style='width: 800px; margin-right: auto; margin-left: auto;'>"""
-html_suffix = "</div></body></html>"
+<div style='width: 800px; margin-right: auto; margin-left: auto;'>
+"""
+html_suffix = """</div>
+</body>
+</html>
+"""
 
 
 def main(argv):

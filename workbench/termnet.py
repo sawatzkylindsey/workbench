@@ -98,6 +98,8 @@ def build(input_text, input_format, window, keep):
                 inflection_sentences[source] = {}
 
             for target, sentences in targets.items():
+                included_terms.add(target)
+
                 if target not in inflection_sentences[source]:
                     inflection_sentences[source][target] = set()
 

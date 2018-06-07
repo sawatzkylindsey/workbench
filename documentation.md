@@ -41,15 +41,15 @@ It is different from *Search* in two ways:
 2. It is reversable, whereas *Search* will permanently affect the weights of the graph.
 
 To calculate the affect of positive or negative influence, first calculate the minimum distance from the influenced node to the rest of the nodes in the graph (including itself).
-For negative influence, use this distance directly as the $$x$$ value to the respective influence formula.
+For negative influence, use this distance directly as the $x$ value to the respective influence formula.
 For positive influence, use this distance subtracted from the maximum distance from the influenced term as the $x$ value to the respective influence formula.
 In both cases, the result is then averaged across all active influences and added to the term.
 
-$$influence(term = t) = \dfrac{positiveInfluence(term) + negativeInfluence(term)}{count(P) + count(N)}$$
-$$positiveInfluence(term = t) = \Sigma_{i \in P}(distance)$$
+$influence(term = t) = \dfrac{positiveInfluence(term) + negativeInfluence(term)}{count(P) + count(N)}$
+$positiveInfluence(term = t) = \Sigma_{i \in P}(distance)$
 
-Where $$P$$ and $$N$$ are all of the positive and negative influences, respectively.
-$$M_it$$ is the maximum distance from the influence term $$i$$ to the subject term $$t$$.
+Where $P$ and $N$ are all of the positive and negative influences, respectively.
+$M_it$ is the maximum distance from the influence term $i$ to the subject term $t$.
 
 ### Ignore
 

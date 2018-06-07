@@ -9,6 +9,7 @@ import sys
 
 
 from pytils.log import setup_logging, user_log
+from latex import MarkdownLatex
 
 
 html_prefix = """<html>
@@ -21,7 +22,11 @@ html_suffix = """</div>
 </body>
 </html>
 """
-
+EXTENSIONS = [
+    "extra",
+    "smarty",
+    MarkdownLatex(),
+]
 
 def main(argv):
     ap = ArgumentParser(prog="markdowner")
@@ -37,7 +42,7 @@ def main(argv):
     logging.debug(args)
 
     with open(args.markdown_file, "r") as fh:
-        html = markdown.markdown(fh.read(), extensions=['extra', 'smarty'], output_format="html5")
+        html = markdown.markdown(fh.read(), extensions=EXTENSIONS, output_format="html5")
 
     with open(args.output_html, "w") as fh:
         fh.write(html_prefix)

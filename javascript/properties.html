@@ -32,16 +32,22 @@
         </td>
     </tr>
 </table>
-<div style="display: flex; min-height: 100px;">
-    <div id="includedWrapper" style="float: left; padding: 2px;">
+<div style="display: flex;">
+    <div id="includedWrapper" style="float: left; width: 50%;">
         <span>Included</span>
         <input type="button" id="includedToggler" onclick="toggleIncluded(event)" value="Hide" title="Toggle the included list."/>
-        <div id="includedList"></div>
+        <div style="padding: 2px; height: 500px; overflow-y: scroll;">
+            <div id="includedList">
+            </div>
+        </div>
     </div>
-    <div id="excludedWrapper" style="float left; padding: 2px;">
+    <div id="excludedWrapper" style="float left; width: 50%;">
         <span>Excluded</span>
         <input type="button" id="excludedToggler" onclick="toggleExcluded(event)" value="Hide" title="Toggle the excluded list."/>
-        <div id="excludedList"></div>
+        <div style="padding: 2px; height: 500px; overflow-y: scroll;">
+            <div id="excludedList">
+            </div>
+        </div>
     </div>
 </div>
 </div>

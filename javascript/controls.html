@@ -55,16 +55,22 @@
     </tr>
 </table>
 
-<div style="display: flex; min-height: 100px;">
-    <div id="negaterWrapper" style="float: left; padding: 2px;">
+<div style="display: flex;">
+    <div style="float: left; width: 50%;">
         <span>Negations</span>
         <input type="button" id="negaterToggler" onclick="toggleNegations(event)" value="Hide" title="Toggle the negations list."/>
-        <div id="negaterList"></div>
+        <div id="negaterWrapper" style="padding: 2px; height: 100px; overflow-y: scroll;">
+            <div id="negaterList">
+            </div>
+        </div>
     </div>
-    <div id="ignorerWrapper" style="float left; padding: 2px;">
+    <div style="float: left; width: 50%;">
         <span>Ignores</span>
         <input type="button" id="ignorerToggler" onclick="toggleIgnores(event)" value="Hide" title="Toggle the ignores list."/>
-        <div id="ignorerList"></div>
+        <div id="ignorerWrapper" style="padding: 2px; height: 100px; overflow-y: scroll;">
+            <div id="ignorerList">
+            </div>
+        </div>
     </div>
 </div>
 <div style="padding: 2px;">

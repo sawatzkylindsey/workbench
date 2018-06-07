@@ -38,6 +38,17 @@ var center_x = svg_width / 2.0;
 var center_y = height / 2.0;
 var pool_radius = height / 2.5;
 //var control_width = center_x - pool_radius - 40;
+var termCount = null;
+var termCooccurrenceMinimum = null;
+var termCooccurrenceMaximum = null;
+var termCooccurrenceAverage = null;
+var termCooccurrenceCutoff = null;
+var includedList = null;
+var includedToggler = null;
+var included = null;
+var excludedList = null;
+var excludedToggler = null;
+var excluded = null;
 
 $(document).ready(function() {
 
@@ -106,17 +117,6 @@ graphSummary = summaryFo.append("xhtml:div")
     .attr("transform", "translate(" + (center_x + pool_radius + 20) + ",10)")
     .attr("width", center_x - pool_radius - 40)
     .attr("height", height - 40);*/
-var termCount = null;
-var termCooccurrenceMinimum = null;
-var termCooccurrenceMaximum = null;
-var termCooccurrenceAverage = null;
-var termCooccurrenceCutoff = null;
-var includedList = null;
-var includedToggler = null;
-var included = null;
-var excludedList = null;
-var excludedToggler = null;
-var excluded = null;
 $("#propertiesFo").width(side_width);
 $("#propertiesFo").load("properties.html", function() {
     termCount = $("#termCount");
@@ -323,10 +323,10 @@ function toggleNegations(event) {
     if (negaterToggler.val() == "Hide") {
         var suffix = negations.size == 0 ? "" : " (" + negations.size + ")";
         negaterToggler.val("Show" + suffix);
-        negaterList.css("display", "none");
+        negaterList.parent().css("display", "none");
     } else {
         negaterToggler.val("Hide");
-        negaterList.css("display", "block");
+        negaterList.parent().css("display", "block");
     }
 }
 function updateIgnores(termname) {
@@ -347,30 +347,30 @@ function toggleIgnores(event) {
     if (ignorerToggler.val() == "Hide") {
         var suffix = ignores.size == 0 ? "" : " (" + ignores.size + ")";
         ignorerToggler.val("Show" + suffix);
-        ignorerList.css("display", "none");
+        ignorerList.parent().css("display", "none");
     } else {
         ignorerToggler.val("Hide");
-        ignorerList.css("display", "block");
+        ignorerList.parent().css("display", "block");
     }
 }
 function toggleIncluded(event) {
     if (includedToggler.val() == "Hide") {
         var suffix = included.length == 0 ? "" : " (" + included.length + ")";
         includedToggler.val("Show" + suffix);
-        includedList.css("display", "none");
+        includedList.parent().css("display", "none");
     } else {
         includedToggler.val("Hide");
-        includedList.css("display", "block");
+        includedList.parent().css("display", "block");
     }
 }
 function toggleExcluded(event) {
     if (excludedToggler.val() == "Hide") {
         var suffix = excluded.length == 0 ? "" : " (" + excluded.length + ")";
         excludedToggler.val("Show" + suffix);
-        excludedList.css("display", "none");
+        excludedList.parent().css("display", "none");
     } else {
         excludedToggler.val("Hide");
-        excludedList.css("display", "block");
+        excludedList.parent().css("display", "block");
     }
 }
 function node_radius(rank) {

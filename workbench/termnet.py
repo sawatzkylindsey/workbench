@@ -352,14 +352,14 @@ class TermnetSession:
                 #pdb.set_trace()
                 d = self.termnet.graph.distance(point, identifier)
                 distance = self.termnet.graph.max_distance(point) - d if d is not None else 0
-                masked_rank += mask(distance) * node_rank
+                masked_rank += mask(distance) * self.rank[point]
                 masked_count += 1
 
             for point, mask in negative_masks:
                 d = self.termnet.graph.distance(point, identifier)
                 distance = d if d is not None else self.termnet.graph.max_distance(point)
                 #distance = self.termnet.graph.max_distance() - d if d is not None else 0
-                masked_rank += mask(distance) * node_rank
+                masked_rank += mask(distance) * self.rank[point]
                 masked_count += 1
 
             #if masked_count == 0:

@@ -6,15 +6,16 @@ var sessioner = null;
 var neighbourhooder = null;
 var searcher = null;
 var sizer = null;
-var positiveInfluencer = null;
-var negativeInfluencer = null;
-var negater = null;
-var ignorer = null;
-//var negatedToggler = null;
-var negaterList = null;
-var negaterToggler = null;
-var ignorerList = null;
-var ignorerToggler = null;
+var amplifyAffect= null;
+var amplifier = null;
+var amplifications = null;
+var amplifyToggler = null;
+var dampifyAffect = null;
+var dampifyer = null;
+var dampifications = null;
+var dampifyToggler = null;
+var ignores = null;
+var ignoreToggler = null;
 var historyList = null;
 var svg = null;
 var graphMeta = null;
@@ -25,8 +26,9 @@ rainbow.setNumberRange(0, 1.0);
 rainbow.setSpectrum("#96afff", "#001e84");
 var size = 1;
 var firstDraw = true;
-var negations = new Set();
-var ignores = new Set();
+var amplifySet = new Set();
+var dampifySet = new Set();
+var ignoreSet = new Set();
 var color = d3.scaleOrdinal(d3.schemeCategory20);
 var MIN_RADIUS = 5;
 var MAX_RADIUS = 50;
@@ -76,20 +78,23 @@ $("#controlFo").load("controls.html", function() {
     neighbourhooder = $("#neighbourhooder");
     searcher = $("#searcher");
     sizer = $("#sizer");
-    positiveInfluencer = $("#positiveInfluencer");
-    positiveInfluencer.find(".default")
+    amplifyAffect = $("#amplifyAffect");
+    amplifyAffect.find(".default")
         .prop("checked", true)
         .change();
-    negativeInfluencer = $("#negativeInfluencer");
-    negativeInfluencer.find(".default")
+    amplifier = $("#amplifier");
+    amplifications = $("#amplifications");
+    amplifyToggler = $("#amplifyToggler");
+    dampifyAffect = $("#dampifyAffect");
+    dampifyAffect.find(".default")
         .prop("checked", true)
         .change();
-    negater = $("#negater");
-    negaterList = $("#negaterList");
-    negaterToggler = $("#negaterToggler");
+    dampifier = $("#dampifier");
+    dampifications = $("#dampifications");
+    dampifyToggler = $("#dampifyToggler");
     ignorer = $("#ignorer");
-    ignorerList = $("#ignorerList");
-    ignorerToggler = $("#ignorerToggler");
+    ignores = $("#ignores");
+    ignoreToggler = $("#ignoreToggler");
     historyList = $("#historyList");
 });
 var metaFo = svg.append("foreignObject")
@@ -222,9 +227,11 @@ function reset(event) {
     d3.json("reset")
         .header("session-key", sessionKey)
         .post("");
-    negations = new Set();
-    ignores = new Set();
-    updateNegations(null);
+    amplifySet = new Set();
+    dampifySet = new Set();
+    ignoreSet = new Set();
+    updateAmplifications(null);
+    updateDampifications(null);
     updateIgnores(null);
     firstDraw = true;
     d3.json("neighbourhood")
@@ -238,35 +245,60 @@ function reset(event) {
             }
         });
 }
-function influenceConfigure(event) {
+function amplifyConfigure(event) {
     console.log(event);
     console.log(event.target.value);
-    var polarity = event.target.name == "positive-influence" ? "positive" : "negative";
     d3.json("influence/configure")
         .header("session-key", sessionKey)
-        .post("mode=" + event.target.value + "&polarity=" + polarity, function(error, data) {
+        .post("mode=" + event.target.value + "&polarity=positive", function(error, data) {
             if (!event.isTrigger) {
                 draw(data);
             }
         });
 }
-function negateAdd(event) {
-    //if (!d3.event.active) {
-    //    simulation.alphaTarget(0);
-    //}
+function dampifyConfigure(event) {
+    console.log(event);
+    console.log(event.target.value);
+    d3.json("influence/configure")
+        .header("session-key", sessionKey)
+        .post("mode=" + event.target.value + "&polarity=negative", function(error, data) {
+            if (!event.isTrigger) {
+                draw(data);
+            }
+        });
+}
+function amplifyAdd(event) {
     if (event.keyCode == 13) {
-        let termname = negater.val();
-        negater.val("");
+        let termname = amplifier.val();
+        amplifier.val("");
+        dampifySet.delete(termname);
+        updateDampifications(termname);
+        d3.json("influence")
+            .header("session-key", sessionKey)
+            .post("polarity=positive&term=" + termname + "&mode=add", function(error, data) {
+                if (error == null) {
+                    draw(data);
+                    amplifySet.add(termname);
+                    updateAmplifications(termname);
+                }
+            });
+    }
+}
+function dampifyAdd(event) {
+    if (event.keyCode == 13) {
+        let termname = dampifier.val();
+        dampifier.val("");
+        amplifySet.delete(termname);
+        updateAmplifications(termname);
         d3.json("influence")
             .header("session-key", sessionKey)
             .post("polarity=negative&term=" + termname + "&mode=add", function(error, data) {
                 if (error == null) {
                     draw(data);
-                    negations.add(termname);
-                    updateNegations(termname);
+                    dampifySet.add(termname);
+                    updateDampifications(termname);
                 }
             });
-        //negater.val("");
     }
 }
 function ignoreAdd(event) {
@@ -278,20 +310,30 @@ function ignoreAdd(event) {
             .post("term=" + termname + "&mode=add", function(error, data) {
                 if (error == null) {
                     draw(data);
-                    ignores.add(termname);
+                    ignoreSet.add(termname);
                     updateIgnores(termname);
                 }
             });
     }
 }
-function negateRemove(event) {
+function amplifyRemove(event) {
     var termname = event.target.innerText.substring(2, event.target.innerText.length);
     d3.json("influence")
         .header("session-key", sessionKey)
-        .post("polarity=negative&term=" + termname + "&mode=remove", function(error, data) { 
+        .post("polarity=positive&term=" + termname + "&mode=remove", function(error, data) {
             draw(data);
-            negations.delete(termname);
-            updateNegations(termname);
+            amplifySet.delete(termname);
+            updateAmplifications(termname);
+        });
+}
+function dampifyRemove(event) {
+    var termname = event.target.innerText.substring(2, event.target.innerText.length);
+    d3.json("influence")
+        .header("session-key", sessionKey)
+        .post("polarity=negative&term=" + termname + "&mode=remove", function(error, data) {
+            draw(data);
+            dampifySet.delete(termname);
+            updateDampifications(termname);
         });
 }
 function ignoreRemove(event) {
@@ -301,56 +343,80 @@ function ignoreRemove(event) {
         .header("session-key", sessionKey)
         .post("term=" + termname + "&mode=remove", function(error, data) {
             draw(data);
-            ignores.delete(termname);
+            ignoreSet.delete(termname);
             updateIgnores(termname);
         });
 }
-function updateNegations(termname) {
-    if (negaterList != null) {
-        negaterList.empty();
-        var sortedNegations = Array.from(negations);
-        sortedNegations.sort();
-        sortedNegations.forEach(function(negation) {
-            negaterList.append("<span class='clickable' onclick='negateRemove(event)' style='font-size: 11pt;'>&bull; " + negation + "</span></br>");
+function updateAmplifications(termname) {
+    if (amplifications != null) {
+        amplifications.empty();
+        var sortedAmplifySet = Array.from(amplifySet);
+        sortedAmplifySet.sort();
+        sortedAmplifySet.forEach(function(amplify) {
+            amplifications.append("<span class='clickable' onclick='amplifyRemove(event)' style='font-size: 11pt;'>&bull; " + amplify + "</span></br>");
         });
-        if (negaterToggler.val() != "Hide") {
-            var suffix = negations.size == 0 ? "" : " (" + negations.size + ")";
-            negaterToggler.val("Show" + suffix);
+        if (amplifyToggler.val() != "Hide") {
+            var suffix = amplifySet.size == 0 ? "" : " (" + amplifySet.size + ")";
+            amplifyToggler.val("Show" + suffix);
         }
     }
 }
-function toggleNegations(event) {
-    if (negaterToggler.val() == "Hide") {
-        var suffix = negations.size == 0 ? "" : " (" + negations.size + ")";
-        negaterToggler.val("Show" + suffix);
-        negaterList.parent().css("display", "none");
+function updateDampifications(termname) {
+    if (dampifications != null) {
+        dampifications.empty();
+        var sortedDampifySet = Array.from(dampifySet);
+        sortedDampifySet.sort();
+        sortedDampifySet.forEach(function(negation) {
+            dampifications.append("<span class='clickable' onclick='dampifyRemove(event)' style='font-size: 11pt;'>&bull; " + negation + "</span></br>");
+        });
+        if (dampifyToggler.val() != "Hide") {
+            var suffix = dampifySet.size == 0 ? "" : " (" + dampifySet.size + ")";
+            dampifyToggler.val("Show" + suffix);
+        }
+    }
+}
+function toggleAmplifications(event) {
+    if (amplifyToggler.val() == "Hide") {
+        var suffix = amplifySet.size == 0 ? "" : " (" + amplifySet.size + ")";
+        amplifyToggler.val("Show" + suffix);
+        amplifications.parent().css("display", "none");
     } else {
-        negaterToggler.val("Hide");
-        negaterList.parent().css("display", "block");
+        amplifyToggler.val("Hide");
+        amplifications.parent().css("display", "block");
+    }
+}
+function toggleDampifications(event) {
+    if (dampifyToggler.val() == "Hide") {
+        var suffix = dampifySet.size == 0 ? "" : " (" + dampifySet.size + ")";
+        dampifyToggler.val("Show" + suffix);
+        dampifications.parent().css("display", "none");
+    } else {
+        dampifyToggler.val("Hide");
+        dampifications.parent().css("display", "block");
     }
 }
 function updateIgnores(termname) {
-    if (ignorerList != null) {
-        ignorerList.empty();
-        var sortedIgnores = Array.from(ignores);
-        sortedIgnores.sort();
-        sortedIgnores.forEach(function(ignore) {
-            ignorerList.append("<span class='clickable' onclick='ignoreRemove(event)' style='font-size: 11pt;'>&bull; " + ignore + "</span></br>");
+    if (ignores != null) {
+        ignores.empty();
+        var sortedIgnoreSet = Array.from(ignoreSet);
+        sortedIgnoreSet.sort();
+        sortedIgnoreSet.forEach(function(ignore) {
+            ignores.append("<span class='clickable' onclick='ignoreRemove(event)' style='font-size: 11pt;'>&bull; " + ignore + "</span></br>");
         });
-        if (ignorerToggler.val() != "Hide") {
-            var suffix = ignores.size == 0 ? "" : " (" + ignores.size + ")";
-            ignorerToggler.val("Show" + suffix);
+        if (ignoreToggler.val() != "Hide") {
+            var suffix = ignoreSet.size == 0 ? "" : " (" + ignoreSet.size + ")";
+            ignoreToggler.val("Show" + suffix);
         }
     }
 }
 function toggleIgnores(event) {
-    if (ignorerToggler.val() == "Hide") {
-        var suffix = ignores.size == 0 ? "" : " (" + ignores.size + ")";
-        ignorerToggler.val("Show" + suffix);
-        ignorerList.parent().css("display", "none");
+    if (ignoreToggler.val() == "Hide") {
+        var suffix = ignoreSet.size == 0 ? "" : " (" + ignoreSet.size + ")";
+        ignoreToggler.val("Show" + suffix);
+        ignores.parent().css("display", "none");
     } else {
-        ignorerToggler.val("Hide");
-        ignorerList.parent().css("display", "block");
+        ignoreToggler.val("Hide");
+        ignores.parent().css("display", "block");
     }
 }
 function toggleIncluded(event) {
@@ -545,23 +611,16 @@ function dragended(d) {
     drag_start_y = null;
     var pyth = pythagoras(d.x, d.y);
 
-    if (pyth.hypotenuse > pool_radius && previous_pyth.hypotenuse <= pool_radius + 1) {
-        d3.json("influence")
-            .header("session-key", sessionKey)
-            .post("polarity=positive&term=" + d.name + "&mode=add", function(error, data) { draw(data); } );
+    /*if (pyth.hypotenuse > pool_radius && previous_pyth.hypotenuse <= pool_radius + 1) {
+
     } else if (pyth.hypotenuse <= pool_radius && previous_pyth.hypotenuse > pool_radius) {
-        d3.json("influence")
-            .header("session-key", sessionKey)
-            .post("polarity=positive&term=" + d.name + "&mode=remove", function(error, data) { draw(data); } );
-    }
+
+    }*/
 }
 
 function unstick(d) {
     d.fx = null;
     d.fy = null;
     d.drag = false
-    d3.json("influence")
-        .header("session-key", sessionKey)
-        .post("polarity=positive&term=" + d.name + "&mode=remove", function(error, data) { draw(data); });
     simulation.alphaTarget(0.1);
 }

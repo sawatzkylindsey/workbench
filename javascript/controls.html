@@ -21,33 +21,31 @@
         <td class="description" title="Re-size the nodes.">Size:</td>
         <td><input type="range" id="sizer" min="1" max="2000" value="1" oninput="resize(event)" onchange="resize(event)" title="Re-size the nodes."/></td>
     </tr>
-    <tr id="positiveInfluencer">
-        <td class="description" title="Affect the weighting of positive influence, which is controlled by dragging nodes outside of the circle.">+ Influence:</td>
+    <tr id="amplifyAffect">
+        <td class="description">Amplify:</td>
         <td>
-            <input class="default" type="radio" name="positive-influence" value="linear" onchange="influenceConfigure(event)" title="Use linear weighting for positive influence.">x</input>
-            <input type="radio" name="positive-influence" value="cubic" onchange="influenceConfigure(event)" title="Use cubic weighting for positive influence.">x<sup>2</sup></input>
-            <input type="radio" name="positive-influence" value="exponential" onchange="influenceConfigure(event)" title="Use exponential weighting for positive influence.">2<sup>x</sup></input>
+            <div>
+                <input class="default" type="radio" name="amplifier-affect" value="linear" onchange="amplifyConfigure(event)" title="Use linear weighting for amplifying affect.">x</input>
+                <input type="radio" name="amplifier-affect" value="cubic" onchange="amplifyConfigure(event)" title="Use cubic weighting for amplifying affect.">x<sup>2</sup></input>
+                <input type="radio" name="amplifier-affect" value="exponential" onchange="amplifyConfigure(event)" title="Use exponential weighting for amplifying affect.">2<sup>x</sup></input>
+            </div>
+            <div>
+                <input type="text" id="amplifier" onkeydown="amplifyAdd(event)" title="Amplify the term (opposite of dampify).">
+            </div>
         </td>
     </tr>
-    <tr id="negativeInfluencer">
-        <td class="description" title="Affect the weighting of negative influence, which is controlled by the Negate textbox.">- Influence:</td>
+    <tr id="dampifyAffect">
+        <td class="description">Dampify:</td>
         <td>
-            <input class="default" type="radio" name="negative-influence" value="linear" onchange="influenceConfigure(event)" title="Use linear weighting for negative influence.">x</input>
-            <input type="radio" name="negative-influence" value="cubic" onchange="influenceConfigure(event)" title="Use cubic weighting for negative influence.">x<sup>2</sup></input>
-            <input type="radio" name="negative-influence" value="exponential" onchange="influenceConfigure(event)" title="Use exponential weighting for negative influence.">2<sup>x</sup></input>
+            <div>
+                <input class="default" type="radio" name="dampify-affect" value="linear" onchange="dampifyConfigure(event)" title="Use linear weighting for dampifying affect.">x</input>
+                <input type="radio" name="dampify-affect" value="cubic" onchange="dampifyConfigure(event)" title="Use cubic weighting for dampifying affect.">x<sup>2</sup></input>
+                <input type="radio" name="dampify-affect" value="exponential" onchange="dampifyConfigure(event)" title="Use exponential weighting for dampifying affect.">2<sup>x</sup></input>
+            </div>
+            <div>
+                <input type="text" id="dampifier" onkeydown="dampifyAdd(event)" title="Dampify the term (opposite of amplify).">
+            </div>
         </td>
-    </tr>
-    <tr>
-    </tr>
-    <tr>
-    </tr>
-    <tr>
-    </tr>
-    <tr>
-    </tr>
-    <tr>
-        <td class="description" title="Transiently alter the weights of the termnet, with less preference towards the supplied term.  This is the opposite of positive influence, controlled by dragging the node outside of the circle.">Negate:</td>
-        <td><input type="text" id="negater" onkeydown="negateAdd(event)" title="Transiently alter the weights of the termnet, with less preference towards the supplied term.  This is the opposite of positive influence, controlled by dragging the node outside of the circle."></td>
     </tr>
     <tr>
         <td class="description" title="Completely remove the term from the termnet.">Ignore:</td>
@@ -57,26 +55,36 @@
 
 <div style="display: flex;">
     <div style="float: left; width: 50%;">
-        <span>Negations</span>
-        <input type="button" id="negaterToggler" onclick="toggleNegations(event)" value="Hide" title="Toggle the negations list."/>
-        <div id="negaterWrapper" style="padding: 2px; height: 100px; overflow-y: scroll;">
-            <div id="negaterList">
+        <span>Amplifications</span>
+        <input type="button" id="amplifyToggler" onclick="toggleAmplifications(event)" value="Hide"/>
+        <div style="padding: 2px; height: 100px; overflow-y: scroll;">
+            <div id="amplifications">
             </div>
         </div>
     </div>
     <div style="float: left; width: 50%;">
-        <span>Ignores</span>
-        <input type="button" id="ignorerToggler" onclick="toggleIgnores(event)" value="Hide" title="Toggle the ignores list."/>
-        <div id="ignorerWrapper" style="padding: 2px; height: 100px; overflow-y: scroll;">
-            <div id="ignorerList">
+        <span>Dampifications</span>
+        <input type="button" id="dampifyToggler" onclick="toggleDampifications(event)" value="Hide"/>
+        <div style="padding: 2px; height: 100px; overflow-y: scroll;">
+            <div id="dampifications">
             </div>
         </div>
     </div>
 </div>
-<div style="padding: 2px;">
-    <div id="historyWrapper" align="left">
-        <span>Search History</span>
-        <div id="historyList"></div>
+<div style="display: flex;">
+    <div style="float: left; width: 50%;">
+        <span>Ignores</span>
+        <input type="button" id="ignoreToggler" onclick="toggleIgnores(event)" value="Hide"/>
+        <div style="padding: 2px; height: 100px; overflow-y: scroll;">
+            <div id="ignores">
+            </div>
+        </div>
+    </div>
+    <div style="float: left; width: 50%;">
+        <div id="historyWrapper" align="left">
+            <span>Search History</span>
+            <div id="historyList"></div>
+        </div>
     </div>
 </div>
 

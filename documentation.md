@@ -43,32 +43,33 @@ Using each of *Amplify*/*Dampify* involves two controls.
 ##### Formula selection
 Use this control to choose the rate at which the nodes' affect propagates outwards to other nodes.
 
+In the details below, this sets the functions $$F_a$$ and $$F_d$$.
+
 ##### Applying the affect to a node
-To apply the amplification or dampification affect to a node, enter the corresponding term into the textbox and press the enter key.
+To apply the amplification or dampification affect to a node, enter the corresponding term into the text-box and press the enter key.
+A node cannot exist as both an amplification and a dampification simultaneously.
+
+In the details below, this populates the sets of terms $$A$$ and $$D$$.
 
 #### Details
 Amplify and dampify is a control which will temporarily alter the weights of the nodes in the graph, according to the selected formula.
 It is different from *Search* in two ways:
 
 1. It uses different math to affect the weights of the graph.
-2. It is reversible, whereas *Search* will permanently affect the weights of the graph.
+2. It is reversible and unordered, whereas *Search* will permanently affect the weights of the graph and order does matter.
 
-To calculate the affect of the amplification/dampification, first calculate the minimum distance from the selected node to the rest of the nodes in the graph (including itself).
-For dampification, use this distance directly as the $x$ value to the respective formula.
-For amplification, use this distance subtracted from the maximum distance from the influenced term as the $x$ value to the respective formula.
-In both cases, the result is then averaged across all active amplifications/dampifications and added to the term.
+Amplify/dampify combines the term $$n$$'s previous weight $$w_n$$ with the propagated weights of the amplified and dampified terms to produce a new altered weight $$w'_n$$.
 
-$weight(term = t) = \dfrac{base(t) + amplify(t) + dampify(t)}{1 + A + D}$
+$$w'_n = \dfrac{w_n + amplify(n) + dampify(n)}{1 + A + D}$$
 
-$amplify(term = t) = \Sigma_{a \in A}F_a(maxDistance(t) - distance(t, a)) * base(a)$
+$$amplify(n) = \Sigma_{a \in A}F_a(maxDistance(n) - distance(n, a)) * w_a$$
 
-$dampify(term = t) = \Sigma_{d \in D}F_d(distance(t, d)) * base(d)$
+$$dampify(n) = \Sigma_{d \in D}F_d(distance(n, d)) * w_d$$
 
-$maxDistance(term = t) = arg\,max_{i \in T} distance(t, i)$
+$$maxDistance(n) = arg\,max_{m \in N} distance(n, m)$$
 
-Where $T$ is all of the terms and $A, D$ are all of the amplifications and dampifications, respectively.
-$F$ is the selected formula from the amplify or dampify control.
-Finally, $base$ is the current weight of the term as affected by searching.
+Where $$N$$ is all of the terms in the graph and $$A$$ and $$D$$ are all of the amplification and dampification terms, respectively.
+$$F_{\{a,d\}}$$ is the selected formula from the amplify $$a$$ or dampify $$d$$  control.
 
 ### Ignore
 

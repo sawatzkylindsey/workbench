@@ -55,15 +55,17 @@ This history cannot be changed, except by *Reseting* the graph.
 #### Details
 *Search* tells the **Termnet** that the learner is interested in a term, and should therefore put more importance on it.
 Ultimately, this affects the weights $$w_n$$ for all the terms $$N$$ in the graph.
+Each search progressess a timeline where the timestep $$t+1$$ is derived from $$t$$.
 
-Depending on the kind of graph metric selected (forthcoming), applying search will update the node weights according the following formula:
+First, and intermediate weight $$\widetilde{w}$$ is calculated.
+Depending on the kind of graph metric selected (forthcoming), applying search will update the node weights according the following formula.
 
-$$w_n^{t+1} = w_n^t + M_n$$
+$$\widetilde{w}_n^{t+1} = w_n^t + M_n$$
 
-Where $$M_n$$ is the value of the graph metric for the node $$n$$.
-After the new weights at time step $$t+1$$ are calculated, the entire set of weights in the graph are scaled linearly to sum to 1.
+Where $$M_n$$ is the value of the graph metric for the node $$n$$, and $$w_n^t$$ is the weight of $$n$$ at the previous timestep.
+Next, the entire set of weights in the graph are scaled linearly to sum to 1 to produce the final $$w_n^{t+1}$$.
 
-$$scaled(w_n) = \dfrac{w_n}{\Sigma_{n \in N} w_n}$$
+$$w_n^{t+1} = \dfrac{\widetilde{w}_n^{t+1}}{\sum_{n \in N} \widetilde{w}_n^{t+1}}$$
 
 ### Size
 #### Usage
@@ -97,21 +99,22 @@ It is different from *Search* in two ways:
 1. It uses different math to affect the weights of the graph.
 2. It is reversible and unordered, whereas *Search* will permanently affect the weights of the graph and order does matter.
 
-Amplify/dampify combines the term $$n$$'s previous weight $$w_n$$ with the propagated weights of the amplified and dampified terms to produce a new altered weight $$\hat{w}_n$$.
+Amplify/dampify combines the term $$n$$'s weight $$w_n$$ with the propagated weights of the amplified and dampified terms to produce a new altered weight $$\widehat{w}_n$$.
+First, the intermediate weight $$\widetilde{w}_n$$ is calculated by applying the affects of amplifications and dampifications.  All weights are from the same timestep, so the term $$t$$ is omitted for clarity. 
 
-$$\hat{w}_n = \dfrac{w_n + amplify(n) + dampify(n)}{1 + A + D}$$
+$$\widetilde{w}_n = \dfrac{w_n + amplify(n) + dampify(n)}{1 + A + D}$$
 
-$$amplify(n) = \Sigma_{a \in A}F_a(maxDistance(n) - distance(n, a)) * w_a$$
+$$amplify(n) = \sum_{a \in A}F_a(maxDistance(n) - distance(n, a)) * w_a$$
 
-$$dampify(n) = \Sigma_{d \in D}F_d(distance(n, d)) * w_d$$
+$$dampify(n) = \sum_{d \in D}F_d(distance(n, d)) * w_d$$
 
 $$maxDistance(n) = argmax_{m \in N} distance(n, m)$$
 
 Where $$N$$ is all of the terms in the graph and $$A$$ and $$D$$ are all of the amplification and dampification terms, respectively.
 $$F_{\{a,d\}}$$ is the selected formula from the amplify $$a$$ or dampify $$d$$  control.
-After the altered weights are calculated, they are then re-scaled linearly to sum to 1.
+After the altered weights are calculated, they are then re-scaled linearly to sum to 1, producing the final $$\widehat{w}_n$$.
 
-$$scaled(\hat{w}_n) = \dfrac{\hat{w}_n}{\Sigma_{n \in N} \hat{w}_n}$$
+$$\widehat{w}_n = \dfrac{\widetilde{w}_n}{\sum_{n \in N} \widetilde{w}_n}$$
 
 ### Ignore
 #### Usage

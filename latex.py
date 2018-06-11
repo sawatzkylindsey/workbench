@@ -52,17 +52,17 @@ class LaTeXPreprocessor(markdown.preprocessors.Preprocessor):
 """
 
     def __init__(self, configs):
-        try:
-            cache_file = open('.latex.cache', 'r+')
-            for line in cache_file.readlines():
-                key, val = line.strip("\n").split(" ")
-                self.cached[key] = val
-        except IOError:
-            pass
+        #try:
+        #    cache_file = open('.latex.cache', 'r+')
+        #    for line in cache_file.readlines():
+        #        key, val = line.strip("\n").split(" ")
+        #        self.cached[key] = val
+        #except IOError:
+        #    pass
 
         self.config = {}
         self.config[("general", "preamble")] = ""
-        self.config[("dvipng", "args")] = "-q -T tight -bg Transparent -z 1 -D 120"
+        self.config[("dvipng", "args")] = "-q -T tight -bg Transparent -z 1 -D 1000 -x 125"
         self.config[("delimiters", "text")] = "%"
         self.config[("delimiters", "math")] = "$$"
         self.config[("delimiters", "preamble")] = "%%"
@@ -209,10 +209,10 @@ class LaTeXPreprocessor(markdown.preprocessors.Preprocessor):
             page = page.replace('\\' + tok, tok)
 
         # Cache our data
-        cache_file = open('.latex.cache', 'a')
-        for key, value in new_cache.items():
-            cache_file.write("%s %s\n" % (key, value))
-        cache_file.close()
+        #cache_file = open('.latex.cache', 'a')
+        #for key, value in new_cache.items():
+        #    cache_file.write("%s %s\n" % (key, value))
+        #cache_file.close()
 
         # Make sure to resplit the lines
         return page.split("\n")

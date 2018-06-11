@@ -19,6 +19,9 @@ build:
 #	python setup.py sdist
 	python develop.py install
 
+docs:
+	python markdowner.py documentation.md javascript/documentation.html
+
 run:
 	python markdowner.py documentation.md javascript/documentation.html
 	python dev-server.py -v

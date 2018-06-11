@@ -275,6 +275,7 @@ class TermnetSession:
         self.positive_points = set()
         self.negative_points = set()
         self.ignore_points = set()
+        self.highlights = set()
         self.marked = False
 
     def positive_add(self, term):
@@ -309,6 +310,16 @@ class TermnetSession:
         if term in self.ignore_points:
             self.ignore_points.remove(term)
 
+    def highlight_add(self, term):
+        assert term in self.termnet.graph
+        self.highlights.add(term)
+
+    def highlight_remove(self, term):
+        assert term in self.termnet.graph
+
+        if term in self.highlights:
+            self.highlights.remove(term)
+
     def mark(self, term):
         assert term in self.termnet.graph
 
@@ -334,7 +345,11 @@ class TermnetSession:
         else:
             selection = [identifier for identifier, d in self.termnet.graph.neighbourhood(term, 1, True, (2, 0.5))]
 
-        selection = filter(lambda t: t not in self.ignore_points, selection)
+        selection = set(filter(lambda t: t not in self.ignore_points, selection))
+
+        for highlight in self.highlights:
+            selection.add(highlight)
+
         logging.debug("Positives: %s" % self.positive_points)
         logging.debug("Negatives: %s" % self.negative_points)
         positive_masks = [(point, lambda x: self.rank[point] * self.positive_influence(x)) for point in self.positive_points]
@@ -376,6 +391,7 @@ class TermnetSession:
                 "links": [],
                 "summary": "",
                 "size": 0,
+                "selection": 0,
             }
 
         total = sum(node_ranks.values())
@@ -396,8 +412,19 @@ class TermnetSession:
             selected_nodes = [item[0] for item in sorted_node_ranks[:TOP]]
             neighbour_nodes = [item[0] for item in sorted_node_ranks[TOP:]]
 
+        selected_nodes = set(selected_nodes)
+        neighbour_nodes = set(neighbour_nodes)
+
+        for highlight in self.highlights:
+            selected_nodes.add(highlight)
+
+            if highlight in neighbour_nodes:
+                neighbour_nodes.remove(highlight)
+
         selected_links = []
         neighbour_links = []
+        highlighted_links = set()
+        highlighted_children = set()
         best = 0
 
         for link in self.termnet.graph.links():
@@ -424,13 +451,22 @@ class TermnetSession:
                 or (link.source in neighbour_nodes and link.target in neighbour_nodes):
                 neighbour_links += [link]
 
+            if link.source in self.highlights or link.target in self.highlights:
+                highlighted_links.add(link)
+
+            if link.source in self.highlights and link.target in neighbour_nodes:
+                highlighted_children.add(link.target)
+            elif link.source in neighbour_nodes and link.target in self.highlights:
+                highlighted_children.add(link.source)
+
         return {
             "nodes": [d3node(self._name(identifier), node_ranks[identifier], 1.0, self._coeff(identifier)).__dict__ for identifier in selected_nodes] \
-                + [d3node(self._name(identifier), node_ranks[identifier], 0.15, self._coeff(identifier)).__dict__ for identifier in neighbour_nodes],
-            "links": [d3link(self._name(link.source), self._name(link.target), 1.0).__dict__ for link in selected_links] \
-                + [d3link(self._name(link.source), self._name(link.target), 0.15).__dict__ for link in neighbour_links],
+                + [d3node(self._name(identifier), node_ranks[identifier], 0.5 if identifier in highlighted_children else 0.1, self._coeff(identifier)).__dict__ for identifier in neighbour_nodes],
+            "links": [d3link(self._name(link.source), self._name(link.target), 1.0 if link in highlighted_links else 0.5).__dict__ for link in selected_links] \
+                + [d3link(self._name(link.source), self._name(link.target), 1.0 if link in highlighted_links else 0.1).__dict__ for link in neighbour_links],
             "summary": summary,
             "size": len(selected_nodes) + len(neighbour_nodes),
+            "selection": len(selected_nodes),
         }
 
     def _name(self, term):

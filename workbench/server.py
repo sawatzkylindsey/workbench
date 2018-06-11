@@ -180,6 +180,19 @@ class ServerHandler(BaseHTTPRequestHandler):
 
         return termnet_session.display_previous()
 
+    def highlight(self, termnet_session, query):
+        term = self.term(query)
+        mode = self.mode(query)
+
+        if mode == "add":
+            termnet_session.highlight_add(term)
+        elif mode == "remove":
+            termnet_session.highlight_remove(term)
+        else:
+            raise ValueError("invalid mode: %s" % mode)
+
+        return termnet_session.display_previous()
+
     def properties(self, termnet_session, query):
         return termnet_session.termnet.properties.dump()
 

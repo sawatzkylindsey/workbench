@@ -21,6 +21,11 @@ var svg = null;
 var graphMeta = null;
 var graphSummary = null;
 var simulation = null;
+function restartSimulation() {
+    simulation = simulation.alphaTarget(0.2)
+        .alphaDecay(0.75)
+        .restart();
+}
 var rainbow = new Rainbow();
 rainbow.setNumberRange(0, 1.0);
 rainbow.setSpectrum("#96afff", "#001e84");
@@ -157,10 +162,14 @@ d3.json("properties")
 simulation = d3.forceSimulation()
     .force("link", d3.forceLink()
         .distance(80)
-        //.strength(0.005)
+        .strength(0.05)
         .id(function(d) { return d.name; })
     )
-    .force("charge", d3.forceManyBody().strength(-100))
+    .force("charge", d3.forceManyBody()
+        .strength(-50)
+        .distanceMin(10)
+        .distanceMax(pool_radius * 1.5)
+    )
     .force("x", d3.forceX(center_x).strength(0.05))
     .force("y", d3.forceY(center_y).strength(0.05));
 
@@ -246,8 +255,6 @@ function reset(event) {
         });
 }
 function amplifyConfigure(event) {
-    console.log(event);
-    console.log(event.target.value);
     d3.json("influence/configure")
         .header("session-key", sessionKey)
         .post("mode=" + event.target.value + "&polarity=positive", function(error, data) {
@@ -257,8 +264,6 @@ function amplifyConfigure(event) {
         });
 }
 function dampifyConfigure(event) {
-    console.log(event);
-    console.log(event.target.value);
     d3.json("influence/configure")
         .header("session-key", sessionKey)
         .post("mode=" + event.target.value + "&polarity=negative", function(error, data) {
@@ -444,7 +449,7 @@ function node_radius(rank) {
 }
 function resize(event) {
     size = parseInt(sizer.val());
-    simulation.alphaTarget(1);  // Make sure the simulation keeps going, otherwise sometimes the resizer gets "stuck".
+    restartSimulation();        // Make sure the simulation keeps going, otherwise sometimes the resizer gets "stuck".
 }
 function draw(graph) {
     console.log(graph);
@@ -468,7 +473,7 @@ function draw(graph) {
 
     firstDraw = false;
     svg.selectAll("g").remove();
-    graphMeta.text("Nodes: " + graph.size);
+    graphMeta.html("<span>Nodes: " + graph.size + "</span></br><span>Selection: " + graph.selection + "</span>");
     graphSummary.text(graph.summary);
 
     var link = svg.append("g")
@@ -523,7 +528,7 @@ function draw(graph) {
     simulation.force("link")
         .links(graph.links);
 
-    simulation.alphaTarget(0.5).restart();
+    restartSimulation();
 
     function ticked() {
         node.attrs(function(d) {
@@ -551,9 +556,6 @@ function draw(graph) {
         });
     }
 }
-
-function xbounded(d) { return Math.max(Math.min(d.x, width - 50), 10); }
-function ybounded(d) { return Math.max(Math.min(d.y, height - 10), 10); }
 
 function pythagoras(x, y) {
     var distance_x = Math.abs(center_x - x);
@@ -583,44 +585,55 @@ function pool_bound(radius, x, y, ignore) {
     }
 }
 function dragstarted(d) {
-    if (!d3.event.active) {
-        simulation.alphaTarget(0.3).restart();
-    }
     d.fx = d.x;
     d.fy = d.y;
     d.drag = true;
-    console.log(d);
     drag_start_x = d.x;
     drag_start_y = d.y;
 }
 
 function dragged(d) {
-    d.fx = d3.event.x;
-    d.fy = d3.event.y;
+    if (d3.event.x > 10 && d3.event.x < (svg_width - 10)) {
+        d.fx = d3.event.x;
+    }
+
+    if (d3.event.y > 10 && d3.event.y < (height - 10)) {
+        d.fy = d3.event.y;
+    }
 }
 
 function dragended(d) {
-    if (!d3.event.active) {
-        simulation.alphaTarget(0);
-    }
-    console.log(d);
-    console.log(d3.event);
-
     var previous_pyth = pythagoras(drag_start_x, drag_start_y);
     drag_start_x = null;
     drag_start_y = null;
     var pyth = pythagoras(d.x, d.y);
 
-    /*if (pyth.hypotenuse > pool_radius && previous_pyth.hypotenuse <= pool_radius + 1) {
-
+    if (pyth.hypotenuse > pool_radius + 1 && previous_pyth.hypotenuse <= pool_radius + 1) {
+        d3.json("highlight")
+            .header("session-key", sessionKey)
+            .post("term=" + d.name + "&mode=add", function(error, data) {
+                draw(data);
+            });
     } else if (pyth.hypotenuse <= pool_radius && previous_pyth.hypotenuse > pool_radius) {
-
-    }*/
+        d3.json("highlight")
+            .header("session-key", sessionKey)
+            .post("term=" + d.name + "&mode=remove", function(error, data) {
+                draw(data);
+            });
+    }
 }
 
 function unstick(d) {
     d.fx = null;
     d.fy = null;
     d.drag = false
-    simulation.alphaTarget(0.1);
+    var previous_pyth = pythagoras(d.x, d.y);
+
+    if (previous_pyth.hypotenuse > pool_radius + 1) {
+        d3.json("highlight")
+            .header("session-key", sessionKey)
+            .post("term=" + d.name + "&mode=remove", function(error, data) {
+                draw(data);
+            });
+    }
 }

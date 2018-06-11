@@ -33,6 +33,9 @@ Click the buttons to invoke the respective action.
 * *Lock*: Prohibt the nodes from moving freely, locking them into their current positions.
 * *Reset*: Reload the termnet from scratch, clearing any affects of searching, amplifications/dampifications, etc.
 This has the same affect as refreshing the page, or loading from a session.
+* *Drag*: This element is not a button, but placed here to draw your attention to the fact that nodes may be dragged.
+Dragging a node will lock it in-place (like a local *Lock*).
+Additionally, a node that is dragged out the circle will become highlighted.
 
 ### Neighbourhood
 #### Usage

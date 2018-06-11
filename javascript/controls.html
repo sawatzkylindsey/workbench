@@ -1,12 +1,13 @@
 <div id="sessioner" style="text-align: center;"></div></br>
 <div style="text-align: center; font-size: 10pt;"><i>Hover for help text, or read the <a href='documentation.html' target="_blank">docs</a>.</i></div></br>
-<table style="margin: auto;">
+<table style="border-spacing: 1px;">
     <tr>
         <td class="description" title="Affect the nodes in the termnet in some way.">Nodes:</td>
         <td>
             <input type="button" id="releaser" onclick="release(event)" value="Release" title="Allow the nodes to move freely based off the animation rules."/>
             <input type="button" id="locker" onclick="lock(event)" value="Lock" title="Stop the nodes from moving freely."/>
             <input type="button" id="reseter" onclick="reset(event)" value="Reset" title="Remove the alterations (search, negate, ignore) up to this point."/>
+            <span class="fakeButton" title="Nodes may be dragged around.  When dragged outside the circle they become highlighted.">Drag</span>
         </td>
     </tr>
     <tr>

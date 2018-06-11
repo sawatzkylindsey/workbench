@@ -23,5 +23,9 @@ docs:
 	python markdowner.py documentation.md javascript/documentation.html
 
 run:
+	python dev-server.py -v
+
+deploy:
 	python markdowner.py documentation.md javascript/documentation.html
 	python dev-server.py -v
+

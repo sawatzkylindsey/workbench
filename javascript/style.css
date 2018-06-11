@@ -30,3 +30,9 @@ ul {
   list-style-type: none;
   padding: 0;
 }
+
+.fakeButton {
+    font-family: system-ui;
+    font-size: 11px;
+}
+

@@ -16,16 +16,24 @@
     </tr>
     <tr>
         <td class="description" title="Indicate what the learner is interested in.  This alters the weights of the termnet towards the selected term and terms that relate to it.">Focus:</td>
-        <td><input type="text" id="focuser" onkeydown="focusAction(event)" title="Indicate what the learner is interested in.  This alters the weights of the termnet towards the selected term and terms that relate to it."/></td>
+        <td>
+            <div id="focusMetric">
+                <input class="default" type="radio" name="focus-metric" value="BPR" onchange="focusConfigure(event)" title="Use the 'Biased PageRank' graph metric."/><span>BPR</span>
+                <input type="radio" name="focus-metric" value="IBPR" onchange="focusConfigure(event)" title="Use the 'Inverse Biased PageRank' graph metric."/><span>BPR<sup>-1</sup></span>
+            </div>
+            <div>
+                <input type="text" id="focuser" onkeydown="focusAction(event)" title="Indicate what the learner is interested in.  This alters the weights of the termnet towards the selected term and terms that relate to it."/>
+            </div>
+        </td>
     </tr>
     <tr>
         <td class="description" title="Re-size the nodes.">Size:</td>
         <td><input type="range" id="sizer" min="1" max="2000" value="1" oninput="resize(event)" onchange="resize(event)" title="Re-size the nodes."/></td>
     </tr>
-    <tr id="amplifyAffect">
+    <tr>
         <td class="description">Amplify:</td>
         <td>
-            <div>
+            <div id="amplifyAffect">
                 <input class="default" type="radio" name="amplifier-affect" value="linear" onchange="amplifyConfigure(event)" title="Use linear weighting for amplifying affect.">x</input>
                 <input type="radio" name="amplifier-affect" value="cubic" onchange="amplifyConfigure(event)" title="Use cubic weighting for amplifying affect.">x<sup>2</sup></input>
                 <input type="radio" name="amplifier-affect" value="exponential" onchange="amplifyConfigure(event)" title="Use exponential weighting for amplifying affect.">2<sup>x</sup></input>
@@ -35,10 +43,10 @@
             </div>
         </td>
     </tr>
-    <tr id="dampifyAffect">
+    <tr>
         <td class="description">Dampify:</td>
         <td>
-            <div>
+            <div id="dampifyAffect">
                 <input class="default" type="radio" name="dampify-affect" value="linear" onchange="dampifyConfigure(event)" title="Use linear weighting for dampifying affect.">x</input>
                 <input type="radio" name="dampify-affect" value="cubic" onchange="dampifyConfigure(event)" title="Use cubic weighting for dampifying affect.">x<sup>2</sup></input>
                 <input type="radio" name="dampify-affect" value="exponential" onchange="dampifyConfigure(event)" title="Use exponential weighting for dampifying affect.">2<sup>x</sup></input>

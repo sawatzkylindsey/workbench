@@ -21,7 +21,7 @@ from workbench.graph import GraphBuilder, Graph
 from workbench.nlp import Term
 from workbench import parser
 from pytils.log import setup_logging, user_log
-from workbench.termnet import TermnetSession
+from workbench.termnet import TermnetSession, Termnet
 from workbench.termnet import build as build_termnet
 from workbench.processor import FeConverter
 
@@ -103,6 +103,16 @@ class ServerHandler(BaseHTTPRequestHandler):
 
     def reset(self, termnet_session, query):
         termnet_session.reset()
+
+    def focus_configure(self, termnet_session, query):
+        mode = self.mode(query)
+
+        if mode == "BPR":
+            termnet_session.focus_metric = Termnet.BPR
+        elif mode == "IBPR":
+            termnet_session.focus_metric = Termnet.IBPR
+        else:
+            raise ValueError("invalid mode: %s" % mode)
 
     def influence_configure(self, termnet_session, query):
         polarity = self.polarity(query)

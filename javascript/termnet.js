@@ -4,9 +4,10 @@ var sessionKey = window.location.hash == null || window.location.hash == "" ?
     Math.random().toString(36).substring(5) : window.location.hash.substring(1);
 var sessioner = null;
 var searcher = null;
+var focusMetric = null;
 var focuser = null;
 var sizer = null;
-var amplifyAffect= null;
+var amplifyAffect = null;
 var amplifier = null;
 var amplifications = null;
 var amplifyToggler = null;
@@ -83,6 +84,10 @@ $(document).ready(function() {
         sessioner = $("#sessioner");
         sessioner.text("Session: " + sessionKey);
         searcher = $("#searcher");
+        focusMetric = $("#focusMetric");
+        focusMetric.find(".default")
+            .prop("checked", true)
+            .change();
         focuser = $("#focuser");
         console.log(focuser);
         sizer = $("#sizer");
@@ -206,7 +211,8 @@ function focusAction(event) {
                     // TODO
                 } else {
                     draw(data);
-                    historyList.append("<span style='font-size: 11pt;'>&bull; <span style='color: #" + rainbowGreen.colorAt(0.5) + "'>" + termname + "</span></span></br>");
+                    var prefix = focusMetric.find(":checked").next().html();
+                    historyList.append("<span style='font-size: 11pt;'>&bull; " + prefix + ": <span style='color: #" + rainbowGreen.colorAt(0.5) + "'>" + termname + "</span></span></br>");
                 }
             });
     }
@@ -256,6 +262,13 @@ function reset(event) {
                 alert(error.target.statusText + "\nLets start again..");
                 window.location.replace("index.html");
             }
+        });
+}
+function focusConfigure(event) {
+    d3.json("focus/configure")
+        .header("session-key", sessionKey)
+        .post("mode=" + event.target.value, function(error, data) {
+            // Don't need to redo anything.
         });
 }
 function amplifyConfigure(event) {

@@ -141,12 +141,16 @@ class Properties:
 
 
 class Termnet:
+    BPR = "biased_page_rank"
+    IBPR = "inverse_biased_page_rank"
+
     def __init__(self, graph, sentences, properties):
         self.graph = graph
         self.sentences = sentences
         self.properties = properties
         self.average = 0 if len(self.graph) == 0 else 1.0 / len(self.graph.all_nodes)
         self.page_ranks = {}
+        self.inverse_page_ranks = {}
         self._background_calculate_ranks = threading.Thread(target=self.calculate_ranks)
         self._background_calculate_ranks.daemon = True
         self._background_calculate_ranks.start()
@@ -155,12 +159,41 @@ class Termnet:
         for node in sorted(self.graph.all_nodes):
             logging.debug("page ranking: %s" % node.identifier.name())
             # Bias only the node itself
-            self.page_ranks[node.identifier] = self.graph.page_rank(biases={node.identifier: self.average})
-            # Bias the node's descendants
-            #self.page_ranks[node.identifier] = self.graph.page_rank(biases={d.identifier: BIAS_RELATED for d in node.descendants})
+            term_page_ranks = self.graph.page_rank(biases={node.identifier: self.average})
+            self.page_ranks[node.identifier] = term_page_ranks
+            ceiling = max(term_page_ranks.values()) * 2
+            inverse_page_ranks = {}
+            rolling_sum = 0.0
+
+            for identifier, rank in term_page_ranks.items():
+                inverse_rank = ceiling - rank
+                inverse_page_ranks[identifier] = inverse_rank
+                rolling_sum += inverse_rank
+
+            term_inverse_page_ranks = {identifier: rank / rolling_sum for identifier, rank in inverse_page_ranks.items()}
+            assert math.isclose(1.0, sum(term_inverse_page_ranks.values()), abs_tol=0.005), sum(term_inverse_page_ranks.values())
+            self.inverse_page_ranks[node.identifier] = term_inverse_page_ranks
 
     def meta_data(self):
         return self.properties.dump()
+
+    def get_metric(self, metric, term):
+        while True:
+            try:
+                self._metric(metric, term)
+                break
+            except KeyError as e:
+                pass
+
+        return self._metric(metric, term)
+
+    def _metric(self, metric, term):
+        if metric == Termnet.BPR:
+            return self.page_ranks[term]
+        elif metric == Termnet.IBPR:
+            return self.inverse_page_ranks[term]
+        else:
+            raise ValueError("invalid metric: %s" % metric)
 
 
 class TermnetSession:
@@ -168,6 +201,7 @@ class TermnetSession:
         self.termnet = termnet
         self.rank = {n.identifier: self.termnet.average for n in self.termnet.graph.all_nodes}
         self.focus_points = set()
+        self.focus_metric = Termnet.BPR
         self.positive_influence = lambda x: 0
         self.negative_influence = lambda x: 0
         self.positive_points = set()
@@ -323,14 +357,7 @@ class TermnetSession:
     def focus(self, term):
         assert term in self.termnet.graph
 
-        while True:
-            try:
-                self.termnet.page_ranks[term]
-                break
-            except KeyError as e:
-                pass
-
-        for k, v in self.termnet.page_ranks[term].items():
+        for k, v in self.termnet.get_metric(self.focus_metric, term).items():
             assert v >= 0.0 and v <= 1.0, v
             self.rank[k] += v
 
@@ -351,6 +378,9 @@ class TermnetSession:
             selection = set([n.identifier for n in self.termnet.graph.all_nodes])
         else:
             selection = set([identifier for identifier, d in self.termnet.graph.neighbourhood(search_term, 1, True, (2, 0.5))])
+
+        for point in self.focus_points:
+            selection.add(point)
 
         for point in self.highlight_points:
             selection.add(point)

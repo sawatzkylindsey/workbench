@@ -29,9 +29,9 @@ function restartSimulation() {
 var rainbowBlue = new Rainbow();
 rainbowBlue.setNumberRange(0, 1.0);
 rainbowBlue.setSpectrum("#96afff", "#001e84");
-var rainbowRed = new Rainbow();
-rainbowRed.setNumberRange(0, 1.0);
-rainbowRed.setSpectrum("#ff9696", "#840000");
+var rainbowGreen = new Rainbow();
+rainbowGreen.setNumberRange(0, 1.0);
+rainbowGreen.setSpectrum("#96ff96", "#008400");
 var size = 1;
 var firstDraw = true;
 var amplifySet = new Set();
@@ -206,7 +206,7 @@ function focusAction(event) {
                     // TODO
                 } else {
                     draw(data);
-                    historyList.append("<span style='font-size: 11pt;'>&bull; <span style='color: #" + rainbowRed.colorAt(0.5) + "'>" + termname + "</span></span></br>");
+                    historyList.append("<span style='font-size: 11pt;'>&bull; <span style='color: #" + rainbowGreen.colorAt(0.5) + "'>" + termname + "</span></span></br>");
                 }
             });
     }
@@ -502,8 +502,8 @@ function draw(graph) {
             .attr("class", "node")
             .attr("id", function(d) { return "node-" + d.name; })
             .attr("fill", function(d) {
-                if (d.colour == "red") {
-                    return "#" + rainbowRed.colourAt(d.coeff);
+                if (d.colour == "green") {
+                    return "#" + rainbowGreen.colourAt(d.coeff);
                 }
                 else {
                     return "#" + rainbowBlue.colourAt(d.coeff);

@@ -481,7 +481,7 @@ class TermnetSession:
             "name": self._name(identifier),
             "rank": node_ranks[identifier],
             "alpha": alpha,
-            "colour": "red" if identifier in self.focus_points else "blue",
+            "colour": "green" if identifier in self.focus_points else "blue",
             "coeff": self._coeff(identifier),
         }
 

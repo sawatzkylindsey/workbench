@@ -1,6 +1,5 @@
 # **Termnet** Documentation
 Termnets are networks of terms that represent the relationship between those terms in a corpus.
-This tool 
 
 When talking about **Termnet**, we commonly use the following notation interchangably:
 
@@ -31,34 +30,34 @@ Click the buttons to invoke the respective action.
 #### Details
 * *Release*: Allow the nodes to move around freely, based off the underlying graph-physics.
 * *Lock*: Prohibt the nodes from moving freely, locking them into their current positions.
-* *Reset*: Reload the termnet from scratch, clearing any affects of searching, amplifications/dampifications, etc.
+* *Reset*: Reload the termnet from scratch, clearing any affects of searching, focusing, amplifications/dampifications, etc.
 This has the same affect as refreshing the page, or loading from a session.
 * *Drag*: This element is not a button, but placed here to draw your attention to the fact that nodes may be dragged.
 Dragging a node will lock it in-place (like a local *Lock*).
 Additionally, a node that is dragged out the circle will become highlighted.
 
-### Neighbourhood
+### Search (previously Neighbourhood)
 #### Usage
 Type the term to focus the graph on into the text-box and press the enter key.
 You may press enter on the text-box when empty to clear the previous neighbourhood.
 
 #### Details
-A *Neighbourhood* will narrow down the set of nodes visible in the graph.
+*Search* will narrow down the set of nodes visible in the graph.
 A more detailed update to the documentation will review precisely how this occurs, suffice to say for now it restricts the graph to only important neighbours of the selected term.
 
-### Search
+### Focus
 #### Usage
-Type the term to search on into the text-box and press the enter key.
-Searching for terms will populate the *Search History* list in the order they are searched.
+Type the term to narrow focus on into the text-box and press the enter key.
+Focusing for terms will populate the *Focus History* list in the order they are selected.
 This history cannot be changed, except by *Reseting* the graph.
 
 #### Details
-*Search* tells the **Termnet** that the learner is interested in a term, and should therefore put more importance on it.
+*Focus* tells the **Termnet** that the learner is interested in a term, and should therefore put more importance on it.
 Ultimately, this affects the weights $$w_n$$ for all the terms $$N$$ in the graph.
-Each search progressess a timeline where the timestep $$t+1$$ is derived from $$t$$.
+Each focus progressess a timeline where the timestep $$t+1$$ is derived from $$t$$.
 
 First, and intermediate weight $$\widetilde{w}$$ is calculated.
-Depending on the kind of graph metric selected (forthcoming), applying search will update the node weights according the following formula.
+Depending on the kind of graph metric selected (forthcoming), applying focus will update the node weights according the following formula.
 
 $$\widetilde{w}_n^{t+1} = w_n^t + M_n$$
 
@@ -94,13 +93,14 @@ In the details below, this populates the sets of terms $$A$$ and $$D$$.
 
 #### Details
 *Amplify* and *dampify* is a control which will temporarily alter the weights of the nodes in the graph, according to the selected formula.
-It is different from *Search* in two ways:
+It is different from *Focus* in two ways:
 
 1. It uses different math to affect the weights of the graph.
-2. It is reversible and unordered, whereas *Search* will permanently affect the weights of the graph and order does matter.
+2. It is reversible and unordered, whereas *Focus* will permanently affect the weights of the graph and order does matter.
 
 Amplify/dampify combines the term $$n$$'s weight $$w_n$$ with the propagated weights of the amplified and dampified terms to produce a new altered weight $$\widehat{w}_n$$.
-First, the intermediate weight $$\widetilde{w}_n$$ is calculated by applying the affects of amplifications and dampifications.  All weights are from the same timestep, so the term $$t$$ is omitted for clarity. 
+First, the intermediate weight $$\widetilde{w}_n$$ is calculated by applying the affects of amplifications and dampifications.
+All weights are from the same timestep, so the term $$t$$ is omitted for clarity.
 
 $$\widetilde{w}_n = \dfrac{w_n + amplify(n) + dampify(n)}{1 + A + D}$$
 
@@ -124,5 +124,5 @@ The ignore can be removed by clicking the term from the list.
 
 #### Details
 *Ignore* is a mechanism to hide terms from the view of the termnet.
-Using ignore does not change any of the math behind the other behaviours of the termnet, such as *Search* or *Amplify*/*Dampify*.
+Using ignore does not change any of the math behind the other behaviours of the termnet, such as *Focus* or *Amplify*/*Dampify*.
 

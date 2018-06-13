@@ -57,11 +57,11 @@ def build(input_text, input_format, window, keep):
     count_histogram = {}
 
     for subd in parse.cooccurrences.values():
-        for sentences in subd.values():
-            if len(sentences) not in count_histogram:
-                count_histogram[len(sentences)] = 0
+        for term_sentences in subd.values():
+            if len(term_sentences) not in count_histogram:
+                count_histogram[len(term_sentences)] = 0
 
-            count_histogram[len(sentences)] += 1
+            count_histogram[len(term_sentences)] += 1
 
     logging.debug("count_histogram: %s" % count_histogram)
     sub_lengths = [[] if len(subd) == 0 else [len(l) for l in subd.values()] for subd in parse.cooccurrences.values()]
@@ -167,7 +167,7 @@ class TermnetSession:
     def __init__(self, termnet):
         self.termnet = termnet
         self.rank = {n.identifier: self.termnet.average for n in self.termnet.graph.all_nodes}
-        self.marked = False
+        self.focus_points = set()
         self.positive_influence = lambda x: 0
         self.negative_influence = lambda x: 0
         self.positive_points = set()
@@ -264,18 +264,18 @@ class TermnetSession:
         return lambda x, d: ((numpy.log10((1.0 / (-x + 1.0)) - (0.5 / (1.0 - value))) + (1.0 / value)) / (1.0 / value)) + d
 
     def clean_slate(self):
-        return len(self.positive_points) == 0 \
+        return len(self.focus_points) == 0 \
+            and len(self.positive_points) == 0 \
             and len(self.negative_points) == 0 \
-            and len(self.ignore_points) == 0 \
-            and not self.marked
+            and len(self.ignore_points) == 0
 
     def reset(self):
         self.rank = {n.identifier: self.termnet.average for n in self.termnet.graph.all_nodes}
+        self.focus_points = set()
         self.positive_points = set()
         self.negative_points = set()
         self.ignore_points = set()
         self.highlight_points = set()
-        self.marked = False
 
     def positive_add(self, term):
         assert term in self.termnet.graph
@@ -319,8 +319,15 @@ class TermnetSession:
         if term in self.highlight_points:
             self.highlight_points.remove(term)
 
-    def mark(self, term):
+    def focus(self, term):
         assert term in self.termnet.graph
+
+        while True:
+            try:
+                self.termnet.page_ranks[term]
+                break
+            except KeyError as e:
+                pass
 
         for k, v in self.termnet.page_ranks[term].items():
             assert v >= 0.0 and v <= 1.0, v
@@ -330,7 +337,7 @@ class TermnetSession:
         scale = 1.0 / total
         assert scale >= 0.0
         self.rank = {k: scale * v for k, v in self.rank.items()}
-        self.marked = True
+        self.focus_points.add(term)
 
     def display_previous(self):
         return self.display(self.previous_term)
@@ -340,11 +347,9 @@ class TermnetSession:
         summary = ""
 
         if search_term is None:
-            selection = [n.identifier for n in self.termnet.graph.all_nodes]
+            selection = set([n.identifier for n in self.termnet.graph.all_nodes])
         else:
-            selection = [identifier for identifier, d in self.termnet.graph.neighbourhood(search_term, 1, True, (2, 0.5))]
-
-        selection = set(filter(lambda t: t not in self.ignore_points, selection))
+            selection = set([identifier for identifier, d in self.termnet.graph.neighbourhood(search_term, 1, True, (2, 0.5))])
 
         for point in self.highlight_points:
             selection.add(point)
@@ -392,7 +397,7 @@ class TermnetSession:
         assert scale >= 0.0
         node_ranks = {k: scale * v for k, v in node_ranks.items()}
         logging.debug(node_ranks)
-        sorted_node_ranks = sorted(node_ranks.items(), key=lambda item: item[1], reverse=True)
+        sorted_node_ranks = sorted(filter(lambda item: item[0] not in self.ignore_points, node_ranks.items()), key=lambda item: item[1], reverse=True)
         logging.info("%s: %s" % (sum_subgraph, sorted_node_ranks))
 
         if self.clean_slate():
@@ -401,6 +406,12 @@ class TermnetSession:
         else:
             selected_nodes = set([item[0] for item in sorted_node_ranks[:TOP]])
             neighbour_nodes = set([item[0] for item in sorted_node_ranks[TOP:]])
+
+            for point in filter(lambda point: point not in self.ignore_points, self.focus_points):
+                selected_nodes.add(point)
+
+                if point in neighbour_nodes:
+                    neighbour_nodes.remove(point)
 
             for point in self.highlight_points:
                 selected_nodes.add(point)
@@ -420,6 +431,7 @@ class TermnetSession:
                 score = node_ranks[link.source] + node_ranks[link.target]
 
                 if score > best:
+                    logging.debug("New best score %.5f with %s and %s." % (score, link.source, link.target))
                     best = score
 
                     try:
@@ -468,6 +480,7 @@ class TermnetSession:
             "name": self._name(identifier),
             "rank": node_ranks[identifier],
             "alpha": alpha,
+            "colour": "red" if identifier in self.focus_points else "blue",
             "coeff": self._coeff(identifier),
         }
 

@@ -3,8 +3,8 @@
 var sessionKey = window.location.hash == null || window.location.hash == "" ?
     Math.random().toString(36).substring(5) : window.location.hash.substring(1);
 var sessioner = null;
-var neighbourhooder = null;
 var searcher = null;
+var focuser = null;
 var sizer = null;
 var amplifyAffect= null;
 var amplifier = null;
@@ -26,9 +26,12 @@ function restartSimulation() {
         .alphaDecay(0.75)
         .restart();
 }
-var rainbow = new Rainbow();
-rainbow.setNumberRange(0, 1.0);
-rainbow.setSpectrum("#96afff", "#001e84");
+var rainbowBlue = new Rainbow();
+rainbowBlue.setNumberRange(0, 1.0);
+rainbowBlue.setSpectrum("#96afff", "#001e84");
+var rainbowRed = new Rainbow();
+rainbowRed.setNumberRange(0, 1.0);
+rainbowRed.setSpectrum("#ff9696", "#840000");
 var size = 1;
 var firstDraw = true;
 var amplifySet = new Set();
@@ -58,138 +61,128 @@ var excludedToggler = null;
 var excluded = null;
 
 $(document).ready(function() {
+    svg = d3.select("svg");
+    svg.attr("width", svg_width)
+        .attr("height", height);
 
-svg = d3.select("svg");
-svg.attr("width", svg_width)
-    .attr("height", height);
-
-var pool = svg.append("circle")
-    .style("stroke-width", 5)
-    .style("stroke", "black")
-    .style("fill", "white")
-    .attrs({
-        class: "pool",
-        r: pool_radius,
-        cx: 0,
-        cy: 0,
-        transform: "translate(" + center_x + "," + center_y + ")"
-        //x: center_x,
-        //y: center_y
-    });
-$("#controlFo").width(side_width);
-$("#controlFo").load("controls.html", function() {
-    sessioner = $("#sessioner");
-    sessioner.text("Session: " + sessionKey);
-    neighbourhooder = $("#neighbourhooder");
-    searcher = $("#searcher");
-    sizer = $("#sizer");
-    amplifyAffect = $("#amplifyAffect");
-    amplifyAffect.find(".default")
-        .prop("checked", true)
-        .change();
-    amplifier = $("#amplifier");
-    amplifications = $("#amplifications");
-    amplifyToggler = $("#amplifyToggler");
-    dampifyAffect = $("#dampifyAffect");
-    dampifyAffect.find(".default")
-        .prop("checked", true)
-        .change();
-    dampifier = $("#dampifier");
-    dampifications = $("#dampifications");
-    dampifyToggler = $("#dampifyToggler");
-    ignorer = $("#ignorer");
-    ignores = $("#ignores");
-    ignoreToggler = $("#ignoreToggler");
-    historyList = $("#historyList");
-});
-var metaFo = svg.append("foreignObject")
-    .attr("transform", "translate(" + 0 + "," + 10 + ")")
-    //.attr("transform", "translate(" + (center_x - pool_radius) + "," + 15 + ")")
-    .attr("width", svg_width)
-    .attr("height", ((height - (pool_radius * 2))/ 2) - 20);
-graphMeta = metaFo.append("xhtml:div")
-    .attr("id", "graphMeta")
-    .attr("class", "labels")
-    .style("text-align", "center")
-    .text("loading..");
-var summaryFo = svg.append("foreignObject")
-    .attr("transform", "translate(" + 0 + "," + (center_y + pool_radius + 10) + ")")
-    //.attr("transform", "translate(" + (center_x - pool_radius) + "," + (center_y * 1.85) + ")")
-    .attr("width", svg_width)
-    .attr("height", ((height - (pool_radius * 2))/ 2) - 20);
-graphSummary = summaryFo.append("xhtml:div")
-    .attr("id", "graphSummary")
-    .attr("class", "labels")
-    .style("text-align", "center")
-    .text("loading..");
-/*var propertiesFo = svg.append("foreignObject")
-    .attr("id", "propertiesFo")
-    .attr("transform", "translate(" + (center_x + pool_radius + 20) + ",10)")
-    .attr("width", center_x - pool_radius - 40)
-    .attr("height", height - 40);*/
-$("#propertiesFo").width(side_width);
-$("#propertiesFo").load("properties.html", function() {
-    termCount = $("#termCount");
-    termCooccurrenceMinimum = $("#termCooccurrenceMinimum");
-    termCooccurrenceMaximum = $("#termCooccurrenceMaximum");
-    termCooccurrenceAverage = $("#termCooccurrenceAverage");
-    termCooccurrenceCutoff = $("#termCooccurrenceCutoff");
-    includedList = $("#includedList");
-    includedToggler = $("#includedToggler");
-    excludedList = $("#excludedList");
-    excludedToggler = $("#excludedToggler");
-d3.json("properties")
-    .header("session-key", sessionKey)
-    .post("", function(error, data) {
-        termCount.text("" + data.total_terms);
-        termCooccurrenceMinimum.text("" + data.minimum_cooccurrence_count);
-        termCooccurrenceMaximum.text("" + data.maximum_cooccurrence_count);
-        termCooccurrenceAverage.text(("" + data.average_cooccurrence_count).substring(0, 4));
-        termCooccurrenceCutoff.text("" + data.cutoff_cooccurrence_count);
-        included = Array.from(data.included);
-        included.sort();
-        included.forEach(function(item) {
-            includedList.append("<span style='font-size: 8pt;'>&bull; " + item + "</span></br>");
+    var pool = svg.append("circle")
+        .style("stroke-width", 5)
+        .style("stroke", "black")
+        .style("fill", "white")
+        .attrs({
+            class: "pool",
+            r: pool_radius,
+            cx: 0,
+            cy: 0,
+            transform: "translate(" + center_x + "," + center_y + ")"
+            //x: center_x,
+            //y: center_y
         });
-        excluded = Array.from(data.excluded);
-        excluded.sort();
-        excluded.forEach(function(item) {
-            excludedList.append("<span style='font-size: 8pt;'>&bull; " + item + "</span></br>");
+    $("#controlFo").width(side_width);
+    $("#controlFo").load("controls.html", function() {
+        sessioner = $("#sessioner");
+        sessioner.text("Session: " + sessionKey);
+        searcher = $("#searcher");
+        focuser = $("#focuser");
+        console.log(focuser);
+        sizer = $("#sizer");
+        amplifyAffect = $("#amplifyAffect");
+        amplifyAffect.find(".default")
+            .prop("checked", true)
+            .change();
+        amplifier = $("#amplifier");
+        amplifications = $("#amplifications");
+        amplifyToggler = $("#amplifyToggler");
+        dampifyAffect = $("#dampifyAffect");
+        dampifyAffect.find(".default")
+            .prop("checked", true)
+            .change();
+        dampifier = $("#dampifier");
+        dampifications = $("#dampifications");
+        dampifyToggler = $("#dampifyToggler");
+        ignorer = $("#ignorer");
+        ignores = $("#ignores");
+        ignoreToggler = $("#ignoreToggler");
+        historyList = $("#historyList");
+    });
+    var metaFo = svg.append("foreignObject")
+        .attr("transform", "translate(" + 0 + "," + 10 + ")")
+        //.attr("transform", "translate(" + (center_x - pool_radius) + "," + 15 + ")")
+        .attr("width", svg_width)
+        .attr("height", ((height - (pool_radius * 2))/ 2) - 20);
+    graphMeta = metaFo.append("xhtml:div")
+        .attr("id", "graphMeta")
+        .attr("class", "labels")
+        .style("text-align", "center")
+        .text("loading..");
+    var summaryFo = svg.append("foreignObject")
+        .attr("transform", "translate(" + 0 + "," + (center_y + pool_radius + 10) + ")")
+        //.attr("transform", "translate(" + (center_x - pool_radius) + "," + (center_y * 1.85) + ")")
+        .attr("width", svg_width)
+        .attr("height", ((height - (pool_radius * 2))/ 2) - 20);
+    graphSummary = summaryFo.append("xhtml:div")
+        .attr("id", "graphSummary")
+        .attr("class", "labels")
+        .style("text-align", "center")
+        .text("loading..");
+    /*var propertiesFo = svg.append("foreignObject")
+        .attr("id", "propertiesFo")
+        .attr("transform", "translate(" + (center_x + pool_radius + 20) + ",10)")
+        .attr("width", center_x - pool_radius - 40)
+        .attr("height", height - 40);*/
+    $("#propertiesFo").width(side_width);
+    $("#propertiesFo").load("properties.html", function() {
+        termCount = $("#termCount");
+        termCooccurrenceMinimum = $("#termCooccurrenceMinimum");
+        termCooccurrenceMaximum = $("#termCooccurrenceMaximum");
+        termCooccurrenceAverage = $("#termCooccurrenceAverage");
+        termCooccurrenceCutoff = $("#termCooccurrenceCutoff");
+        includedList = $("#includedList");
+        includedToggler = $("#includedToggler");
+        excludedList = $("#excludedList");
+        excludedToggler = $("#excludedToggler");
+    d3.json("properties")
+        .header("session-key", sessionKey)
+        .post("", function(error, data) {
+            termCount.text("" + data.total_terms);
+            termCooccurrenceMinimum.text("" + data.minimum_cooccurrence_count);
+            termCooccurrenceMaximum.text("" + data.maximum_cooccurrence_count);
+            termCooccurrenceAverage.text(("" + data.average_cooccurrence_count).substring(0, 4));
+            termCooccurrenceCutoff.text("" + data.cutoff_cooccurrence_count);
+            included = Array.from(data.included);
+            included.sort();
+            included.forEach(function(item) {
+                includedList.append("<span style='font-size: 8pt;'>&bull; " + item + "</span></br>");
+            });
+            excluded = Array.from(data.excluded);
+            excluded.sort();
+            excluded.forEach(function(item) {
+                excludedList.append("<span style='font-size: 8pt;'>&bull; " + item + "</span></br>");
+            });
         });
     });
+
+    simulation = d3.forceSimulation()
+        .force("link", d3.forceLink()
+            .distance(80)
+            .strength(0.05)
+            .id(function(d) { return d.name; })
+        )
+        .force("charge", d3.forceManyBody()
+            .strength(-50)
+            .distanceMin(10)
+            .distanceMax(pool_radius * 1.5)
+        )
+        .force("x", d3.forceX(center_x).strength(0.05))
+        .force("y", d3.forceY(center_y).strength(0.05));
+
+    console.log("initial reset");
+    reset(null);
+
+    var drag_start_x = null;
+    var drag_start_y = null;
 });
 
-simulation = d3.forceSimulation()
-    .force("link", d3.forceLink()
-        .distance(80)
-        .strength(0.05)
-        .id(function(d) { return d.name; })
-    )
-    .force("charge", d3.forceManyBody()
-        .strength(-50)
-        .distanceMin(10)
-        .distanceMax(pool_radius * 1.5)
-    )
-    .force("x", d3.forceX(center_x).strength(0.05))
-    .force("y", d3.forceY(center_y).strength(0.05));
-
-console.log("initial reset");
-reset(null);
-
-var drag_start_x = null;
-var drag_start_y = null;
-});
-
-function neighbourhood(event) {
-    if (event.keyCode == 13) {
-        var termname = neighbourhooder.val();
-        neighbourhooder.val("");
-        console.log("term: " + termname);
-        d3.json("neighbourhood")
-            .header("session-key", sessionKey)
-            .post("term=" + termname, function(error, data) { draw(data); });
-    }
-}
 function search(event) {
     if (event.keyCode == 13) {
         var termname = searcher.val();
@@ -197,12 +190,23 @@ function search(event) {
         console.log("term: " + termname);
         d3.json("search")
             .header("session-key", sessionKey)
+            .post("term=" + termname, function(error, data) { draw(data); });
+    }
+}
+function focusAction(event) {
+    console.log("focus");
+    if (event.keyCode == 13) {
+        var termname = focuser.val();
+        focuser.val("");
+        console.log("term: " + termname);
+        d3.json("focus")
+            .header("session-key", sessionKey)
             .post("term=" + termname, function(error, data) {
                 if (error != null) {
                     // TODO
                 } else {
                     draw(data);
-                    historyList.append("<span style='font-size: 11pt;'>&bull; " + termname + "</span></br>");
+                    historyList.append("<span style='font-size: 11pt;'>&bull; <span style='color: #" + rainbowRed.colorAt(0.5) + "'>" + termname + "</span></span></br>");
                 }
             });
     }
@@ -243,7 +247,7 @@ function reset(event) {
     updateDampifications(null);
     updateIgnores(null);
     firstDraw = true;
-    d3.json("neighbourhood")
+    d3.json("search")
         .header("session-key", sessionKey)
         .post("", function(error, data) {
             if (error == null) {
@@ -498,7 +502,12 @@ function draw(graph) {
             .attr("class", "node")
             .attr("id", function(d) { return "node-" + d.name; })
             .attr("fill", function(d) {
-                return "#" + rainbow.colourAt(d.coeff);
+                if (d.colour == "red") {
+                    return "#" + rainbowRed.colourAt(d.coeff);
+                }
+                else {
+                    return "#" + rainbowBlue.colourAt(d.coeff);
+                }
             })
             .attr("term", function(d) { return d.name; })
             .attr("r", function(d) { return node_radius(d.rank); })

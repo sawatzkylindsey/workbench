@@ -151,12 +151,12 @@ class ServerHandler(BaseHTTPRequestHandler):
 
         return termnet_session.display_previous()
 
-    def search(self, termnet_session, query):
+    def focus(self, termnet_session, query):
         term = self.term(query)
-        termnet_session.mark(term)
+        termnet_session.focus(term)
         return termnet_session.display_previous()
 
-    def neighbourhood(self, termnet_session, query):
+    def search(self, termnet_session, query):
         term = None
 
         if query is not None:

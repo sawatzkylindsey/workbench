@@ -173,6 +173,7 @@ class TermnetSession:
         self.positive_points = set()
         self.negative_points = set()
         self.ignore_points = set()
+        self.highlight_points = set()
         self.previous_term = None
 
     def _find(self, value, f, i, j):

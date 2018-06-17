@@ -5,7 +5,8 @@ var sessionKey = window.location.hash == null || window.location.hash == "" ?
 var sessioner = null;
 var searcher = null;
 var focusMetric = null;
-var focuser = null;
+var focuserText = null;
+var focuserButton = null;
 var sizer = null;
 var amplifyAffect = null;
 var amplifier = null;
@@ -84,12 +85,11 @@ $(document).ready(function() {
         sessioner = $("#sessioner");
         sessioner.text("Session: " + sessionKey);
         searcher = $("#searcher");
+        focuserText = $("#focuserText");
+        focuserButton = $("#focuserButton");
         focusMetric = $("#focusMetric");
-        focusMetric.find(".default")
-            .prop("checked", true)
+        focusMetric.val(focusMetric.find(".default").val())
             .change();
-        focuser = $("#focuser");
-        console.log(focuser);
         sizer = $("#sizer");
         amplifyAffect = $("#amplifyAffect");
         amplifyAffect.find(".default")
@@ -199,20 +199,28 @@ function search(event) {
     }
 }
 function focusAction(event) {
-    console.log("focus");
-    if (event.keyCode == 13) {
-        var termname = focuser.val();
-        focuser.val("");
-        console.log("term: " + termname);
+    var termname = null;
+
+    if (event.type == "keydown") {
+        if (event.keyCode == 13) {
+            termname = focuserText.val();
+            focuserText.val("");
+        }
+    }
+
+    if (event.type == "click" || termname != null) {
+        console.log("focus term: " + termname);
+        var params = termname == null ? "" : "term=" + termname;
         d3.json("focus")
             .header("session-key", sessionKey)
-            .post("term=" + termname, function(error, data) {
+            .post(params, function(error, data) {
                 if (error != null) {
                     // TODO
                 } else {
                     draw(data);
-                    var prefix = focusMetric.find(":checked").next().html();
-                    historyList.append("<span style='font-size: 11pt;'>&bull; " + prefix + ": <span style='color: #" + rainbowGreen.colorAt(0.5) + "'>" + termname + "</span></span></br>");
+                    var prefix = focusMetric.find(":selected").html() + (termname == null ? "" : ": ");
+                    var item = termname == null ? "" : termname;
+                    historyList.append("<span style='font-size: 11pt;'>&bull; " + prefix + "<span style='color: #" + rainbowGreen.colorAt(0.5) + "'>" + item + "</span></span></br>");
                 }
             });
     }
@@ -252,6 +260,9 @@ function reset(event) {
     updateAmplifications(null);
     updateDampifications(null);
     updateIgnores(null);
+    if (historyList != null) {
+        historyList.empty();
+    }
     firstDraw = true;
     d3.json("search")
         .header("session-key", sessionKey)
@@ -264,7 +275,16 @@ function reset(event) {
             }
         });
 }
+var BIASED = ["BPR", "IBPR"];
 function focusConfigure(event) {
+    if (BIASED.indexOf(event.target.value) >= 0) {
+        focuserText.css("display", "block");
+        focuserButton.css("display", "none");
+    } else {
+        focuserText.css("display", "none");
+        focuserButton.css("display", "block");
+    }
+
     d3.json("focus/configure")
         .header("session-key", sessionKey)
         .post("mode=" + event.target.value, function(error, data) {

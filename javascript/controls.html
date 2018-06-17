@@ -17,12 +17,22 @@
     <tr>
         <td class="description" title="Indicate what the learner is interested in.  This alters the weights of the termnet towards the selected term and terms that relate to it.">Focus:</td>
         <td>
-            <div id="focusMetric">
-                <input class="default" type="radio" name="focus-metric" value="BPR" onchange="focusConfigure(event)" title="Use the 'Biased PageRank' graph metric."/><span>BPR</span>
-                <input type="radio" name="focus-metric" value="IBPR" onchange="focusConfigure(event)" title="Use the 'Inverse Biased PageRank' graph metric."/><span>BPR<sup>-1</sup></span>
-            </div>
             <div>
-                <input type="text" id="focuser" onkeydown="focusAction(event)" title="Indicate what the learner is interested in.  This alters the weights of the termnet towards the selected term and terms that relate to it."/>
+                <select id="focusMetric" onchange="focusConfigure(event)">
+                    <option value="PR" title="PageRank">PR</option>
+                    <option value="IPR" title="Inverse PageRank">PR⁻¹</option>
+                    <option class="default" value="BPR" termed title="Biased PageRank">BPR</option>
+                    <option value="IBPR" termed title="Inverse Biased PageRank">BPR⁻¹</option>
+                    <option value="CC" title="Clustering Coefficient">CC</option>
+                    <option value="ICC" title="Inverse Clustering Coefficient">CC⁻¹</option>
+                </select>
+                <!--<input class="default" type="radio" name="focus-metric" value="BPR" onchange="focusConfigure(event)" title="Biased PageRank"/><span>BPR</span>
+                <input type="radio" name="focus-metric" value="IBPR" onchange="focusConfigure(event)" title="Inverse Biased PageRank"/><span>BPR<sup>-1</sup></span>
+                <input type="radio" name="focus-metric" value="CC" onchange="focusConfigure(event)" title="Clustering Coefficient"/><span>CC</span>-->
+            </div>
+            <div style="height: 19px">
+                <input type="text" id="focuserText" onkeydown="focusAction(event)" title="Indicate what the learner is interested in.  This alters the weights of the termnet towards the selected term and terms that relate to it."/>
+                <input type="button" id="focuserButton" onclick="focusAction(event)" value="Apply"/>
             </div>
         </td>
     </tr>

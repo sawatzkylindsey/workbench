@@ -107,12 +107,10 @@ class ServerHandler(BaseHTTPRequestHandler):
     def focus_configure(self, termnet_session, query):
         mode = self.mode(query)
 
-        if mode == "BPR":
-            termnet_session.focus_metric = Termnet.BPR
-        elif mode == "IBPR":
-            termnet_session.focus_metric = Termnet.IBPR
-        else:
+        if mode not in Termnet.BIASED and mode not in Termnet.UNBIASED:
             raise ValueError("invalid mode: %s" % mode)
+
+        termnet_session.focus_metric = mode
 
     def influence_configure(self, termnet_session, query):
         polarity = self.polarity(query)
@@ -162,7 +160,13 @@ class ServerHandler(BaseHTTPRequestHandler):
         return termnet_session.display_previous()
 
     def focus(self, termnet_session, query):
-        term = self.term(query)
+        term = None
+
+        try:
+            term = self.term(query)
+        except KeyError as e:
+            pass
+
         termnet_session.focus(term)
         return termnet_session.display_previous()
 

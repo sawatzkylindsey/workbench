@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import logging
+import math
 import os
 from pytils.invigilator import create_suite
 from unittest import TestCase
@@ -320,7 +321,6 @@ class Tests(TestCase):
         self.assertEqual(graph.neighbourhood("bobo", 3, True), set([("bobo", 0), ("jack", 1), ("jill", 1), ("jane", 1), ("alik", 2), ("colt", 2), ("stew", 2)]))
         self.assertEqual(graph.neighbourhood("bobo", None, True), set([("bobo", 0), ("jack", 1), ("jill", 1), ("jane", 1), ("alik", 2), ("colt", 2), ("stew", 2)]))
 
-
     def test_cc_none_undirected(self):
         gb = GraphBuilder(Graph.UNDIRECTED)
         graph = gb.add("bobo", ["jack", "jill", "jane"]) \
@@ -508,6 +508,40 @@ class Tests(TestCase):
         self.assertEqual(graph.clustering_coefficients["jack"], 1.0)
         self.assertEqual(graph.clustering_coefficients["jill"], 4 / 6.0)
         self.assertEqual(graph.clustering_coefficients["jane"], 1.0)
+
+    def test_page_rank_directed(self):
+        gb = GraphBuilder(Graph.DIRECTED)
+        graph = gb.add("bobo", ["jack", "jill", "jane"]) \
+            .add("jack", ["colt"]) \
+            .add("jack", ["colt"]) \
+            .add("jane", ["bobo"]) \
+            .add("alik", ["peny"]) \
+            .build()
+        page_rank = graph.page_rank()
+        self.assertTrue(math.isclose(page_rank["bobo"], 0.190, abs_tol=0.001), page_rank["bobo"])
+        self.assertTrue(math.isclose(page_rank["jack"], 0.131, abs_tol=0.001), page_rank["jack"])
+        self.assertTrue(math.isclose(page_rank["jill"], 0.131, abs_tol=0.001), page_rank["jill"])
+        self.assertTrue(math.isclose(page_rank["jane"], 0.131, abs_tol=0.001), page_rank["jane"])
+        self.assertTrue(math.isclose(page_rank["colt"], 0.190, abs_tol=0.001), page_rank["jane"])
+        self.assertTrue(math.isclose(page_rank["alik"], 0.078, abs_tol=0.001), page_rank["alik"])
+        self.assertTrue(math.isclose(page_rank["peny"], 0.144, abs_tol=0.001), page_rank["peny"])
+
+    def test_page_rank_undirected(self):
+        gb = GraphBuilder(Graph.UNDIRECTED)
+        graph = gb.add("bobo", ["jack", "jill", "jane"]) \
+            .add("jack", ["colt"]) \
+            .add("jack", ["colt"]) \
+            .add("jane", ["bobo"]) \
+            .add("alik", ["peny"]) \
+            .build()
+        page_rank = graph.page_rank()
+        self.assertTrue(math.isclose(page_rank["bobo"], 0.256, abs_tol=0.001), page_rank["bobo"])
+        self.assertTrue(math.isclose(page_rank["jack"], 0.174, abs_tol=0.001), page_rank["jack"])
+        self.assertTrue(math.isclose(page_rank["jill"], 0.093, abs_tol=0.001), page_rank["jill"])
+        self.assertTrue(math.isclose(page_rank["jane"], 0.093, abs_tol=0.001), page_rank["jane"])
+        self.assertTrue(math.isclose(page_rank["colt"], 0.096, abs_tol=0.001), page_rank["jane"])
+        self.assertTrue(math.isclose(page_rank["alik"], 0.142, abs_tol=0.001), page_rank["alik"])
+        self.assertTrue(math.isclose(page_rank["peny"], 0.142, abs_tol=0.001), page_rank["peny"])
 
 
 def tests():

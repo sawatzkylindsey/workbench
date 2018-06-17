@@ -32,14 +32,14 @@ Click the buttons to invoke the respective action.
 * *Lock*: Prohibt the nodes from moving freely, locking them into their current positions.
 * *Reset*: Reload the termnet from scratch, clearing any affects of searching, focusing, amplifications/dampifications, etc.
 This has the same affect as refreshing the page, or loading from a session.
-* *Drag*: This element is not a button, but placed here to draw your attention to the fact that nodes may be dragged.
+* *Drag*: This element is not a button, but placed here to draw attention to the fact that nodes may be dragged.
 Dragging a node will lock it in-place (like a local *Lock*).
 Additionally, a node that is dragged out the circle will become highlighted.
 
 ### Search (previously Neighbourhood)
 #### Usage
-Type the term to focus the graph on into the text-box and press the enter key.
-You may press enter on the text-box when empty to clear the previous neighbourhood.
+Type the term to constrain the graph around into the text-box and press the enter key.
+Press enter on the text-box when empty to clear the previous neighbourhood.
 
 #### Details
 *Search* will narrow down the set of nodes visible in the graph.
@@ -47,7 +47,12 @@ A more detailed update to the documentation will review precisely how this occur
 
 ### Focus
 #### Usage
-Type the term to narrow focus on into the text-box and press the enter key.
+To use focus, first select which underlying of graph metric to work with.
+Some metrics are global, and other are term specific (aka biased).
+If a global metric has been selected, a button *Apply* will appear which can be clicked to apply the metric.
+If a biased metric has been selected, a text-box will appear.
+Type the bias term into the text-box and press the enter key to apply the biased metric.
+
 Focusing for terms will populate the *Focus History* list in the order they are selected.
 This history cannot be changed, except by *Reseting* the graph.
 
@@ -57,7 +62,7 @@ Ultimately, this affects the weights $$w_n$$ for all the terms $$N$$ in the grap
 Each focus progressess a timeline where the timestep $$t+1$$ is derived from $$t$$.
 
 First, and intermediate weight $$\widetilde{w}$$ is calculated.
-Depending on the kind of graph metric selected (forthcoming), applying focus will update the node weights according the following formula.
+Depending on the kind of [graph metric](#Graph-Metrics) selected, applying focus will update the node weights according the following formula.
 
 $$\widetilde{w}_n^{t+1} = w_n^t + M_n$$
 
@@ -125,4 +130,17 @@ The ignore can be removed by clicking the term from the list.
 #### Details
 *Ignore* is a mechanism to hide terms from the view of the termnet.
 Using ignore does not change any of the math behind the other behaviours of the termnet, such as *Focus* or *Amplify*/*Dampify*.
+
+### Appendix
+#### Graph Metrics
+* [PageRank](https://en.wikipedia.org/wiki/PageRank): A metric which ranks nodes based off the rank of their ancestors.
+Generally speaking, nodes that are referred to by many other nodes get a high rank, while nodes which are barely referred to get a low rank.
+PageRank is a form of [Eigenvector Centrality](https://en.wikipedia.org/wiki/Eigenvector_centrality).
+* Inverse PageRage: The inverse of PageRank, calculated by taking the ranks from PageRank, subtracting them from $$2 * max(rank)$$, and re-scaling to form a probability distribution.
+* Biased PageRank: The PageRank metric, but biased towards the terms of the graph.
+This metric is different for every term.
+* Inverse Biased PageRank: The inverse of Biased PageRank, calculated by taking the ranks from Biased PageRank, subtracting them from $$2 * max(rank)$$, and re-scaling to form a probability distribution.
+* [Clustering Coefficient](https://en.wikipedia.org/wiki/Clustering_coefficient): A metric which ranks nodes based off how closely they are clustered together.
+Generally speaking, this metric can stand in for how much nodes are gateways into clusters vs. how much nodes are central to a cluster of nodes.
+* Inverse Clustering Coefficient: The inverse of Clustering Coefficient, calculated by taking the ranks from Clustering Coefficient, subtracting them from $$2 * max(rank)$$, and re-scaling to form a probability distribution.
 

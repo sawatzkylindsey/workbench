@@ -103,6 +103,7 @@ class Graph(object):
 
         self.all_nodes = all_nodes
         self.kind = check.check_one_of(kind, [Graph.DIRECTED, Graph.UNDIRECTED])
+        self.log_len = math.log(len(self.all_nodes) + 1)
         self.indexes = {}
 
         for node in self.all_nodes:
@@ -274,13 +275,13 @@ class Graph(object):
     def nodes(self, identifiers):
         return set([self.indexes[i] for i in identifiers])
 
-    def page_rank(self, damping=0.85, epsilon=0.005, epochs=50, biases={}):
+    def page_rank(self, damping=0.85, epsilon=0.005, max_epochs=50, bias=None):
         assert damping >= 0.0 and damping <= 1.0
         initial = 1.0 / len(self.all_nodes)
         weights = {n.identifier: initial for n in self.all_nodes}
 
-        for i in range(0, epochs):
-            next_weights = self.page_rank_iteration(weights, damping, biases)
+        for i in range(0, max_epochs):
+            next_weights = self.page_rank_iteration(weights, damping, bias)
 
             if self._delta(weights, next_weights) < epsilon:
                 break
@@ -289,7 +290,7 @@ class Graph(object):
 
         return next_weights
 
-    def page_rank_iteration(self, weights, damping, biases):
+    def page_rank_iteration(self, weights, damping, bias=None):
         assert damping >= 0.0 and damping <= 1.0
         intermediaries = {n.identifier: 0.0 for n in self.all_nodes}
         leak = 0.0
@@ -303,19 +304,27 @@ class Graph(object):
             else:
                 leak += weights[node.identifier]
 
-        for k, v in biases.items():
-            assert v >= 0.0 and v <= 1.0
-            intermediaries[k] += v
-
         assert len(weights) == len(intermediaries)
         damping_constant = (1.0 - damping) / len(self.all_nodes)
         leak_constant = (damping * leak) / len(self.all_nodes)
         out = {}
 
         for k, v in intermediaries.items():
-            out[k] = damping_constant + leak_constant + (damping * v)
+            bias_factor = 1.0
 
-        if len(biases) > 0:
+            if bias is not None:
+                distance = self.distance(bias, k)
+
+                if distance is None:
+                    distance = math.pow(self.max_distance(bias), 2)
+
+                bias_factor = 1.0 / (1.0 + ((0.25 * distance) / 1.0))
+
+            out[k] = damping_constant + leak_constant + (damping * v * bias_factor)
+
+        # If no bias was specified, the math works out such that the ranks are already a proper probabily distribution.
+        # Otherwise, we need to rescale.
+        if bias is not None:
             total = sum(out.values())
             scale = 1.0 / total
             out = {k: scale * v for k, v in out.items()}

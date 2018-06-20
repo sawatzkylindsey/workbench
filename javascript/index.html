@@ -141,6 +141,13 @@ function selectPreset(event) {
             wikipediaInputer.find(".content").val(data);
         });
     }
+    else if (event.target.value == "etymology-wikipedia") {
+        windower.css("display", "table-row");
+        selectFormatValue("wikipedia");
+        $.get("Etymology.wikipedia", function(data) {
+            wikipediaInputer.find(".content").val(data);
+        });
+    }
 }
 var format = null;
 function selectFormat(event) {
@@ -223,6 +230,7 @@ function load(event) {
                     <option class="default" value="sample-content-terms">Sample Content Terms</option>
                     <option value="astronomy-glossary">Astronomy Glossary</option>
                     <option value="astronomy-wikipedia">Astronomy Wikipedia (curated)</option>
+                    <option value="etymology-wikipedia">Etymology Wikipedia (curated)</option>
                 </select>
             </td>
         </tr>
@@ -232,7 +240,7 @@ function load(event) {
                 <select onchange="selectFormat(event)">
                     <option class="default" value="content-terms">Content Terms</option>
                     <option value="glossary">Glossary Definitions</option>
-                    <option value="wikipedia">Wikipedia Pages</option>
+                    <option value="wikipedia">Wikipedia Articles List</option>
                 </select>
             </td>
         </tr>

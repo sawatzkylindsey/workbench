@@ -115,6 +115,12 @@ class Term(base.Comparable):
     def name(self):
         return " ".join(self.words)
 
+    def transform(self, function):
+        return Term([function(word) for word in self.words])
+
+    def lower(self):
+        return self.transform(lambda w: w.lower())
+
 
 class Inflections:
     def __init__(self):

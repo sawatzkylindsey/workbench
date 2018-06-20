@@ -21,6 +21,7 @@ from workbench.graph import GraphBuilder, Graph
 from pytils.log import setup_logging, user_log
 import workbench.parser
 from workbench.nlp import Term
+from workbench.nlp import stem as CANONICALIZE
 
 
 TOP = 10
@@ -107,13 +108,21 @@ def build(input_text, input_format, window, keep):
 
     graph = builder.build()
     properties = Properties(minimum, maximum, average, cutoff, len(included_terms) + len(excluded_terms), included_terms, excluded_terms)
-    #print(len(graph))
+    lemma_map = {}
+    term_map = {}
+
+    for lemma, inflections in parse.inflections.counts.items():
+        term = parse.inflections.to_inflection(lemma)
+        lemma_map[lemma.lower()] = term
+
+        for inflection in inflections.keys():
+            term_map[inflection.lower()] = term
 
     if len(graph) > 0:
-        return Termnet(graph, inflection_sentences, properties)
+        return Termnet(graph, lemma_map, term_map, inflection_sentences, properties)
     else:
         builder = GraphBuilder(Graph.UNDIRECTED)
-        return Termnet(builder.build(), {}, Properties())
+        return Termnet(builder.build(), {}, {}, {}, Properties())
 
     return net
 
@@ -158,8 +167,11 @@ class Termnet:
         IBPR,
     ]
 
-    def __init__(self, graph, sentences, properties):
+    def __init__(self, graph, lemma_map, term_map, sentences, properties):
         self.graph = graph
+        print(lemma_map)
+        self.lemma_map = lemma_map
+        self.term_map = term_map
         self.sentences = sentences
         self.properties = properties
         self.average = 0 if len(self.graph) == 0 else 1.0 / len(self.graph.all_nodes)
@@ -171,6 +183,14 @@ class Termnet:
         self._background_calculate_ranks = threading.Thread(target=self.calculate_ranks)
         self._background_calculate_ranks.daemon = True
         self._background_calculate_ranks.start()
+
+    def map_term(self, term):
+        try:
+            return self.term_map[term.lower()]
+        except KeyError as e:
+            pass
+
+        return self.lemma_map[term.transform(lambda w: CANONICALIZE(w).lower())]
 
     def calculate_ranks(self):
         page_rank = self.graph.page_rank()
@@ -202,6 +222,7 @@ class Termnet:
         return self.properties.dump()
 
     def get_metric(self, metric, term):
+        term = self.map_term(term)
         value = None
 
         while value is None:
@@ -339,48 +360,49 @@ class TermnetSession:
         self.highlight_points = set()
 
     def positive_add(self, term):
+        term = self.termnet.map_term(term)
         assert term in self.termnet.graph
         self.positive_points.add(term)
         self.negative_remove(term)
 
     def positive_remove(self, term):
+        term = self.termnet.map_term(term)
         assert term in self.termnet.graph
-
-        if term in self.positive_points:
-            self.positive_points.remove(term)
+        self.positive_points.discard(term)
 
     def negative_add(self, term):
+        term = self.termnet.map_term(term)
         assert term in self.termnet.graph
         self.negative_points.add(term)
         self.positive_remove(term)
 
     def negative_remove(self, term):
+        term = self.termnet.map_term(term)
         assert term in self.termnet.graph
-
-        if term in self.negative_points:
-            self.negative_points.remove(term)
+        self.negative_points.discard(term)
 
     def ignore_add(self, term):
+        term = self.termnet.map_term(term)
         assert term in self.termnet.graph
         self.ignore_points.add(term)
 
     def ignore_remove(self, term):
         assert term in self.termnet.graph
-
-        if term in self.ignore_points:
-            self.ignore_points.remove(term)
+        self.ignore_points.discard(term)
 
     def highlight_add(self, term):
+        term = self.termnet.map_term(term)
         assert term in self.termnet.graph
         self.highlight_points.add(term)
 
     def highlight_remove(self, term):
+        term = self.termnet.map_term(term)
         assert term in self.termnet.graph
-
-        if term in self.highlight_points:
-            self.highlight_points.remove(term)
+        self.highlight_points.discard(term)
 
     def focus(self, term):
+        term = self.termnet.map_term(term)
+
         if term is None:
             assert self.focus_metric in Termnet.UNBIASED
         else:
@@ -402,14 +424,15 @@ class TermnetSession:
     def display_previous(self):
         return self.display(self.previous_term)
 
-    def display(self, search_term):
-        self.previous_term = search_term
-        summary = ""
-
-        if search_term is None:
+    def display(self, term):
+        if term is None:
             selection = set([n.identifier for n in self.termnet.graph.all_nodes])
         else:
-            selection = set([identifier for identifier, d in self.termnet.graph.neighbourhood(search_term, 1, True, (2, 0.5))])
+            term = self.termnet.map_term(term)
+            assert term in self.termnet.graph
+            selection = set([identifier for identifier, d in self.termnet.graph.neighbourhood(term, 1, True, (2, 0.5))])
+
+        self.previous_term = term
 
         for point in self.focus_points:
             selection.add(point)
@@ -462,6 +485,9 @@ class TermnetSession:
         logging.debug(node_ranks)
         sorted_node_ranks = sorted(filter(lambda item: item[0] not in self.ignore_points, node_ranks.items()), key=lambda item: item[1], reverse=True)
         logging.info("%s: %s" % (sum_subgraph, sorted_node_ranks))
+        alpha_dark = 1.0
+        alpha_light = 0.1
+        alpha_medium = (alpha_dark + alpha_light) / 2.0
 
         if self.clean_slate():
             selected_nodes = set([item[0] for item in sorted_node_ranks])
@@ -472,25 +498,22 @@ class TermnetSession:
 
             for point in filter(lambda point: point not in self.ignore_points, self.focus_points):
                 selected_nodes.add(point)
-
-                if point in neighbour_nodes:
-                    neighbour_nodes.remove(point)
+                neighbour_nodes.discard(point)
 
             for point in self.highlight_points:
                 selected_nodes.add(point)
+                neighbour_nodes.discard(point)
 
-                if point in neighbour_nodes:
-                    neighbour_nodes.remove(point)
-
-        selected_links = []
-        neighbour_links = []
+        selected_links = set()
+        neighbour_links = set()
         highlight_links = set()
         cascade_points = set()
         best = 0
+        summary = ""
 
         for link in self.termnet.graph.links():
             if link.source in selected_nodes and link.target in selected_nodes:
-                selected_links += [link]
+                selected_links.add(link)
                 score = node_ranks[link.source] + node_ranks[link.target]
 
                 if score > best:
@@ -511,10 +534,11 @@ class TermnetSession:
             elif (link.source in selected_nodes and link.target in neighbour_nodes) \
                 or (link.source in neighbour_nodes and link.target in selected_nodes) \
                 or (link.source in neighbour_nodes and link.target in neighbour_nodes):
-                neighbour_links += [link]
+                neighbour_links.add(link)
 
             if link.source in self.highlight_points or link.target in self.highlight_points:
-                highlight_links.add(link)
+                selected_links.add(link)
+                neighbour_links.discard(link)
 
             if link.source in self.highlight_points and link.target in neighbour_nodes:
                 cascade_points.add(link.target)
@@ -528,11 +552,11 @@ class TermnetSession:
             neighbour_nodes.remove(point)
 
         return {
-            "nodes": [self._node(node_ranks, identifier, 1.0) for identifier in selected_nodes] \
-                + [self._node(node_ranks, identifier, 0.5) for identifier in cascade_nodes] \
-                + [self._node(node_ranks, identifier, 0.1) for identifier in neighbour_nodes],
-            "links": [self._link(link, 1.0 if link in highlight_links else 0.5) for link in selected_links] \
-                + [self._link(link, 1.0 if link in highlight_links else 0.1) for link in neighbour_links],
+            "nodes": [self._node(node_ranks, identifier, alpha_dark) for identifier in selected_nodes] \
+                + [self._node(node_ranks, identifier, alpha_medium) for identifier in cascade_nodes] \
+                + [self._node(node_ranks, identifier, alpha_light) for identifier in neighbour_nodes],
+            "links": [self._link(link, alpha_dark) for link in selected_links] \
+                + [self._link(link, alpha_light) for link in neighbour_links],
             "summary": summary,
             "size": len(selected_nodes) + len(cascade_nodes) + len(neighbour_nodes),
             "selection": len(selected_nodes) + len(cascade_nodes),

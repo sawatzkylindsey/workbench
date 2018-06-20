@@ -50,6 +50,17 @@ class Tests(TestCase):
         self.assertEqual(extract_terms(split_words(corpus), man_trie), set([man]))
         self.assertEqual(extract_terms(split_words(corpus), little_man_trie), set([little_man]))
 
+    def test_term(self):
+        a = Term(["fox", "dog"])
+        b = Term(["Fox", "dOG"])
+        self.assertEqual(a, a)
+        self.assertEqual(hash(a), hash(a))
+        self.assertNotEqual(a, b)
+        self.assertNotEqual(hash(a), hash(b))
+
+        self.assertEqual(b.lower(), a)
+        self.assertEqual(hash(b.lower()), hash(a))
+
 
 def tests():
     return create_suite(Tests)

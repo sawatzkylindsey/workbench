@@ -69,7 +69,7 @@ $(document).ready(function() {
 
     var pool = svg.append("circle")
         .style("stroke-width", 5)
-        .style("stroke", "black")
+        .style("stroke", rainbowBlue.colorAt(1.0))
         .style("fill", "white")
         .attrs({
             class: "pool",
@@ -523,7 +523,9 @@ function draw(graph) {
             .append("line")
             .attr("term-source", function(l) { return l.source; })
             .attr("term-target", function(l) { return l.target; })
-            .attr("stroke-width", function(l) { return Math.sqrt(l.value); })
+            .attr("stroke-width", function(l) {
+                return l.alpha == 1.0 ? 1.5 : 1.0;
+            })
             .style("opacity", function(l) { return l.alpha; } );
 
     var node = svg.append("g")

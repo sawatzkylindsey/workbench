@@ -318,7 +318,7 @@ class Graph(object):
                 if distance is None:
                     distance = math.pow(self.max_distance(bias), 2)
 
-                bias_factor = 1.0 / (1.0 + ((0.25 * distance) / 1.0))
+                bias_factor = 1.0 / (1.0 + ((0.25 * distance) / self.log_len))
 
             out[k] = damping_constant + leak_constant + (damping * v * bias_factor)
 

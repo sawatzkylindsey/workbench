@@ -222,7 +222,6 @@ class Termnet:
         return self.properties.dump()
 
     def get_metric(self, metric, term):
-        term = self.map_term(term)
         value = None
 
         while value is None:
@@ -401,11 +400,10 @@ class TermnetSession:
         self.highlight_points.discard(term)
 
     def focus(self, term):
-        term = self.termnet.map_term(term)
-
         if term is None:
             assert self.focus_metric in Termnet.UNBIASED
         else:
+            term = self.termnet.map_term(term)
             assert term in self.termnet.graph
 
         for k, v in self.termnet.get_metric(self.focus_metric, term).items():

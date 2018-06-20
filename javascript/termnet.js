@@ -169,17 +169,17 @@ $(document).ready(function() {
 
     simulation = d3.forceSimulation()
         .force("link", d3.forceLink()
-            .distance(80)
-            .strength(0.05)
-            .id(function(d) { return d.name; })
+            .distance(function(link) { return link.distance; })
+            .strength(0.5)
+            .id(function(node) { return node.name; })
         )
         .force("charge", d3.forceManyBody()
-            .strength(-50)
+            .strength(-100)
             .distanceMin(10)
             .distanceMax(pool_radius * 1.5)
         )
-        .force("x", d3.forceX(center_x).strength(0.05))
-        .force("y", d3.forceY(center_y).strength(0.05));
+        .force("x", d3.forceX(center_x).strength(0.1))
+        .force("y", d3.forceY(center_y).strength(0.1));
 
     console.log("initial reset");
     reset(null);
@@ -526,7 +526,10 @@ function draw(graph) {
             .attr("stroke-width", function(l) {
                 return l.alpha == 1.0 ? 1.5 : 1.0;
             })
-            .style("opacity", function(l) { return l.alpha; } );
+            .style("opacity", function(l) { return l.alpha; })
+            .on("mouseover", function(l) {
+                console.log(l.count);
+            });
 
     var node = svg.append("g")
         .attr("class", "nodes")

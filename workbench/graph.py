@@ -103,7 +103,7 @@ class Graph(object):
 
         self.all_nodes = all_nodes
         self.kind = check.check_one_of(kind, [Graph.DIRECTED, Graph.UNDIRECTED])
-        self.log_len = math.log(len(self.all_nodes) + 1)
+        self.log_len = math.log10(len(self.all_nodes) + 1)
         self.indexes = {}
 
         for node in self.all_nodes:
@@ -206,10 +206,10 @@ class Graph(object):
 
     def max_distance(self, identifier):
         if identifier not in self._max_distances:
-            # The background calculation hasn't yet processed identifier_a.
+            # The background calculation hasn't yet processed identifier.
             # So just quickly run it on demand.
             try:
-                node = self[identifier_a]
+                node = self[identifier]
                 self._calculate_distance(node)
             except KeyError as e:
                 pass

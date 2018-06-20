@@ -25,9 +25,8 @@ from workbench.nlp import stem as CANONICALIZE
 
 
 TOP = 10
-BIAS_RELATED = 0.05
-BOTTOM_K = 0.1
-HARD_CAP = 1000
+MAX_LINK = 200
+MIN_LINK = 10
 
 
 def main():
@@ -78,7 +77,6 @@ def build(input_text, input_format, window, keep):
 
     bottom_percent = (100.0 - keep) / 100.0
     cutoff = max(int(maximum * bottom_percent), 1)
-    #print("cutoff: %d" % cutoff)
     logging.debug("maximum: %s, cutoff: %s" % (maximum, cutoff))
     inflection_sentences = {}
     excluded_terms = set()
@@ -169,7 +167,6 @@ class Termnet:
 
     def __init__(self, graph, lemma_map, term_map, sentences, properties):
         self.graph = graph
-        print(lemma_map)
         self.lemma_map = lemma_map
         self.term_map = term_map
         self.sentences = sentences
@@ -506,10 +503,31 @@ class TermnetSession:
         neighbour_links = set()
         highlight_links = set()
         cascade_points = set()
+        link_counts = {}
+        min_link_count = None
+        max_link_count = None
         best = 0
         summary = ""
 
         for link in self.termnet.graph.links():
+            try:
+                sentences_a = [s for s in self.termnet.sentences[link.source][link.target]]
+            except KeyError as e:
+                sentences_a = []
+
+            try:
+                sentences_b = [s for s in self.termnet.sentences[link.target][link.source]]
+            except KeyError as e:
+                sentences_b = []
+
+            link_counts[link] = len(sentences_a) + len(sentences_b)
+
+            if min_link_count is None or link_counts[link] < min_link_count:
+                min_link_count = link_counts[link]
+
+            if max_link_count is None or link_counts[link] > max_link_count:
+                max_link_count = link_counts[link]
+
             if link.source in selected_nodes and link.target in selected_nodes:
                 selected_links.add(link)
                 score = node_ranks[link.source] + node_ranks[link.target]
@@ -517,18 +535,7 @@ class TermnetSession:
                 if score > best:
                     logging.debug("New best score %.5f with %s and %s." % (score, link.source, link.target))
                     best = score
-
-                    try:
-                        alpha = [s for s in self.termnet.sentences[link.source][link.target]]
-                    except KeyError as e:
-                        alpha = []
-
-                    try:
-                        beta = [s for s in self.termnet.sentences[link.target][link.source]]
-                    except KeyError as e:
-                        beta = []
-
-                    summary = "|||".join(alpha + beta)
+                    summary = "|||".join(sentences_a + sentences_b)
             elif (link.source in selected_nodes and link.target in neighbour_nodes) \
                 or (link.source in neighbour_nodes and link.target in selected_nodes) \
                 or (link.source in neighbour_nodes and link.target in neighbour_nodes):
@@ -549,14 +556,20 @@ class TermnetSession:
             cascade_nodes.add(point)
             neighbour_nodes.remove(point)
 
+        size = len(selected_nodes) + len(cascade_nodes) + len(neighbour_nodes)
+        min_link_count = float(min_link_count)
+        max_link_count = float(max_link_count)
+        #rate = float(max_link_count) - min_link_count
+        #scaler = lambda x: (x / rate) - (min_link_count / rate)
+
         return {
             "nodes": [self._node(node_ranks, identifier, alpha_dark) for identifier in selected_nodes] \
                 + [self._node(node_ranks, identifier, alpha_medium) for identifier in cascade_nodes] \
                 + [self._node(node_ranks, identifier, alpha_light) for identifier in neighbour_nodes],
-            "links": [self._link(link, alpha_dark) for link in selected_links] \
-                + [self._link(link, alpha_light) for link in neighbour_links],
+            "links": [self._link(link, alpha_dark, link_counts[link], size) for link in selected_links] \
+                + [self._link(link, alpha_light, link_counts[link], size) for link in neighbour_links],
             "summary": summary,
-            "size": len(selected_nodes) + len(cascade_nodes) + len(neighbour_nodes),
+            "size": size,
             "selection": len(selected_nodes) + len(cascade_nodes),
         }
 
@@ -569,11 +582,15 @@ class TermnetSession:
             "coeff": self._coeff(identifier),
         }
 
-    def _link(self, link, alpha):
+    def _link(self, link, alpha, count, size):
         return {
             "source": self._name(link.source),
             "target": self._name(link.target),
             "alpha": alpha,
+            "count": count,
+            #"distance": (-(MAX_LINK - MIN_LINK) * scaled_count) + MAX_LINK
+            #"distance": ((MAX_LINK - MIN_LINK) / (1.0 + (0.05 * count * math.log10(size)))) + MIN_LINK,
+            "distance": ((MAX_LINK - MIN_LINK) / (1.0 + (count * math.log10(size + 1)))) + MIN_LINK,
         }
 
     def _name(self, term):

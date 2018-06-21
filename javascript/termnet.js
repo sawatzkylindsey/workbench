@@ -24,8 +24,9 @@ var graphMeta = null;
 var graphSummary = null;
 var simulation = null;
 function restartSimulation() {
-    simulation = simulation.alphaTarget(0.2)
+    simulation = simulation.alphaTarget(0.1)
         .alphaDecay(0.75)
+        .velocityDecay(0.75)
         .restart();
 }
 var rainbowBlue = new Rainbow();
@@ -499,9 +500,16 @@ function draw(graph) {
             });
         graph.nodes = graph.nodes.map(function(n) {
             if (n.name in previousPositions) {
-                n.fx = previousPositions[n.name].x;
-                n.fy = previousPositions[n.name].y;
                 n.drag = previousPositions[n.name].drag;
+
+                if (n.drag) {
+                    n.fx = previousPositions[n.name].x;
+                    n.fy = previousPositions[n.name].y;
+                }
+                else {
+                    n.x = previousPositions[n.name].x;
+                    n.y = previousPositions[n.name].y;
+                }
             }
             return n;
         });
@@ -528,7 +536,6 @@ function draw(graph) {
             })
             .style("opacity", function(l) { return l.alpha; })
             .on("mouseover", function(l) {
-                console.log(l.count);
             });
 
     var node = svg.append("g")

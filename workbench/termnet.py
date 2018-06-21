@@ -231,6 +231,12 @@ class Termnet:
                 pass
 
             if value is not None and metric in Termnet.BIASED:
+                assert term in self.graph
+
+                while term not in value:
+                    if term in value:
+                        break
+
                 value = value[term]
 
         return value

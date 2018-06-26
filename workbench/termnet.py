@@ -25,8 +25,6 @@ from workbench.nlp import stem as CANONICALIZE
 
 
 TOP = 10
-MAX_LINK = 200
-MIN_LINK = 10
 
 
 def main():
@@ -425,7 +423,7 @@ class TermnetSession:
     def display_previous(self):
         return self.display(self.previous_term)
 
-    def display(self, term):
+    def display(self, term, radius=280):
         if term is None:
             selection = set([n.identifier for n in self.termnet.graph.all_nodes])
         else:
@@ -510,7 +508,6 @@ class TermnetSession:
         highlight_links = set()
         cascade_points = set()
         link_counts = {}
-        min_link_count = None
         max_link_count = None
         best = 0
         summary = ""
@@ -527,9 +524,6 @@ class TermnetSession:
                 sentences_b = []
 
             link_counts[link] = len(sentences_a) + len(sentences_b)
-
-            if min_link_count is None or link_counts[link] < min_link_count:
-                min_link_count = link_counts[link]
 
             if max_link_count is None or link_counts[link] > max_link_count:
                 max_link_count = link_counts[link]
@@ -563,17 +557,16 @@ class TermnetSession:
             neighbour_nodes.remove(point)
 
         size = len(selected_nodes) + len(cascade_nodes) + len(neighbour_nodes)
-        min_link_count = float(min_link_count)
-        max_link_count = float(max_link_count)
-        #rate = float(max_link_count) - min_link_count
-        #scaler = lambda x: (x / rate) - (min_link_count / rate)
+        link_counts_sum = float(sum(link_counts.values()))
+        fill_size = math.pi * math.pow(radius, 2)
+        virtual_width = ((max_link_count / link_counts_sum) * fill_size) / radius
 
         return {
             "nodes": [self._node(node_ranks, identifier, alpha_dark) for identifier in selected_nodes] \
                 + [self._node(node_ranks, identifier, alpha_medium) for identifier in cascade_nodes] \
                 + [self._node(node_ranks, identifier, alpha_light) for identifier in neighbour_nodes],
-            "links": [self._link(link, alpha_dark, link_counts[link], size) for link in selected_links] \
-                + [self._link(link, alpha_light, link_counts[link], size) for link in neighbour_links],
+            "links": [self._link(link, alpha_dark, ((link_counts[link] / link_counts_sum) * fill_size) / virtual_width) for link in selected_links] \
+                + [self._link(link, alpha_light, ((link_counts[link] / link_counts_sum) * fill_size) / virtual_width) for link in neighbour_links],
             "summary": summary,
             "size": size,
             "selection": len(selected_nodes) + len(cascade_nodes),
@@ -588,15 +581,12 @@ class TermnetSession:
             "coeff": self._coeff(identifier),
         }
 
-    def _link(self, link, alpha, count, size):
+    def _link(self, link, alpha, distance):
         return {
             "source": self._name(link.source),
             "target": self._name(link.target),
             "alpha": alpha,
-            "count": count,
-            #"distance": (-(MAX_LINK - MIN_LINK) * scaled_count) + MAX_LINK
-            #"distance": ((MAX_LINK - MIN_LINK) / (1.0 + (0.05 * count * math.log10(size)))) + MIN_LINK,
-            "distance": ((MAX_LINK - MIN_LINK) / (1.0 + (count * math.log10(size + 1)))) + MIN_LINK,
+            "distance": distance,
         }
 
     def _name(self, term):

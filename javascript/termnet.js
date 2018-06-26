@@ -171,16 +171,16 @@ $(document).ready(function() {
     simulation = d3.forceSimulation()
         .force("link", d3.forceLink()
             .distance(function(link) { return link.distance; })
-            .strength(0.5)
+            .strength(0.6)
             .id(function(node) { return node.name; })
         )
         .force("charge", d3.forceManyBody()
-            .strength(-100)
+            .strength(-200)
             .distanceMin(10)
             .distanceMax(pool_radius * 1.5)
         )
-        .force("x", d3.forceX(center_x).strength(0.1))
-        .force("y", d3.forceY(center_y).strength(0.1));
+        .force("x", d3.forceX(center_x).strength(0.2))
+        .force("y", d3.forceY(center_y).strength(0.2));
 
     console.log("initial reset");
     reset(null);

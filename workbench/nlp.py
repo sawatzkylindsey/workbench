@@ -4,6 +4,7 @@
 import logging
 from nltk.stem import SnowballStemmer
 import nltk
+import random
 import pdb
 from pytils import base, check
 import re
@@ -12,12 +13,12 @@ import re
 from workbench.trie import Node
 
 
+SENTENCE_BREAK = "SB%s" % random.randrange(1000)
+QUESTION_BREAK = "QB%s" % random.randrange(1000)
+EXCLAMATION_BREAK = "EB%s" % random.randrange(1000)
+PARAGRAPH_BREAK = "PB%s" % random.randrange(1000)
 STEMMER = SnowballStemmer("english")
-SENTENCE_SEPARATORS = {
-    ".": True,
-    "?": True,
-    "!": True,
-}
+SENTENCE_SEPARATORS = set([SENTENCE_BREAK, QUESTION_BREAK, EXCLAMATION_BREAK])
 
 
 def stem(word):
@@ -29,20 +30,25 @@ def stem(word):
 
 
 def split_words(corpus):
-    return nltk.word_tokenize(corpus)
+    return re.findall("[\w\.]+", re.sub("(\s*\n\s*){2,}", " %s " % PARAGRAPH_BREAK,
+        re.sub("!", " %s " % EXCLAMATION_BREAK, re.sub("\?", " %s " % QUESTION_BREAK, re.sub("\.(?!\w+)", " %s " % SENTENCE_BREAK, corpus)))))
 
 
-def split_sentences(corpus):
+def split_sentences(corpus, paragraphs=False):
     words = split_words(corpus)
     sentences = []
     sentence = []
 
     for word in words:
-        if word in SENTENCE_SEPARATORS:
+        if paragraphs and word == PARAGRAPH_BREAK:
+            sentences += [sentence]
+            sentence = []
+        elif not paragraphs and word in SENTENCE_SEPARATORS:
             sentences += [sentence]
             sentence = []
         else:
-            sentence += [word]
+            if word not in SENTENCE_SEPARATORS and word != PARAGRAPH_BREAK:
+                sentence += [word]
 
     if len(sentence) != 0:
         sentences += [sentence]

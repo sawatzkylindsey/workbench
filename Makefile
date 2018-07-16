@@ -13,6 +13,7 @@ clean:
 	rm -rf build
 	rm -rf dist
 	rm -rf pytils.egg-info
+	find . -name "*.pyc" -delete
 	coverage erase
 
 build:

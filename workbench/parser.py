@@ -46,13 +46,13 @@ def csv_to_content(input_file):
             yield [CLEANER(cell) for cell in row]
 
 
-def parse_input(input_stream, input_format, window=1):
+def parse_input(input_stream, input_format, window=1, paragraphs=False):
     if format_matches(input_format, GLOSSARY_CSV):
         parser = GlossaryCsv()
     elif format_matches(input_format, WIKIPEDIA_ARTICLES_LIST):
-        parser = WikipediaArticlesList(window)
+        parser = WikipediaArticlesList(window, paragraphs)
     elif format_matches(input_format, TERMS_CONTENT_TEXT):
-        parser = TermsContentText(window)
+        parser = TermsContentText(window, paragraphs)
     else:
         raise ValueError("Unknown input format '%s'." % str(input_format))
 
@@ -131,9 +131,12 @@ class WikipediaArticlesList:
         "See also",
     ]
 
-    def __init__(self, window):
-        assert window >= 1, window
+    def __init__(self, window, paragraphs):
+        assert window is None or window >= 1, window
+        # If paragraphs is set, then window must be 1
+        assert window == 1 or not paragraphs
         self.window = window
+        self.paragraphs = paragraphs
         self.top_percent = 0.05
         self.terms = set()
         self.cooccurrences = {}
@@ -185,7 +188,7 @@ class WikipediaArticlesList:
 
                     if not os.path.exists(self._page_file_contents(page_id)):
                         with open(self._page_file_contents(page_id), "w", encoding="utf-8") as fh:
-                            fh.write(page_content)
+                            fh.write(page_content.replace("\n", "\n\n"))
                         with open(self._page_file_links(page_id), "w", encoding="utf-8") as fh:
                             for link in page_links:
                                 fh.write("%s\n" % link)
@@ -209,7 +212,7 @@ class WikipediaArticlesList:
             with open(self._page_file_contents(page_id), "r", encoding="utf-8") as fh:
                 page_content = fh.read()
 
-            sentences = nlp.split_sentences(page_content)
+            sentences = nlp.split_sentences(page_content, self.paragraphs)
             maximum_offset = math.ceil(float(len(sentences)) / self.window)
 
             for offset in range(0, maximum_offset):
@@ -276,9 +279,12 @@ class WikipediaArticlesList:
 class TermsContentText:
     TERMS_CONTENT_SEPARATOR = "terms_content_separator"
 
-    def __init__(self, window):
+    def __init__(self, window, paragraphs):
         assert window >= 1, window
+        # If paragraphs is set, then window must be 1
+        assert window == 1 or not paragraphs
         self.window = window
+        self.paragraphs = paragraphs
         self.terms = set()
         self.cooccurrences = {}
         self.inflections = nlp.Inflections()
@@ -287,26 +293,21 @@ class TermsContentText:
         content_point = None
 
         for item in input_stream:
-            sentences = nlp.split_sentences(item)
-            i = -1
+            index = item.index(TermsContentText.TERMS_CONTENT_SEPARATOR)
 
-            while content_point is None:
-                i += 1
+            for sentence in nlp.split_sentences(item[0:index]):
+                term = nlp.Term([CANONICALIZER(word) for word in sentence])
+                self.terms.add(term)
+                inflection = nlp.Term(sentence)
+                self.inflections.record(term, inflection)
 
-                if sentences[i] == [TermsContentText.TERMS_CONTENT_SEPARATOR]:
-                    content_point = i + 1
-                    terms_trie = build_trie(self.terms)
-                else:
-                    term = nlp.Term([CANONICALIZER(word) for word in sentences[i]])
-                    self.terms.add(term)
-                    inflection = nlp.Term(sentences[i])
-                    self.inflections.record(term, inflection)
-
-            maximum_offset = math.ceil((float(len(sentences)) - content_point) / self.window)
+            terms_trie = build_trie(self.terms)
+            sentences = nlp.split_sentences(item[len(TermsContentText.TERMS_CONTENT_SEPARATOR) + index:], self.paragraphs)
+            maximum_offset = math.ceil(float(len(sentences)) / self.window)
 
             for offset in range(0, maximum_offset):
-                # List of lists                    vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-                sub_corpus = [word for sentence in sentences[content_point + offset:content_point + offset + self.window] for word in sentence]
+                # List of lists                    vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+                sub_corpus = [word for sentence in sentences[offset:offset + self.window] for word in sentence]
                 reference_terms = nlp.extract_terms(corpus=sub_corpus,
                                                     terms_trie=terms_trie,
                                                     lemmatizer=CANONICALIZER,

@@ -46,11 +46,11 @@ def main():
     return 0
 
 
-def build(input_text, input_format, window, keep):
+def build(input_text, input_format, window, separator, keep):
     check.check_iterable(input_text)
     assert window > 0, window
     assert keep >= 0 and keep <= 100, keep
-    parse = workbench.parser.parse_input(input_text, input_format, window)
+    parse = workbench.parser.parse_input(input_text, input_format, window, separator)
     builder = GraphBuilder(Graph.UNDIRECTED)
     count_histogram = {}
 

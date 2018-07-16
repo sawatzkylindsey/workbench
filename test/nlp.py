@@ -50,6 +50,37 @@ class Tests(TestCase):
         self.assertEqual(extract_terms(split_words(corpus), man_trie), set([man]))
         self.assertEqual(extract_terms(split_words(corpus), little_man_trie), set([little_man]))
 
+    def test_split_sentences(self):
+        self.assertEqual(split_sentences("once there was a little man"),
+            [["once", "there", "was", "a", "little", "man"]])
+        self.assertEqual(split_sentences("once there was. a little man"),
+            [["once", "there", "was"], ["a", "little", "man"]])
+        self.assertEqual(split_sentences("once there was? a little man"),
+            [["once", "there", "was"], ["a", "little", "man"]])
+        self.assertEqual(split_sentences("once there was! a little man"),
+            [["once", "there", "was"], ["a", "little", "man"]])
+        self.assertEqual(split_sentences("once there was!\n\n\na little man"),
+            [["once", "there", "was"], ["a", "little", "man"]])
+        self.assertEqual(split_sentences("once there was. a\n\nlittle man"),
+            [["once", "there", "was"], ["a", "little", "man"]])
+        self.assertEqual(split_sentences("once there was.  a little man."),
+            [["once", "there", "was"], ["a", "little", "man"]])
+
+        self.assertEqual(split_sentences("once there was a little man", True),
+            [["once", "there", "was", "a", "little", "man"]])
+        self.assertEqual(split_sentences("once there was. a little man", True),
+            [["once", "there", "was", "a", "little", "man"]])
+        self.assertEqual(split_sentences("once there was? a little man", True),
+            [["once", "there", "was", "a", "little", "man"]])
+        self.assertEqual(split_sentences("once there was! a little man", True),
+            [["once", "there", "was", "a", "little", "man"]])
+        self.assertEqual(split_sentences("once there was!\n\n\na little man", True),
+            [["once", "there", "was"], ["a", "little", "man"]])
+        self.assertEqual(split_sentences("once there was. a\n\nlittle man", True),
+            [["once", "there", "was", "a"], ["little", "man"]])
+        self.assertEqual(split_sentences("once there was. a  \n\n  little man", True),
+            [["once", "there", "was", "a"], ["little", "man"]])
+
     def test_term(self):
         a = Term(["fox", "dog"])
         b = Term(["Fox", "dOG"])

@@ -23,6 +23,7 @@ var formater = null;
 var keeper = null;
 var keepDescriptor = null;
 var keepSizer = null;
+var separatorKinder = null;
 var windower = null;
 var windowDescriptor = null;
 var windowSizer = null;
@@ -45,6 +46,7 @@ $(document).ready(function () {
     keepSizer = $("#keepSizer")
         .val("80")
         .change();
+    separatorKinder = $("#separatorKinder");
     windower = $("#windower");
     windowDescriptor = $("#windowDescriptor");
     windowSizer = $("#windowSizer")
@@ -62,16 +64,30 @@ $(document).ready(function () {
     controls.attr("width", center_x - pool_radius - 40)
         .attr("height", height - 40);
     inputer.css("left", center_x - pool_radius);
+    separatorKinder.find(".default")
+        .prop("checked", true)
+        .change();
     kinder.find(".default")
         .prop("checked", true)
         .change();
 });
+function showWindow() {
+    if (separator == "sentence") {
+        windower.css("display", "table-row");
+    } else {
+        windower.css("display", "none");
+    }
+}
+function hideWindow() {
+    windower.css("display", "none");
+}
 var kind = null;
 function selectKind(event) {
     console.log(event);
     if (event.target.value == "preset") {
         keeper.css("display", "table-row");
-        windower.css("display", "table-row");
+        separatorKinder.css("display", "table-row");
+        showWindow();
         preseter.css("display", "table-row");
         preseter.find("select")
             .val(preseter.find(".default").val())
@@ -83,7 +99,8 @@ function selectKind(event) {
     }
     else if (event.target.value == "custom") {
         keeper.css("display", "table-row");
-        windower.css("display", "table-row");
+        separatorKinder.css("display", "table-row");
+        showWindow();
         preseter.css("display", "none");
         inputer.css("display", "block");
         formater.css("display", "table-row");
@@ -97,13 +114,27 @@ function selectKind(event) {
     }
     else if (event.target.value == "session") {
         keeper.css("display", "none");
-        windower.css("display", "none");
+        separatorKinder.css("display", "none");
+        hideWindow();
         preseter.css("display", "none");
         formater.css("display", "none");
         inputer.css("display", "none");
         sessioner.css("display", "table-row");
         kind = "session";
         format = null;
+    }
+}
+var separator = null;
+function selectSeparatorKind(event) {
+    if (event.target.value == "paragraph") {
+        windowSizer = $("#windowSizer")
+            .val("1")
+            .change();
+        separator = "paragraph";
+        hideWindow();
+    } else {
+        separator = "sentence";
+        showWindow();
     }
 }
 function selectKeepSize(event) {
@@ -156,21 +187,24 @@ function selectFormat(event) {
 }
 function selectFormatValue(value) {
     if (value == "content-terms") {
-        windower.css("display", "table-row");
+        separatorKinder.css("display", "table-row");
+        showWindow();
         contentInputer.css("display", "block");
         glossaryInputer.css("display", "none");
         wikipediaInputer.css("display", "none");
         format = "content-terms";
     }
     else if (value == "glossary") {
-        windower.css("display", "none");
+        separatorKinder.css("display", "none");
+        hideWindow();
         contentInputer.css("display", "none");
         glossaryInputer.css("display", "block");
         wikipediaInputer.css("display", "none");
         format = "glossary";
     }
     else if (value == "wikipedia") {
-        windower.css("display", "table-row");
+        separatorKinder.css("display", "table-row");
+        showWindow();
         contentInputer.css("display", "none");
         glossaryInputer.css("display", "none");
         wikipediaInputer.css("display", "block");
@@ -189,6 +223,7 @@ function load(event) {
             "sessionKey": sessionKey,
             "format": format,
             "window": parseInt(windowSizer.val()),
+            "separator": separator,
             "keep": parseInt(keepSizer.val()),
         };
         if (format == "content-terms") {
@@ -248,6 +283,13 @@ function load(event) {
             <td id="keepDescriptor" class="description" title="Select the top percentage of co-occurrence counts keep."></td>
             <td>
                 <input type="range" id="keepSizer" min="0" max="95" step="5" oninput="selectKeepSize(event)" onchange="selectKeepSize(event)" title="Select the top percentage of co-occurrence counts keep."/>
+            </td>
+        </tr>
+        <tr id="separatorKinder">
+            <td class="description">Separator Kind:</td>
+            <td>
+                <input class="default" type="radio" name="separatorKind" onchange="selectSeparatorKind(event)" value="sentence">Sentence</input>
+                <input type="radio" name="separatorKind" onchange="selectSeparatorKind(event)" value="paragraph">Paragraph</input>
             </td>
         </tr>
         <tr id="windower">

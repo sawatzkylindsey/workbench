@@ -1,22 +1,11 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-#from argparse import ArgumentParser
-#from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
-#from http.server import BaseHTTPRequestHandler, HTTPServer
-#import json
 import logging
-#import mimetypes
-#import os
 import pdb
 import re
-#import SocketServer
-#import sys
-#import urllib
 
 
-#from workbench.graph import GraphBuilder, Graph
-#from workbench.nlp import Term
 from workbench import errors
 from workbench import parser
 from pytils.log import setup_logging, user_log
@@ -49,19 +38,13 @@ class FeConverter:
             except KeyError as e:
                 raise errors.Invalid("Submission invalid - missing 'terms'.").with_traceback(e.__traceback__)
 
-            if not terms.endswith("."):
-                terms += "."
-
-            input_text = "%s %s. %s" % (terms, parser.TermsContentText.TERMS_CONTENT_SEPARATOR, content)
+            input_text = "%s%s%s" % (terms, parser.TermsContentText.TERMS_CONTENT_SEPARATOR, content)
             return self.from_text(input_text, web_format)
         else:
             return self.from_text(content, web_format)
 
     def from_text(self, input_text, input_format):
         logging.debug("%s: %s" % (str(input_format), input_text))
-
-        #if (input_text, input_format) in self.cache:
-        #    return self.cache[(input_text, input_format)]
 
         if input_format == GLOSSARY:
             output_format = parser.GLOSSARY_CSV
@@ -103,10 +86,5 @@ class FeConverter:
             else:
                 raise ValueError("unknown format '%s'" % input_format)
 
-        #termnet = build_termnet(input_stream, input_format)
-        #self.cache[(input_text, input_format)] = input_stream
         return (output_stream, output_format)
-
-    #def from_stream(self, input_stream, input_format):
-    #    return build_termnet(input_stream, input_format)
 

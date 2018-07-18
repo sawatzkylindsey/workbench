@@ -52,12 +52,16 @@ class Tests(TestCase):
         ]
         parse = parse_input(stream, WIKIPEDIA_ARTICLES_LIST)
         self.assertIn(Term(["phanerozo"]), parse.terms)
+        self.assertIn(Term(["permian"]), parse.terms)
         self.assertIn(Term(["gravit"]), parse.terms)
+        self.assertIn(Term(["mass"]), parse.terms)
+
         self.assertGreater(len(parse.terms), 200)
         self.assertGreaterEqual(len(parse.cooccurrences[Term(["phanerozo"])][Term(["permian"])]), 1)
         self.assertEqual(len(parse.cooccurrences[Term(["permian"])][Term(["phanerozo"])]), len(parse.cooccurrences[Term(["phanerozo"])][Term(["permian"])]))
-        self.assertGreaterEqual(len(parse.cooccurrences[Term(["gravit"])][Term(["star"])]), 1)
-        self.assertEqual(len(parse.cooccurrences[Term(["star"])][Term(["gravit"])]), len(parse.cooccurrences[Term(["gravit"])][Term(["star"])]))
+        self.assertGreaterEqual(len(parse.cooccurrences[Term(["gravit"])][Term(["mass"])]), 1)
+        self.assertEqual(len(parse.cooccurrences[Term(["mass"])][Term(["gravit"])]), len(parse.cooccurrences[Term(["gravit"])][Term(["mass"])]))
+
         self.assertEqual(parse.inflections.to_inflection(Term(["phanerozo"])), Term(["phanerozoic"]))
         self.assertEqual(parse.inflections.to_inflection(Term(["gravit"])), Term(["gravitation"]))
 

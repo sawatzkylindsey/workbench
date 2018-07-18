@@ -8,6 +8,7 @@ import pdb
 import threading
 
 from pytils import base, check
+from workbench import util
 
 
 class Node(base.Comparable):
@@ -325,9 +326,7 @@ class Graph(object):
         # If no bias was specified, the math works out such that the ranks are already a proper probabily distribution.
         # Otherwise, we need to rescale.
         if bias is not None:
-            total = sum(out.values())
-            scale = 1.0 / total
-            out = {k: scale * v for k, v in out.items()}
+            out = util.scale(out)
 
         assert math.isclose(1.0, sum(out.values()), abs_tol=0.005), sum(out.values())
         return out

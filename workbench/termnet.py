@@ -22,6 +22,7 @@ from pytils.log import setup_logging, user_log
 import workbench.parser
 from workbench.nlp import Term
 from workbench.nlp import stem as CANONICALIZE
+from workbench import util
 
 
 TOP = 10
@@ -190,28 +191,14 @@ class Termnet:
     def calculate_ranks(self):
         page_rank = self.graph.page_rank()
         self._metrics[Termnet.PR] = page_rank
-        self._metrics[Termnet.IPR] = self._invert_ranks(page_rank)
-        self._metrics[Termnet.CC] = self.graph.clustering_coefficients
-        self._metrics[Termnet.ICC] = self._invert_ranks(self.graph.clustering_coefficients)
+        self._metrics[Termnet.IPR] = util.invert(page_rank)
+        self._metrics[Termnet.CC] = util.scale(self.graph.clustering_coefficients)
+        self._metrics[Termnet.ICC] = util.invert(self.graph.clustering_coefficients)
 
         for node in sorted(self.graph.all_nodes):
             term_page_ranks = self.graph.page_rank(bias=node.identifier)
             self._biased_metrics[Termnet.BPR][node.identifier] = term_page_ranks
-            self._biased_metrics[Termnet.IBPR][node.identifier] = self._invert_ranks(term_page_ranks)
-
-    def _invert_ranks(self, ranks):
-        ceiling = max(ranks.values()) * 2
-        inverse_ranks = {}
-        rolling_sum = 0.0
-
-        for identifier, rank in ranks.items():
-            inverse_rank = ceiling - rank
-            inverse_ranks[identifier] = inverse_rank
-            rolling_sum += inverse_rank
-
-        inverse_ranks = {identifier: rank / rolling_sum for identifier, rank in inverse_ranks.items()}
-        assert math.isclose(1.0, sum(inverse_ranks.values()), abs_tol=0.005), sum(inverse_ranks.value())
-        return inverse_ranks
+            self._biased_metrics[Termnet.IBPR][node.identifier] = util.invert(term_page_ranks)
 
     def meta_data(self):
         return self.properties.dump()
@@ -411,10 +398,7 @@ class TermnetSession:
             assert v >= 0.0 and v <= 1.0, v
             self.rank[k] += v
 
-        total = sum(self.rank.values())
-        scale = 1.0 / total
-        assert scale >= 0.0
-        self.rank = {k: scale * v for k, v in self.rank.items()}
+        self.rank = util.scale(self.rank)
         self.focused = True
 
         if term is not None:
@@ -477,10 +461,7 @@ class TermnetSession:
                 "selection": 0,
             }
 
-        total = sum(node_ranks.values())
-        scale = 1.0 / total
-        assert scale >= 0.0
-        node_ranks = {k: scale * v for k, v in node_ranks.items()}
+        node_ranks = util.scale(node_ranks)
         logging.debug(node_ranks)
         sorted_node_ranks = sorted(filter(lambda item: item[0] not in self.ignore_points, node_ranks.items()), key=lambda item: item[1], reverse=True)
         logging.info("%s: %s" % (sum_subgraph, sorted_node_ranks))

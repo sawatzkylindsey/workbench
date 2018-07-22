@@ -8,9 +8,13 @@
   stroke-width: 1.5px;
 }
 
-.labels {
+.label {
   font-family: "Helvetica Neue", Arial, sans-serif;
   font-size: 14px;
+}
+.barLabel {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
 }
 
 //input {

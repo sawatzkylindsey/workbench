@@ -5,13 +5,18 @@ import math
 
 
 def scale(ranks):
+    assert len(ranks) > 0, ranks
     total = 0.0
 
     for k, v in ranks.items():
         assert v >= 0.0 and v <= 1.0
         total += v
 
-    return {k: v / total for k, v in ranks.items()}
+    if total == 0.0:
+        uniform = 1.0 / len(ranks)
+        return {k: uniform for k, v in ranks.items()}
+    else:
+        return {k: v / total for k, v in ranks.items()}
 
 
 def invert(ranks):

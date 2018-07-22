@@ -222,7 +222,7 @@ class Termnet:
         self._metrics[Termnet.PR] = page_rank
         self._metrics[Termnet.IPR] = util.invert(page_rank)
         self._metrics[Termnet.CC] = util.scale(self.graph.clustering_coefficients)
-        self._metrics[Termnet.ICC] = util.invert(self.graph.clustering_coefficients)
+        self._metrics[Termnet.ICC] = util.invert(self._metrics[Termnet.CC])
 
         for node in sorted(self.graph.all_nodes):
             term_page_ranks = self.graph.page_rank(bias=node.identifier)

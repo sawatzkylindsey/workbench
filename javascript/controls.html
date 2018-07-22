@@ -2,6 +2,14 @@
 <div style="text-align: center; font-size: 10pt;"><i>Hover for help text, or read the <a href='documentation.html' target="_blank">docs</a>.</i></div></br>
 <table style="border-spacing: 1px;">
     <tr>
+        <td class="description">Properties:</td>
+        <td>
+            <input type="button" id="propertiesToggler" onclick="toggleProperties(event)" value="Show"/>
+            <input type="button" id="includedToggler" onclick="toggleIncluded(event)" value="Hide Included" style="display: none;"/>
+            <input type="button" id="excludedToggler" onclick="toggleExcluded(event)" value="Hide Excluded" style="display: none;"/>
+        </td>
+    </tr>
+    <tr>
         <td class="description" title="Affect the nodes in the termnet in some way.">Nodes:</td>
         <td>
             <input type="button" id="releaser" onclick="release(event)" value="Release" title="Allow the nodes to move freely based off the animation rules."/>

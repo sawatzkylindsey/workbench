@@ -1,53 +1,52 @@
-<div style="font-size: 10pt;">
-<div style="text-align: center;">Properties</div></br>
-<table style="margin: auto;">
-    <tr>
-        <td class="description">Terms:</td>
-        <td>
-            <span id="termCount"></span>
-        </td>
-    </tr>
-    <tr>
-        <td class="description" title="The minumum number of observed term cooccurrences.">Count Min:</td>
-        <td>
-            <span id="termCooccurrenceMinimum"></span>
-        </td>
-    </tr>
-    <tr>
-        <td class="description" title="The maximum number of observed term cooccurrences.">Count Max:</td>
-        <td>
-            <span id="termCooccurrenceMaximum"></span>
-        </td>
-    </tr>
-    <tr>
-        <td class="description" title="The average number of observed term cooccurrences.">Count Average:</td>
-        <td>
-            <span id="termCooccurrenceAverage"></span>
-        </td>
-    </tr>
-    <tr>
-        <td class="description" title="The cutoff value of term cooccurrences used to populate the termnet.">Count Cutoff:</td>
-        <td>
-            <span id="termCooccurrenceCutoff"></span>
-        </td>
-    </tr>
-</table>
-<div style="display: flex;">
-    <div id="includedWrapper" style="float: left; width: 50%;">
-        <span>Included</span>
-        <input type="button" id="includedToggler" onclick="toggleIncluded(event)" value="Hide" title="Toggle the included list."/>
-        <div style="padding: 2px; height: 500px; overflow-y: scroll;">
-            <div id="includedList">
+<div id="properties" style="display: none; font-size: 10pt;">
+    <div style="text-align: center;">Properties</div></br>
+    <table style="margin: auto;">
+        <tr>
+            <td class="description">Terms:</td>
+            <td>
+                <span id="termCount"></span>
+            </td>
+        </tr>
+        <tr>
+            <td class="description" title="The minumum number of observed term cooccurrences.">Count Min:</td>
+            <td>
+                <span id="termCooccurrenceMinimum"></span>
+            </td>
+        </tr>
+        <tr>
+            <td class="description" title="The maximum number of observed term cooccurrences.">Count Max:</td>
+            <td>
+                <span id="termCooccurrenceMaximum"></span>
+            </td>
+        </tr>
+        <tr>
+            <td class="description" title="The average number of observed term cooccurrences.">Count Average:</td>
+            <td>
+                <span id="termCooccurrenceAverage"></span>
+            </td>
+        </tr>
+        <tr>
+            <td class="description" title="The cutoff value of term cooccurrences used to populate the termnet.">Count Cutoff:</td>
+            <td>
+                <span id="termCooccurrenceCutoff"></span>
+            </td>
+        </tr>
+    </table>
+    <div style="display: flex;">
+        <div id="includedWrapper" style="float: left; width: 50%;">
+            <span>Included</span>
+            <div style="padding: 2px; height: 400px;"><!-- overflow-y: scroll;">-->
+                <div id="includedList">
+                </div>
             </div>
         </div>
-    </div>
-    <div id="excludedWrapper" style="float left; width: 50%;">
-        <span>Excluded</span>
-        <input type="button" id="excludedToggler" onclick="toggleExcluded(event)" value="Hide" title="Toggle the excluded list."/>
-        <div style="padding: 2px; height: 500px; overflow-y: scroll;">
-            <div id="excludedList">
+        <div id="excludedWrapper" style="float left; width: 50%;">
+            <span>Excluded</span>
+            <div style="padding: 2px; height: 400px;"><!-- overflow-y: scroll;">-->
+                <div id="excludedList">
+                </div>
             </div>
         </div>
     </div>
 </div>
-</div>
+

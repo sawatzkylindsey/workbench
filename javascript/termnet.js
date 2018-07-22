@@ -40,16 +40,23 @@ var MAX_RADIUS = 50;
 var width = 1200;
 var height = 700;
 var side_width = 275;
-var svg_width = 650;
-var center_x = svg_width / 2.0;
+var middle_width = 650;
+var center_x = middle_width / 2.0;
 var center_y = height / 2.0;
 var pool_radius = height / 2.5;
+var poolColour = "#001e84";
+var barHeight = 16;
+var padding = 0.5;
+var startY = (height - (2 * pool_radius)) / 2.0;
+var endY = startY + (2 * pool_radius);
 //var control_width = center_x - pool_radius - 40;
 var termCount = null;
 var termCooccurrenceMinimum = null;
 var termCooccurrenceMaximum = null;
 var termCooccurrenceAverage = null;
 var termCooccurrenceCutoff = null;
+var propertiesToggler = null;
+var properties = null;
 var includedList = null;
 var includedToggler = null;
 var included = null;
@@ -59,12 +66,12 @@ var excluded = null;
 
 $(document).ready(function() {
     svg = d3.select("svg");
-    svg.attr("width", svg_width)
+    svg.attr("width", middle_width + side_width)
         .attr("height", height);
 
     var pool = svg.append("circle")
         .style("stroke-width", 5)
-        .style("stroke", "#001e84")
+        .style("stroke", poolColour)
         .style("fill", "white")
         .attrs({
             class: "pool",
@@ -108,58 +115,68 @@ $(document).ready(function() {
     var metaFo = svg.append("foreignObject")
         .attr("transform", "translate(" + 0 + "," + 10 + ")")
         //.attr("transform", "translate(" + (center_x - pool_radius) + "," + 15 + ")")
-        .attr("width", svg_width)
+        .attr("width", middle_width)
         .attr("height", ((height - (pool_radius * 2))/ 2) - 20);
     graphMeta = metaFo.append("xhtml:div")
         .attr("id", "graphMeta")
-        .attr("class", "labels")
+        .attr("class", "label")
         .style("text-align", "center")
         .text("loading..");
     var summaryFo = svg.append("foreignObject")
         .attr("transform", "translate(" + 0 + "," + (center_y + pool_radius + 10) + ")")
         //.attr("transform", "translate(" + (center_x - pool_radius) + "," + (center_y * 1.85) + ")")
-        .attr("width", svg_width)
+        .attr("width", middle_width)
         .attr("height", ((height - (pool_radius * 2))/ 2) - 20);
     graphSummary = summaryFo.append("xhtml:div")
         .attr("id", "graphSummary")
-        .attr("class", "labels")
+        .attr("class", "label")
         .style("text-align", "center")
         .text("loading..");
-    /*var propertiesFo = svg.append("foreignObject")
+    var propertiesFo = svg.append("foreignObject")
+        .attr("transform", "translate(" + middle_width + "," + 10 + ")")
+        .attr("width", side_width);
+        //.attr("height", height);
+    propertiesFo.append("xhtml:div")
         .attr("id", "propertiesFo")
-        .attr("transform", "translate(" + (center_x + pool_radius + 20) + ",10)")
-        .attr("width", center_x - pool_radius - 40)
-        .attr("height", height - 40);*/
-    $("#propertiesFo").width(side_width);
+        .attr("width", side_width)
+        .text("loading..");
+    //$("#propertiesFo").width(side_width);
     $("#propertiesFo").load("properties.html", function() {
         termCount = $("#termCount");
         termCooccurrenceMinimum = $("#termCooccurrenceMinimum");
         termCooccurrenceMaximum = $("#termCooccurrenceMaximum");
         termCooccurrenceAverage = $("#termCooccurrenceAverage");
         termCooccurrenceCutoff = $("#termCooccurrenceCutoff");
+        propertiesToggler = $("#propertiesToggler");
+        properties = $("#properties");
         includedList = $("#includedList");
         includedToggler = $("#includedToggler");
         excludedList = $("#excludedList");
         excludedToggler = $("#excludedToggler");
-    d3.json("properties")
-        .header("session-key", sessionKey)
-        .post("", function(error, data) {
-            termCount.text("" + data.total_terms);
-            termCooccurrenceMinimum.text("" + data.minimum_cooccurrence_count);
-            termCooccurrenceMaximum.text("" + data.maximum_cooccurrence_count);
-            termCooccurrenceAverage.text(("" + data.average_cooccurrence_count).substring(0, 4));
-            termCooccurrenceCutoff.text("" + data.cutoff_cooccurrence_count);
-            included = Array.from(data.included);
-            included.sort();
-            included.forEach(function(item) {
-                includedList.append("<span style='font-size: 8pt;'>&bull; " + item + "</span></br>");
+        //svgRight = d3.select("svgRight");
+        //svgRight.attr("width", side_width)
+        //    .attr("height", height);
+    //svg.attr("width", svg_width)
+    //    .attr("height", height);
+        d3.json("properties")
+            .header("session-key", sessionKey)
+            .post("", function(error, data) {
+                termCount.text("" + data.total_terms);
+                termCooccurrenceMinimum.text("" + data.minimum_cooccurrence_count);
+                termCooccurrenceMaximum.text("" + data.maximum_cooccurrence_count);
+                termCooccurrenceAverage.text(("" + data.average_cooccurrence_count).substring(0, 4));
+                termCooccurrenceCutoff.text("" + data.cutoff_cooccurrence_count);
+                included = Array.from(data.included);
+                included.sort();
+                included.forEach(function(item) {
+                    includedList.append("<span style='font-size: 8pt;'>&bull; " + item + "</span></br>");
+                });
+                excluded = Array.from(data.excluded);
+                excluded.sort();
+                excluded.forEach(function(item) {
+                    excludedList.append("<span style='font-size: 8pt;'>&bull; " + item + "</span></br>");
+                });
             });
-            excluded = Array.from(data.excluded);
-            excluded.sort();
-            excluded.forEach(function(item) {
-                excludedList.append("<span style='font-size: 8pt;'>&bull; " + item + "</span></br>");
-            });
-        });
     });
 
     simulation = d3.forceSimulation()
@@ -456,23 +473,44 @@ function toggleIgnores(event) {
         ignores.parent().css("display", "block");
     }
 }
+function toggleProperties(event) {
+    if (propertiesToggler.val() == "Hide") {
+        propertiesToggler.val("Show");
+        properties.css("display", "none");
+        includedToggler.css("display", "none");
+        excludedToggler.css("display", "none");
+        svg.selectAll(".bar")
+            .style("opacity", 1.0);
+        svg.selectAll(".barLabel")
+            .style("opacity", 1.0);
+    } else {
+        propertiesToggler.val("Hide");
+        properties.css("display", "block");
+        includedToggler.css("display", "block");
+        excludedToggler.css("display", "block");
+        svg.selectAll(".bar")
+            .style("opacity", 0.2);
+        svg.selectAll(".barLabel")
+            .style("opacity", 0.2);
+    }
+}
 function toggleIncluded(event) {
-    if (includedToggler.val() == "Hide") {
+    if (includedToggler.val() == "Hide Included") {
         var suffix = included.length == 0 ? "" : " (" + included.length + ")";
-        includedToggler.val("Show" + suffix);
+        includedToggler.val("Show Included" + suffix);
         includedList.parent().css("display", "none");
     } else {
-        includedToggler.val("Hide");
+        includedToggler.val("Hide Included");
         includedList.parent().css("display", "block");
     }
 }
 function toggleExcluded(event) {
-    if (excludedToggler.val() == "Hide") {
+    if (excludedToggler.val() == "Hide Excluded") {
         var suffix = excluded.length == 0 ? "" : " (" + excluded.length + ")";
-        excludedToggler.val("Show" + suffix);
+        excludedToggler.val("Show Excluded" + suffix);
         excludedList.parent().css("display", "none");
     } else {
-        excludedToggler.val("Hide");
+        excludedToggler.val("Hide Excluded");
         excludedList.parent().css("display", "block");
     }
 }
@@ -512,6 +550,7 @@ function draw(graph) {
 
     firstDraw = false;
     svg.selectAll("g").remove();
+    //svgRight.selectAll("g").remove();
     graphMeta.html("<span>Nodes: " + graph.size + "</span></br><span>Selection: " + graph.selection + "</span>");
     graphSummary.text(graph.summary);
 
@@ -561,16 +600,54 @@ function draw(graph) {
                 .on("end", dragended));
 
     var labels = svg.append("g")
-        .attr("class", "label")
+        .attr("class", "labels")
         .selectAll("bobbobobo")
         .data(graph.nodes)
         .enter()
             .append("text")
             .style("pointer-events", "none")
-            .attr("class", "labels")
+            .attr("class", "label")
             .attr("stroke", "black")
             .attr("term", function(d) { return d.name; })
             .style("opacity", function(d) { return d.alpha / 1.5; })
+            .text(function (d) { return d.name; });
+
+    var maximumBars = Math.floor((endY - startY) / barHeight);
+    var barNodes = graph.nodes.slice(0).sort(function(a, b) { return d3.descending(a.rank, b.rank); });
+    barNodes = barNodes.slice(0, maximumBars);
+    var x = d3.scaleLinear([0, side_width])
+        .domain([0, d3.max(barNodes, function(d) {
+            return d.rank;
+        })]);
+    var y = d3.scaleBand()
+        .range([startY, startY + (barNodes.length * barHeight)])
+        .domain(barNodes.map(function(d) { return d.name; }));
+    var bars = svg.append("g")
+        .attr("class", "bars")
+        .selectAll("bobboboobobobob")
+        .data(barNodes)
+        .enter()
+            .append("rect")
+            .attr("class", "bar")
+            .attr("y", function(d) { return y(d.name); })
+            .attr("height", barHeight - padding)
+            .attr("x", middle_width)
+            .attr("width", function(d) { return (side_width * 0.9) * x(d.rank); })
+            .style("fill", poolColour)
+            .style("opacity", 1.0);
+    var barLabels = svg.append("g")
+        .attr("class", "barLabels")
+        .selectAll("sdfasfdkajfbobob")
+        .data(barNodes)
+        .enter()
+            .append("text")
+            .attr("class", "barLabel")
+            .attr("y", function(d) { return y(d.name) + 12; })
+            .attr("x", middle_width + 2)
+            .style("pointer-events", "none")
+            //.attr("class", "label")
+            //.attr("stroke", "white")
+            .attr("fill", "#7796ff")
             .text(function (d) { return d.name; });
 
     simulation.nodes(graph.nodes)
@@ -644,7 +721,7 @@ function dragstarted(d) {
 }
 
 function dragged(d) {
-    if (d3.event.x > 10 && d3.event.x < (svg_width - 10)) {
+    if (d3.event.x > 10 && d3.event.x < (middle_width - 10)) {
         d.fx = d3.event.x;
     }
 

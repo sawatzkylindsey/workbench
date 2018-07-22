@@ -151,6 +151,7 @@ class Graph(object):
 
                     cc = count / numerator
 
+            assert cc >= 0.0, cc
             ccs[node.identifier] = cc
 
         return ccs

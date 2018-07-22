@@ -82,10 +82,23 @@ class ServerHandler(BaseHTTPRequestHandler):
             self.server.sessions[data["sessionKey"][0]] = termnet_session
             self._read_write_file("./javascript/termnet.html")
         else:
-            try:
-                termnet_session = self.server.sessions[session_key]
-            except KeyError as e:
-                raise errors.Invalid("Unknown session '%s'." % session_key).with_traceback(e.__traceback__)
+            if "&" in session_key and session_key not in self.server.sessions:
+                parts = session_key.split("&")
+
+                try:
+                    termnet_session_left = self.server.sessions[parts[0]]
+                    termnet_session_right = self.server.sessions[parts[1]]
+                except KeyError as e:
+                    raise errors.Invalid("Unknown session '%s'." % session_key).with_traceback(e.__traceback__)
+
+                termnet = termnet_session_left.termnet.compare_with(termnet_session_right.termnet)
+                termnet_session = TermnetSession(termnet)
+                self.server.sessions[session_key] = termnet_session
+            else:
+                try:
+                    termnet_session = self.server.sessions[session_key]
+                except KeyError as e:
+                    raise errors.Invalid("Unknown session '%s'." % session_key).with_traceback(e.__traceback__)
 
             out = self.__getattribute__(self.path[1:].replace("/", "_"))(termnet_session, data)
 

@@ -28,6 +28,7 @@ var windower = null;
 var windowDescriptor = null;
 var windowSizer = null;
 var sessioner = null;
+var comparer = null;
 var loader = null;
 var noticer = null;
 var inputer = null;
@@ -53,6 +54,7 @@ $(document).ready(function () {
         .val("1")
         .change();
     sessioner = $("#sessioner");
+    comparer = $("#comparer");
     loader = $("#loader");
     noticer = $("#noticer");
     inputer = $("#inputer");
@@ -95,6 +97,7 @@ function selectKind(event) {
         inputer.css("display", "block");
         formater.css("display", "none");
         sessioner.css("display", "none");
+        comparer.css("display", "none");
         kind = "preset";
     }
     else if (event.target.value == "custom") {
@@ -110,6 +113,7 @@ function selectKind(event) {
         $(".content").val("");
         $(".terms").val("");
         sessioner.css("display", "none");
+        comparer.css("display", "none");
         kind = "custom";
     }
     else if (event.target.value == "session") {
@@ -120,7 +124,20 @@ function selectKind(event) {
         formater.css("display", "none");
         inputer.css("display", "none");
         sessioner.css("display", "table-row");
+        comparer.css("display", "none");
         kind = "session";
+        format = null;
+    }
+    else if (event.target.value == "compare") {
+        keeper.css("display", "none");
+        separatorKinder.css("display", "none");
+        hideWindow();
+        preseter.css("display", "none");
+        formater.css("display", "none");
+        inputer.css("display", "none");
+        sessioner.css("display", "none");
+        comparer.css("display", "table-row");
+        kind = "compare";
         format = null;
     }
 }
@@ -155,6 +172,16 @@ function selectPreset(event) {
             contentInputer.find(".content").val(data);
         });
         $.get("SampleContentTerms.terms", function(data) {
+            contentInputer.find(".terms").val(data);
+        });
+    }
+    else if (event.target.value == "psychology-content-terms") {
+        windower.css("display", "table-row");
+        selectFormatValue("content-terms");
+        $.get("PsychologyContentTerms.content", function(data) {
+            contentInputer.find(".content").val(data);
+        });
+        $.get("PsychologyContentTerms.terms", function(data) {
             contentInputer.find(".terms").val(data);
         });
     }
@@ -217,7 +244,12 @@ function load(event) {
 
     if (kind == "session") {
         window.location.replace("termnet.html#" + sessioner.find("input").val());
-    } else {
+    }
+    else if (kind == "compare") {
+        var inputs = comparer.find("input");
+        window.location.replace("termnet.html#" + inputs[0].value + "&" + inputs[1].value);
+    }
+    else {
         var sessionKey = Math.random().toString(36).substring(5);
         var data = {
             "sessionKey": sessionKey,
@@ -253,9 +285,12 @@ function load(event) {
         <tr id="kinder">
             <td class="description">Kind:</td>
             <td>
-                <input class="default" type="radio" name="kind" onchange="selectKind(event)" value="preset">Preset</input>
-                <input type="radio" name="kind" onchange="selectKind(event)" value="custom">Custom</input>
-                <input type="radio" name="kind" onchange="selectKind(event)" value="session">Session</input>
+                <select onchange="selectKind(event)">
+                    <option class="default" value="preset">Preset</option>
+                    <option value="custom">Custom</option>
+                    <option value="session">Session</option>
+                    <option value="compare">Compare</option>
+                </select>
             </td>
         </tr>
         <tr id="preseter">
@@ -263,6 +298,7 @@ function load(event) {
             <td>
                 <select onchange="selectPreset(event)">
                     <option class="default" value="sample-content-terms">Sample Content Terms</option>
+                    <option value="psychology-content-terms">Psychology Content Terms</option>
                     <option value="astronomy-glossary">Astronomy Glossary</option>
                     <option value="astronomy-wikipedia">Astronomy Wikipedia (curated)</option>
                     <option value="etymology-wikipedia">Etymology Wikipedia (curated)</option>
@@ -301,7 +337,17 @@ function load(event) {
         <tr id="sessioner">
             <td class="description">Session:</td>
             <td>
-                <input type="text"/>
+                <input type="text" style="width: 75px;"/>
+            </td>
+        </tr>
+        <tr id="comparer">
+            <td class="description">Session A:</td>
+            <td>
+                <input type="text" style="width: 75px;"/>
+            </td>
+            <td class="description">Session B:</td>
+            <td>
+                <input type="text" style="width: 75px;"/>
             </td>
         </tr>
         <tr>

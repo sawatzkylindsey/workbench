@@ -163,13 +163,19 @@ class Termnet:
         BPR,
         IBPR,
     ]
+    LEFT = "left"
+    RIGHT = "right"
+    INTERSECTION = "intersection"
 
-    def __init__(self, graph, lemma_map, term_map, sentences, properties):
+    def __init__(self, graph, lemma_map, term_map, sentences, properties, left_points=None, right_points=None):
         self.graph = graph
         self.lemma_map = lemma_map
         self.term_map = term_map
         self.sentences = sentences
         self.properties = properties
+        assert type(left_points) == type(right_points)
+        self.left_points = left_points
+        self.right_points = right_points
         self.average = 0 if len(self.graph) == 0 else 1.0 / len(self.graph.all_nodes)
         self._metrics = {}
         self._biased_metrics = {
@@ -179,6 +185,29 @@ class Termnet:
         self._background_calculate_ranks = threading.Thread(target=self.calculate_ranks)
         self._background_calculate_ranks.daemon = True
         self._background_calculate_ranks.start()
+
+    def group(self, identifier):
+        if self.left_points is None:
+            return Termnet.INTERSECTION
+        else:
+            if identifier in self.left_points:
+                return Termnet.LEFT
+            elif identifier in self.right_points:
+                return Termnet.RIGHT
+            else:
+                return Termnet.INTERSECTION
+
+    def compare_with(self, right_termnet):
+        builder = GraphBuilder(Graph.UNDIRECTED)
+
+        for link in self.graph.links().union(right_termnet.graph.links()):
+            builder.add(link.source, [link.target])
+
+        graph = builder.build()
+        left_points = set([n.identifier for n in self.graph.all_nodes])
+        right_points = set([n.identifier for n in right_termnet.graph.all_nodes])
+        return Termnet(graph, self.lemma_map, self.term_map, self.sentences, self.properties,
+            left_points.difference(right_points), right_points.difference(left_points))
 
     def map_term(self, term):
         try:
@@ -543,9 +572,9 @@ class TermnetSession:
         virtual_width = ((max_link_count / link_counts_sum) * fill_size) / radius
 
         return {
-            "nodes": [self._node(node_ranks, identifier, alpha_dark) for identifier in selected_nodes] \
-                + [self._node(node_ranks, identifier, alpha_medium) for identifier in cascade_nodes] \
-                + [self._node(node_ranks, identifier, alpha_light) for identifier in neighbour_nodes],
+            "nodes": [self._node(identifier, node_ranks[identifier], alpha_dark) for identifier in selected_nodes] \
+                + [self._node(identifier, node_ranks[identifier], alpha_medium) for identifier in cascade_nodes] \
+                + [self._node(identifier, node_ranks[identifier], alpha_light) for identifier in neighbour_nodes],
             "links": [self._link(link, alpha_dark, ((link_counts[link] / link_counts_sum) * fill_size) / virtual_width) for link in selected_links] \
                 + [self._link(link, alpha_light, ((link_counts[link] / link_counts_sum) * fill_size) / virtual_width) for link in neighbour_links],
             "summary": summary,
@@ -553,14 +582,27 @@ class TermnetSession:
             "selection": len(selected_nodes) + len(cascade_nodes),
         }
 
-    def _node(self, node_ranks, identifier, alpha):
+    def _node(self, identifier, rank, alpha):
         return {
             "name": self._name(identifier),
-            "rank": node_ranks[identifier],
+            "rank": rank,
             "alpha": alpha,
-            "colour": "green" if identifier in self.focus_points else "blue",
+            "colour": self._colour(identifier),
             "coeff": self._coeff(identifier),
         }
+
+    def _colour(self, identifier):
+        if identifier in self.focus_points:
+            return "green"
+        else:
+            group = self.termnet.group(identifier)
+
+            if group == Termnet.LEFT:
+                return "blue"
+            elif group == Termnet.RIGHT:
+                return "red"
+            else:
+                return "magenta"
 
     def _link(self, link, alpha, distance):
         return {
@@ -568,7 +610,17 @@ class TermnetSession:
             "target": self._name(link.target),
             "alpha": alpha,
             "distance": distance,
+            "stroke": self._stroke(link),
         }
+
+    def _stroke(self, link):
+        source_group = self.termnet.group(link.source)
+        target_group = self.termnet.group(link.target)
+
+        if source_group == target_group:
+            return "full"
+        else:
+            return "dash"
 
     def _name(self, term):
         return term.name()

@@ -29,12 +29,6 @@ function restartSimulation() {
         .velocityDecay(0.75)
         .restart();
 }
-var rainbowBlue = new Rainbow();
-rainbowBlue.setNumberRange(0, 1.0);
-rainbowBlue.setSpectrum("#96afff", "#001e84");
-var rainbowGreen = new Rainbow();
-rainbowGreen.setNumberRange(0, 1.0);
-rainbowGreen.setSpectrum("#96ff96", "#008400");
 var size = 1;
 var firstDraw = true;
 var amplifySet = new Set();
@@ -70,7 +64,7 @@ $(document).ready(function() {
 
     var pool = svg.append("circle")
         .style("stroke-width", 5)
-        .style("stroke", rainbowBlue.colorAt(1.0))
+        .style("stroke", "#001e84")
         .style("fill", "white")
         .attrs({
             class: "pool",
@@ -221,7 +215,7 @@ function focusAction(event) {
                     draw(data);
                     var prefix = focusMetric.find(":selected").html() + (termname == null ? "" : ": ");
                     var item = termname == null ? "" : termname;
-                    historyList.append("<span style='font-size: 11pt;'>&bull; " + prefix + "<span style='color: #" + rainbowGreen.colorAt(0.5) + "'>" + item + "</span></span></br>");
+                    historyList.append("<span style='font-size: 11pt;'>&bull; " + prefix + "<span style='color: green'>" + item + "</span></span></br>");
                 }
             });
     }
@@ -534,6 +528,14 @@ function draw(graph) {
             .attr("stroke-width", function(l) {
                 return l.alpha == 1.0 ? 1.5 : 1.0;
             })
+            .style("stroke-dasharray", function(l) {
+                if (l.stroke == "full") {
+                    return "1, 0";
+                }
+                else {
+                    return "5, 5";
+                }
+            })
             .style("opacity", function(l) { return l.alpha; })
             .on("mouseover", function(l) {
             });
@@ -547,12 +549,7 @@ function draw(graph) {
             .attr("class", "node")
             .attr("id", function(d) { return "node-" + d.name; })
             .attr("fill", function(d) {
-                if (d.colour == "green") {
-                    return "#" + rainbowGreen.colourAt(d.coeff);
-                }
-                else {
-                    return "#" + rainbowBlue.colourAt(d.coeff);
-                }
+                return d.colour;
             })
             .attr("term", function(d) { return d.name; })
             .attr("r", function(d) { return node_radius(d.rank); })

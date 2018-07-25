@@ -5,7 +5,7 @@ import math
 
 
 def scale(ranks):
-    assert len(ranks) > 0, ranks
+    assert len(ranks) > 0
     total = 0.0
 
     for k, v in ranks.items():
@@ -20,7 +20,7 @@ def scale(ranks):
 
 
 def invert(ranks):
-    assert len(ranks) > 0, len(ranks)
+    assert len(ranks) > 0
     ceiling = max(ranks.values()) * 2
     inverse_ranks = {}
     rolling_sum = 0.0
@@ -34,4 +34,11 @@ def invert(ranks):
     inverse_ranks = {identifier: rank / rolling_sum for identifier, rank in inverse_ranks.items()}
     assert math.isclose(1.0, sum(inverse_ranks.values()), abs_tol=0.005), sum(inverse_ranks.value())
     return inverse_ranks
+
+
+def fit(ranks, target):
+    assert len(ranks) > 0
+    maximum = max(ranks.values())
+    scaler = target / maximum
+    return {k: v * scaler for k, v in ranks.items()}
 

@@ -341,18 +341,6 @@ class Graph(object):
         return total
 
 
-class UndirectedGraph(Graph):
-    def __init__(self, all_nodes):
-        super(UndirectedGraph, self).__init__(all_nodes, Graph.UNDIRECTED)
-        pass
-
-
-class DirectedGraph(Graph):
-    def __init__(self, all_nodes):
-        super(DirectedGraph, self).__init__(all_nodes, Graph.DIRECTED)
-        pass
-
-
 class GraphBuilder:
     def __init__(self, direction):
         self.direction = direction
@@ -388,4 +376,82 @@ class GraphBuilder:
             return UndirectedGraph([n.finalize() for n in self.nodes.values()])
         else:
             raise ValueError(self.direction)
+
+
+class UndirectedGraph(Graph):
+    def __init__(self, all_nodes):
+        super(UndirectedGraph, self).__init__(all_nodes, Graph.UNDIRECTED)
+        pass
+
+
+class DirectedGraph(Graph):
+    def __init__(self, all_nodes):
+        super(DirectedGraph, self).__init__(all_nodes, Graph.DIRECTED)
+        pass
+
+
+class RankedGraph:
+    PR = "PR"
+    IPR = "IPR"
+    CC = "CC"
+    ICC = "ICC"
+    UNBIASED = [
+        PR,
+        IPR,
+        CC,
+        ICC,
+    ]
+    BPR = "BPR"
+    IBPR = "IBPR"
+    BIASED = [
+        BPR,
+        IBPR,
+    ]
+
+    def __init__(self, graph):
+        self.graph = graph
+        self.uniform = 0.0 if len(self.graph) == 0 else 1.0 / len(self.graph.all_nodes)
+        self._metrics = {}
+        self._biased_metrics = {
+            RankedGraph.BPR: {},
+            RankedGraph.IBPR: {},
+        }
+        self._background_calculate_ranks = threading.Thread(target=self.calculate_ranks)
+        self._background_calculate_ranks.daemon = True
+        self._background_calculate_ranks.start()
+
+    def calculate_ranks(self):
+        page_rank = self.graph.page_rank()
+        self._metrics[RankedGraph.PR] = page_rank
+        self._metrics[RankedGraph.IPR] = util.invert(page_rank)
+        self._metrics[RankedGraph.CC] = util.scale(self.graph.clustering_coefficients)
+        self._metrics[RankedGraph.ICC] = util.invert(self._metrics[RankedGraph.CC])
+
+        for node in sorted(self.graph.all_nodes):
+            page_ranks = self.graph.page_rank(bias=node.identifier)
+            self._biased_metrics[RankedGraph.BPR][node.identifier] = page_ranks
+            self._biased_metrics[RankedGraph.IBPR][node.identifier] = util.invert(page_ranks)
+
+    def get_metric(self, metric, identifier):
+        value = None
+
+        while value is None:
+            try:
+                if metric in RankedGraph.BIASED:
+                    value = self._biased_metrics[metric]
+                else:
+                    value = self._metrics[metric]
+            except KeyError as e:
+                pass
+
+            if value is not None and metric in RankedGraph.BIASED:
+                assert identifier in self.graph
+
+                while identifier not in value:
+                    if identifier in value:
+                        break
+
+                value = value[identifier]
+
+        return value
 

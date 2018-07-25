@@ -17,7 +17,7 @@ import sys
 import threading
 
 
-from workbench.graph import GraphBuilder, Graph
+from workbench.graph import GraphBuilder, Graph, RankedGraph
 from pytils.log import setup_logging, user_log
 import workbench.parser
 from workbench.nlp import Term
@@ -26,6 +26,8 @@ from workbench import util
 
 
 TOP = 10
+LEFT = "left"
+RIGHT = "right"
 
 
 def main():
@@ -77,62 +79,62 @@ def build(input_text, input_format, window, separator, keep):
     bottom_percent = (100.0 - keep) / 100.0
     cutoff = max(int(maximum * bottom_percent), 1)
     logging.debug("maximum: %s, cutoff: %s" % (maximum, cutoff))
-    inflection_sentences = {}
-    excluded_terms = set()
-    included_terms = set()
+    occurring_sentences = {}
+    excluded_lemmas = set()
+    included_lemmas = set()
 
-    for term_a, term_sentences in sorted(parse.cooccurrences.items()):
-        source = parse.inflections.to_inflection(term_a)
-        excluded_terms.add(source)
-        targets = {parse.inflections.to_inflection(term_b): sentences for term_b, sentences in filter(lambda item: len(item[1]) >= cutoff, term_sentences.items())}
+    for source, target_sentences in sorted(parse.cooccurrences.items()):
+        #source = parse.inflections.to_dominant_inflection(term_a)
+        excluded_lemmas.add(source)
+        targets = {target: sentences for target, sentences in filter(lambda item: len(item[1]) >= cutoff, target_sentences.items())}
+        #targets = {parse.inflections.to_dominant_inflection(term_b): sentences for term_b, sentences in filter(lambda item: len(item[1]) >= cutoff, term_sentences.items())}
 
         if len(targets) > 0:
             builder.add(source, [t for t in targets.keys()])
-            included_terms.add(source)
-            excluded_terms.remove(source)
+            included_lemmas.add(source)
+            excluded_lemmas.remove(source)
 
-            if source not in inflection_sentences:
-                inflection_sentences[source] = {}
+            if source not in occurring_sentences:
+                occurring_sentences[source] = {}
 
             for target, sentences in targets.items():
-                included_terms.add(target)
+                included_lemmas.add(target)
 
-                if target not in inflection_sentences[source]:
-                    inflection_sentences[source][target] = set()
+                if target not in occurring_sentences[source]:
+                    occurring_sentences[source][target] = set()
 
                 for sentence in sentences:
-                    inflection_sentences[source][target].add(" ".join(sentence))
+                    occurring_sentences[source][target].add(" ".join(sentence))
 
     graph = builder.build()
-    properties = Properties(minimum, maximum, average, cutoff, len(included_terms) + len(excluded_terms), included_terms, excluded_terms)
-    lemma_map = {}
-    term_map = {}
-
-    for lemma, inflections in parse.inflections.counts.items():
-        term = parse.inflections.to_inflection(lemma)
-        lemma_map[lemma.lower()] = term
-
-        for inflection in inflections.keys():
-            term_map[inflection.lower()] = term
+    properties = Properties(parse.inflections, minimum,
+        maximum,
+        average,
+        cutoff,
+        len(included_lemmas) + len(excluded_lemmas),
+        included_lemmas,
+        excluded_lemmas)
 
     if len(graph) > 0:
-        return Termnet(graph, lemma_map, term_map, inflection_sentences, properties)
+        return Termnet(graph, {LEFT: RankedGraph(graph)}, parse.inflections, occurring_sentences, properties)
     else:
         builder = GraphBuilder(Graph.UNDIRECTED)
-        return Termnet(builder.build(), {}, {}, {}, Properties())
+        empty = GraphBuilder(Graph.UNDIRECTED).build()
+        return Termnet(empty, {LEFT: RankedGraph(empty)}, Inflections(), {}, Properties())
 
     return net
 
 
 class Properties:
-    def __init__(self, minimum_cooccurrence_count=0, maximum_cooccurrence_count=0, average_cooccurrence_count=0, cutoff_cooccurrence_count=0, total_terms=0, included_terms=[], excluded_terms=[]):
+    def __init__(self, inflections, minimum_cooccurrence_count=0, maximum_cooccurrence_count=0, average_cooccurrence_count=0, cutoff_cooccurrence_count=0, total_terms=0, included_lemmas=set(), excluded_lemmas=set()):
+        self.inflections = inflections
         self.minimum_cooccurrence_count = minimum_cooccurrence_count
         self.maximum_cooccurrence_count = maximum_cooccurrence_count
         self.average_cooccurrence_count = average_cooccurrence_count
         self.cutoff_cooccurrence_count = cutoff_cooccurrence_count
         self.total_terms = total_terms
-        self.included_terms = [term.name() for term in included_terms]
-        self.excluded_terms = [term.name() for term in excluded_terms]
+        self.included_lemmas = included_lemmas
+        self.excluded_lemmas = excluded_lemmas
 
     def dump(self):
         return {
@@ -141,223 +143,116 @@ class Properties:
             "average_cooccurrence_count": self.average_cooccurrence_count,
             "cutoff_cooccurrence_count": self.cutoff_cooccurrence_count,
             "total_terms": self.total_terms,
-            "included": self.included_terms,
-            "excluded": self.excluded_terms,
+            "included": [self.inflections.to_dominant_inflection(lemma).name() for lemma in self.included_lemmas],
+            "excluded": [self.inflections.to_dominant_inflection(lemma).name() for lemma in self.excluded_lemmas],
         }
 
 
 class Termnet:
-    PR = "PR"
-    IPR = "IPR"
-    CC = "CC"
-    ICC = "ICC"
-    UNBIASED = [
-        PR,
-        IPR,
-        CC,
-        ICC,
-    ]
-    BPR = "BPR"
-    IBPR = "IBPR"
-    BIASED = [
-        BPR,
-        IBPR,
-    ]
-    LEFT = "left"
-    RIGHT = "right"
-    INTERSECTION = "intersection"
-
-    def __init__(self, graph, lemma_map, term_map, sentences, properties, left_points=None, right_points=None):
-        self.graph = graph
-        self.lemma_map = lemma_map
-        self.term_map = term_map
+    def __init__(self, display_graph, ranked_graphs, inflections, sentences, properties):
+        assert set([display_graph.kind]) == set([rg.graph.kind for rg in ranked_graphs.values()]), "mismatching kinds"
+        self.display_graph = display_graph
+        self.ranked_graphs = ranked_graphs
+        self.inflections = inflections
         self.sentences = sentences
         self.properties = properties
-        assert type(left_points) == type(right_points)
-        self.left_points = left_points
-        self.right_points = right_points
-        self.average = 0 if len(self.graph) == 0 else 1.0 / len(self.graph.all_nodes)
-        self._metrics = {}
-        self._biased_metrics = {
-            Termnet.BPR: {},
-            Termnet.IBPR: {},
-        }
-        self._background_calculate_ranks = threading.Thread(target=self.calculate_ranks)
-        self._background_calculate_ranks.daemon = True
-        self._background_calculate_ranks.start()
+        # Calculated
+        self.all_groups = set([group for group in self.ranked_graphs.keys()])
+        self.node_groups = {}
 
-    def group(self, identifier):
-        if self.left_points is None:
-            return Termnet.INTERSECTION
-        else:
-            if identifier in self.left_points:
-                return Termnet.LEFT
-            elif identifier in self.right_points:
-                return Termnet.RIGHT
-            else:
-                return Termnet.INTERSECTION
+        for group, ranked_graph in self.ranked_graphs.items():
+            for node in ranked_graph.graph.all_nodes:
+                if node.identifier not in self.node_groups:
+                    self.node_groups[node.identifier] = set()
 
-    def compare_with(self, right_termnet):
-        builder = GraphBuilder(Graph.UNDIRECTED)
+                self.node_groups[node.identifier].add(group)
 
-        for link in self.graph.links().union(right_termnet.graph.links()):
-            builder.add(link.source, [link.target])
+    def groups(self, identifier):
+        return self.node_groups[identifier]
 
-        graph = builder.build()
-        left_points = set([n.identifier for n in self.graph.all_nodes])
-        right_points = set([n.identifier for n in right_termnet.graph.all_nodes])
-        return Termnet(graph, self.lemma_map, self.term_map, self.sentences, self.properties,
-            left_points.difference(right_points), right_points.difference(left_points))
+    def compare_with(self, other):
+        assert self.display_graph.kind == other.display_graph.kind
+        assert len(self.ranked_graphs) == 1
+        assert len(other.ranked_graphs) == 1
+        builder = GraphBuilder(self.display_graph.kind)
 
-    def map_term(self, term):
-        try:
-            return self.term_map[term.lower()]
-        except KeyError as e:
-            pass
+        for node in self.display_graph.all_nodes:
+            builder.add(node.identifier, [d.identifier for d in node.descendants])
 
-        return self.lemma_map[term.transform(lambda w: CANONICALIZE(w).lower())]
+        for node in other.display_graph.all_nodes:
+            builder.add(node.identifier, [d.identifier for d in node.descendants])
 
-    def calculate_ranks(self):
-        page_rank = self.graph.page_rank()
-        self._metrics[Termnet.PR] = page_rank
-        self._metrics[Termnet.IPR] = util.invert(page_rank)
-        self._metrics[Termnet.CC] = util.scale(self.graph.clustering_coefficients)
-        self._metrics[Termnet.ICC] = util.invert(self._metrics[Termnet.CC])
+        display_graph = builder.build()
+        inflections = self.inflections.combine(other.inflections)
+        occurring_sentences = {}
 
-        for node in sorted(self.graph.all_nodes):
-            term_page_ranks = self.graph.page_rank(bias=node.identifier)
-            self._biased_metrics[Termnet.BPR][node.identifier] = term_page_ranks
-            self._biased_metrics[Termnet.IBPR][node.identifier] = util.invert(term_page_ranks)
+        for a, b_sentences in self.sentences.items():
+            if a not in occurring_sentences:
+                occurring_sentences[a] = {}
+
+            for b, sentences in b_sentences.items():
+                if b not in occurring_sentences[a]:
+                    occurring_sentences[a][b] = set()
+
+                for sentence in sentences:
+                    occurring_sentences[a][b].add(sentence)
+
+        for a, b_sentences in other.sentences.items():
+            if a not in occurring_sentences:
+                occurring_sentences[a] = {}
+
+            for b, sentences in b_sentences.items():
+                if b not in occurring_sentences[a]:
+                    occurring_sentences[a][b] = set()
+
+                for sentence in sentences:
+                    occurring_sentences[a][b].add(sentence)
+
+        included_lemmas = self.properties.included_lemmas.union(other.properties.included_lemmas)
+        excluded_lemmas = self.properties.excluded_lemmas.union(other.properties.excluded_lemmas)
+
+        for lemma in included_lemmas:
+            excluded_lemmas.discard(lemma)
+
+        properties = Properties(inflections,
+            min(self.properties.minimum_cooccurrence_count, other.properties.minimum_cooccurrence_count),
+            max(self.properties.maximum_cooccurrence_count, other.properties.maximum_cooccurrence_count),
+            (self.properties.average_cooccurrence_count + other.properties.average_cooccurrence_count) / 2.0,
+            self.properties.cutoff_cooccurrence_count if self.properties.cutoff_cooccurrence_count == other.properties.cutoff_cooccurrence_count else None,
+            len(display_graph),
+            included_lemmas,
+            excluded_lemmas)
+        return Termnet(display_graph,
+            {
+                LEFT: [silly for silly in self.ranked_graphs.values()][0],
+                RIGHT: [silly for silly in other.ranked_graphs.values()][0]},
+            inflections,
+            occurring_sentences,
+            properties)
+
+    def decode(self, term):
+        #try:
+        inflection = Term(term.lower().split(" "))
+        return self.inflections.to_lemma(inflection)
+        #except KeyError as e:
+        #    pass
+        #return self.lemma_map[term.transform(lambda w: CANONICALIZE(w).lower())]
+
+    def encode(self, lemma):
+        return self.inflections.to_dominant_inflection(lemma).name()
 
     def meta_data(self):
         return self.properties.dump()
-
-    def get_metric(self, metric, term):
-        value = None
-
-        while value is None:
-            try:
-                if metric in Termnet.BIASED:
-                    value = self._biased_metrics[metric]
-                else:
-                    value = self._metrics[metric]
-            except KeyError as e:
-                pass
-
-            if value is not None and metric in Termnet.BIASED:
-                assert term in self.graph
-
-                while term not in value:
-                    if term in value:
-                        break
-
-                value = value[term]
-
-        return value
 
 
 class TermnetSession:
     def __init__(self, termnet):
         self.termnet = termnet
-        self.rank = {n.identifier: self.termnet.average for n in self.termnet.graph.all_nodes}
-        self.focused = False
-        self.focus_points = set()
-        self.focus_metric = Termnet.BPR
+        self.focus_metric = RankedGraph.BPR
         self.positive_influence = lambda x: 0
         self.negative_influence = lambda x: 0
-        self.positive_points = set()
-        self.negative_points = set()
-        self.ignore_points = set()
-        self.highlight_points = set()
         self.previous_term = None
-
-    def _find(self, value, f, i, j):
-        test_i = f(value, i)
-
-        if test_i > value:
-            assert f(value, j) < value
-            upper = i
-            lower = j
-        else:
-            assert f(value, j) > value
-            upper = j
-            lower = i
-
-        midpoint = (lower + upper) / 2.0
-        test = f(value, midpoint)
-        #logging.info("test: %s with %s" % (test, midpoint))
-
-        while not self._within(test, value):
-            if test > value:
-                upper = midpoint
-            else:
-                lower = midpoint
-
-            midpoint = (lower + upper) / 2.0
-            test = f(value, midpoint)
-            #logging.info("test: %s with %s" % (test, midpoint))
-
-        #logging.info("found: %s" % midpoint)
-        return lambda x: f(x, midpoint)
-
-    def _within(self, value, expected, epsilon=0.0000001):
-        return abs(expected - value) < epsilon
-
-    def _find_softener(self, value):
-        i = 1.0
-        j = -1.0
-        test = self._left_inverse_sigmoid(value)(value, i)
-
-        while test < value:
-            i = i * 2.0
-            test = self._left_inverse_sigmoid(value)(value, i)
-
-        while test > value:
-            j = j * 2.0
-            test = self._left_inverse_sigmoid(value)(value, j)
-
-        #logging.info("lis: %s, %s" % (i, j))
-        lis = self._find(value, self._left_inverse_sigmoid(value), i, j)
-        def lis_fixed(x):
-            y = lis(x)
-            return y if y > x else x
-
-        m = 1.0
-        n = -1.0
-        test = self._right_inverse_sigmoid(value)(value, m)
-
-        while test < value:
-            m = m * 2.0
-            test = self._right_inverse_sigmoid(value)(value, m)
-
-        while test > value:
-            n = n * 2.0
-            test = self._right_inverse_sigmoid(value)(value, n)
-
-        #logging.info("ris: %s, %s" % (m, n))
-        ris = self._find(value, self._right_inverse_sigmoid(value), m, n)
-        def ris_fixed(x):
-            y = ris(x)
-            return y if y < x else x
-
-        def s(v):
-            if v <= value:
-                scaled = lis_fixed(v)
-            else:
-                scaled = ris_fixed(v)
-
-            #logging.info("scaled: %s -> %s" % (v, scaled))
-            return scaled
-
-        return s
-
-    def _left_inverse_sigmoid(self, value):
-        assert value >= 0.0 and value <= 1.0
-        return lambda x, d: ((numpy.log10((1.0 / (-x + (2.0 * value))) - (0.5 / value)) + (1.0 / value)) / (1.0 / value)) + d
-
-    def _right_inverse_sigmoid(self, value):
-        assert value >= 0.0 and value <= 1.0
-        return lambda x, d: ((numpy.log10((1.0 / (-x + 1.0)) - (0.5 / (1.0 - value))) + (1.0 / value)) / (1.0 / value)) + d
+        self.reset()
 
     def clean_slate(self):
         return not self.focused \
@@ -367,7 +262,15 @@ class TermnetSession:
             and len(self.ignore_points) == 0
 
     def reset(self):
-        self.rank = {n.identifier: self.termnet.average for n in self.termnet.graph.all_nodes}
+        group_maximums = {group: ranked_graph.uniform for group, ranked_graph in self.termnet.ranked_graphs.items()}
+        minimum = min(group_maximums.items(), key=lambda item: item[1])
+        self.ranks = {group: {n.identifier: minimum[1] for n in ranked_graph.graph.all_nodes} for group, ranked_graph in self.termnet.ranked_graphs.items()}
+
+        #for group in self.ranks.keys():
+        #    if group != minimum[0]:
+        #        self.ranks[group] = util.fit(self.ranks[group], minimum[1])
+
+        #pdb.set_trace()
         self.focused = False
         self.focus_points = set()
         self.positive_points = set()
@@ -376,75 +279,95 @@ class TermnetSession:
         self.highlight_points = set()
 
     def positive_add(self, term):
-        term = self.termnet.map_term(term)
-        assert term in self.termnet.graph
-        self.positive_points.add(term)
-        self.negative_remove(term)
+        lemma = self.termnet.decode(term)
+        assert lemma in self.termnet.display_graph
+        self.positive_points.add(lemma)
+        self.negative_points.discard(lemma)
 
     def positive_remove(self, term):
-        term = self.termnet.map_term(term)
-        assert term in self.termnet.graph
-        self.positive_points.discard(term)
+        lemma = self.termnet.decode(term)
+        assert lemma in self.termnet.display_graph
+        self.positive_points.discard(lemma)
 
     def negative_add(self, term):
-        term = self.termnet.map_term(term)
-        assert term in self.termnet.graph
-        self.negative_points.add(term)
-        self.positive_remove(term)
+        lemma = self.termnet.decode(term)
+        assert lemma in self.termnet.display_graph
+        self.negative_points.add(lemma)
+        self.positive_points.discard(lemma)
 
     def negative_remove(self, term):
-        term = self.termnet.map_term(term)
-        assert term in self.termnet.graph
-        self.negative_points.discard(term)
+        lemma = self.termnet.decode(term)
+        assert lemma in self.termnet.display_graph
+        self.negative_points.discard(lemma)
 
     def ignore_add(self, term):
-        term = self.termnet.map_term(term)
-        assert term in self.termnet.graph
-        self.ignore_points.add(term)
+        lemma = self.termnet.decode(term)
+        assert lemma in self.termnet.display_graph
+        self.ignore_points.add(lemma)
 
     def ignore_remove(self, term):
-        assert term in self.termnet.graph
-        self.ignore_points.discard(term)
+        lemma = self.termnet.decode(term)
+        assert lemma in self.termnet.display_graph
+        self.ignore_points.discard(lemma)
 
     def highlight_add(self, term):
-        term = self.termnet.map_term(term)
-        assert term in self.termnet.graph
-        self.highlight_points.add(term)
+        lemma = self.termnet.decode(term)
+        assert lemma in self.termnet.display_graph
+        self.highlight_points.add(lemma)
 
     def highlight_remove(self, term):
-        term = self.termnet.map_term(term)
-        assert term in self.termnet.graph
-        self.highlight_points.discard(term)
+        lemma = self.termnet.decode(term)
+        assert lemma in self.termnet.display_graph
+        self.highlight_points.discard(lemma)
 
     def focus(self, term):
         if term is None:
-            assert self.focus_metric in Termnet.UNBIASED
+            assert self.focus_metric in RankedGraph.UNBIASED
+            lemma = None
         else:
-            term = self.termnet.map_term(term)
-            assert term in self.termnet.graph
+            lemma = self.termnet.decode(term)
+            assert lemma in self.termnet.display_graph
 
-        for k, v in self.termnet.get_metric(self.focus_metric, term).items():
-            assert v >= 0.0 and v <= 1.0, v
-            self.rank[k] += v
+        if lemma is None:
+            groups = self.termnet.ranked_graphs.keys()
+        else:
+            groups = self.termnet.groups(lemma)
 
-        self.rank = util.scale(self.rank)
+        for group in groups:
+            for k, v in self.termnet.ranked_graphs[group].get_metric(self.focus_metric, lemma).items():
+                assert v >= 0.0 and v <= 1.0, v
+                self.ranks[group][k] += v
+
+        group_maximums = {}
+
+        for group in self.ranks.keys():
+            self.ranks[group] = util.scale(self.ranks[group])
+            group_maximums[group] = max(self.ranks[group].values())
+
+        minimum = min(group_maximums.items(), key=lambda item: item[1])
+
+        for group in self.ranks.keys():
+            if group != minimum[0]:
+                self.ranks[group] = util.fit(self.ranks[group], minimum[1])
+
+        #pdb.set_trace()
         self.focused = True
 
-        if term is not None:
-            self.focus_points.add(term)
+        if lemma is not None:
+            self.focus_points.add(lemma)
 
     def display_previous(self):
         return self.display(self.previous_term)
 
     def display(self, term, radius=280):
-        if term is None:
-            selection = set([n.identifier for n in self.termnet.graph.all_nodes])
-        else:
-            term = self.termnet.map_term(term)
-            assert term in self.termnet.graph
-            selection = set([identifier for identifier, d in self.termnet.graph.neighbourhood(term, 1, True, (2, 0.5))])
-
         self.previous_term = term
+
+        if term is None:
+            selection = set([n.identifier for n in self.termnet.display_graph.all_nodes])
+        else:
+            lemma = self.termnet.decode(term)
+            assert lemma in self.termnet.display_graph
+            selection = set([identifier for identifier, d in self.termnet.display_graph.neighbourhood(lemma, 1, True, (2, 0.5))])
 
         for point in self.focus_points:
             selection.add(point)
@@ -454,56 +377,65 @@ class TermnetSession:
 
         logging.debug("Positives: %s" % self.positive_points)
         logging.debug("Negatives: %s" % self.negative_points)
-        positive_masks = [(point, lambda x: self.rank[point] * self.positive_influence(x)) for point in self.positive_points]
-        negative_masks = [(point, lambda x: self.rank[point] * self.negative_influence(x)) for point in self.negative_points]
-        node_ranks = {}
+        positive_masks = {group: [] for group in self.termnet.all_groups}
+        negative_masks = {group: [] for group in self.termnet.all_groups}
+
+        for point in self.positive_points:
+            for group in self.termnet.groups(point):
+                positive_masks[group] += [(point, lambda x: self.ranks[group][point] * self.positive_influence(x))]
+
+        for point in self.negative_points:
+            for group in self.termnet.groups(point):
+                negative_masks[group] += [(point, lambda x: self.ranks[group][point] * self.negative_influence(x))]
+
+        group_node_ranks = {}
         sum_subgraph = 0.0
 
         for identifier in selection:
-            assert self.rank[identifier] >= 0.0 and self.rank[identifier] <= 1.0
-            node_rank = self.rank[identifier]
-            masked_rank = node_rank
-            masked_count = 1
+            for group in self.termnet.groups(identifier):
+                if group not in group_node_ranks:
+                    group_node_ranks[group] = {}
 
-            for point, mask in positive_masks:
-                d = self.termnet.graph.distance(point, identifier)
-                distance = self.termnet.graph.max_distance(point) - d if d is not None else 0
-                masked_rank += mask(distance) * self.rank[point]
-                masked_count += 1
+                assert self.ranks[group][identifier] >= 0.0 and self.ranks[group][identifier] <= 1.0
+                node_rank = self.ranks[group][identifier]
+                masked_rank = node_rank
+                masked_count = 1
 
-            for point, mask in negative_masks:
-                d = self.termnet.graph.distance(point, identifier)
-                distance = d if d is not None else self.termnet.graph.max_distance(point)
-                masked_rank += mask(distance) * self.rank[point]
-                masked_count += 1
+                for point, mask in positive_masks[group]:
+                    d = self.termnet.ranked_graphs[group].graph.distance(point, identifier)
+                    distance = self.termnet.ranked_graphs[group].graph.max_distance(point) - d if d is not None else 0
+                    masked_rank += mask(distance) * self.ranks[group][point]
+                    masked_count += 1
 
-            logging.debug("%s: masked rank: %s, base rank: %s" % (identifier.name(), masked_rank, node_rank))
-            node_ranks[identifier] = (masked_rank / masked_count)
-            sum_subgraph += self.rank[identifier]
+                for point, mask in negative_masks[group]:
+                    d = self.termnet.ranked_graphs[group].graph.distance(point, identifier)
+                    distance = d if d is not None else self.termnet.ranked_graphs[group].graph.max_distance(point)
+                    masked_rank += mask(distance) * self.ranks[group][point]
+                    masked_count += 1
 
-        if len(node_ranks) == 0:
-            return {
-                "nodes": [],
-                "links": [],
-                "summary": "",
-                "size": 0,
-                "selection": 0,
-            }
+                logging.debug("%s: %s: masked rank: %s, base rank: %s" % (group, identifier.name(), masked_rank, node_rank))
+                group_node_ranks[group][identifier] = (masked_rank / masked_count)
+                sum_subgraph += self.ranks[group][identifier]
 
-        node_ranks = util.scale(node_ranks)
-        logging.debug(node_ranks)
-        sorted_node_ranks = sorted(filter(lambda item: item[0] not in self.ignore_points, node_ranks.items()), key=lambda item: item[1], reverse=True)
+        node_ranks = {}
+        sorted_node_ranks = {}
+
+        for group in group_node_ranks.keys():
+            #group_node_ranks[group] = util.scale(group_node_ranks[group])
+            sorted_node_ranks[group] = sorted(filter(lambda item: item[0] not in self.ignore_points, group_node_ranks[group].items()), key=lambda item: item[1], reverse=True)
+
+        logging.debug(group_node_ranks)
         logging.info("%s: %s" % (sum_subgraph, sorted_node_ranks))
         alpha_dark = 1.0
         alpha_light = 0.1
         alpha_medium = (alpha_dark + alpha_light) / 2.0
 
         if self.clean_slate():
-            selected_nodes = set([item[0] for item in sorted_node_ranks])
+            selected_nodes = set([item[0] for snr in sorted_node_ranks.values() for item in snr])
             neighbour_nodes = set()
         else:
-            selected_nodes = set([item[0] for item in sorted_node_ranks[:TOP]])
-            neighbour_nodes = set([item[0] for item in sorted_node_ranks[TOP:]])
+            selected_nodes = set([item[0] for snr in sorted_node_ranks.values() for item in snr[:TOP]])
+            neighbour_nodes = selection.difference(selected_nodes)
 
             for point in filter(lambda point: point not in self.ignore_points, self.focus_points):
                 selected_nodes.add(point)
@@ -522,7 +454,7 @@ class TermnetSession:
         best = 0
         summary = ""
 
-        for link in self.termnet.graph.links():
+        for link in self.termnet.display_graph.links():
             try:
                 sentences_a = [s for s in self.termnet.sentences[link.source][link.target]]
             except KeyError as e:
@@ -540,7 +472,13 @@ class TermnetSession:
 
             if link.source in selected_nodes and link.target in selected_nodes:
                 selected_links.add(link)
-                score = node_ranks[link.source] + node_ranks[link.target]
+                score = 0.0
+
+                for group in self.termnet.groups(link.source):
+                    score += group_node_ranks[group][link.source]
+
+                for group in self.termnet.groups(link.target):
+                    score += group_node_ranks[group][link.target]
 
                 if score > best:
                     logging.debug("New best score %.5f with %s and %s." % (score, link.source, link.target))
@@ -572,9 +510,9 @@ class TermnetSession:
         virtual_width = ((max_link_count / link_counts_sum) * fill_size) / radius
 
         return {
-            "nodes": [self._node(identifier, node_ranks[identifier], alpha_dark) for identifier in selected_nodes] \
-                + [self._node(identifier, node_ranks[identifier], alpha_medium) for identifier in cascade_nodes] \
-                + [self._node(identifier, node_ranks[identifier], alpha_light) for identifier in neighbour_nodes],
+            "nodes": [self._node(identifier, group_node_ranks, alpha_dark) for identifier in selected_nodes] \
+                + [self._node(identifier, group_node_ranks, alpha_medium) for identifier in cascade_nodes] \
+                + [self._node(identifier, group_node_ranks, alpha_light) for identifier in neighbour_nodes],
             "links": [self._link(link, alpha_dark, ((link_counts[link] / link_counts_sum) * fill_size) / virtual_width) for link in selected_links] \
                 + [self._link(link, alpha_light, ((link_counts[link] / link_counts_sum) * fill_size) / virtual_width) for link in neighbour_links],
             "summary": summary,
@@ -582,51 +520,33 @@ class TermnetSession:
             "selection": len(selected_nodes) + len(cascade_nodes),
         }
 
-    def _node(self, identifier, rank, alpha):
+    def _node(self, identifier, group_node_ranks, alpha):
         return {
-            "name": self._name(identifier),
-            "rank": rank,
+            "name": self.termnet.encode(identifier),
+            "ranks": {group: 0.0 if identifier not in group_node_ranks[group] else group_node_ranks[group][identifier] for group in self.termnet.all_groups},
             "alpha": alpha,
-            "colour": self._colour(identifier),
-            "coeff": self._coeff(identifier),
+            "groups": [group for group in self.termnet.groups(identifier)],
+            #"colour": self._colour(identifier),
+            #"coeff": self._coeff(identifier),
         }
-
-    def _colour(self, identifier):
-        if identifier in self.focus_points:
-            return "green"
-        else:
-            group = self.termnet.group(identifier)
-
-            if group == Termnet.LEFT:
-                return "blue"
-            elif group == Termnet.RIGHT:
-                return "red"
-            else:
-                return "magenta"
 
     def _link(self, link, alpha, distance):
         return {
-            "source": self._name(link.source),
-            "target": self._name(link.target),
+            "source": self.termnet.encode(link.source),
+            "target": self.termnet.encode(link.target),
             "alpha": alpha,
             "distance": distance,
             "stroke": self._stroke(link),
         }
 
     def _stroke(self, link):
-        source_group = self.termnet.group(link.source)
-        target_group = self.termnet.group(link.target)
+        source_group = self.termnet.groups(link.source)
+        target_group = self.termnet.groups(link.target)
 
         if source_group == target_group:
             return "full"
         else:
             return "dash"
-
-    def _name(self, term):
-        return term.name()
-
-    def _coeff(self, term):
-        return self.termnet.graph.clustering_coefficients[term]
 
 
 def str_kv(value):

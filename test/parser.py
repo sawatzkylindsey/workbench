@@ -62,8 +62,8 @@ class Tests(TestCase):
         self.assertGreaterEqual(len(parse.cooccurrences[Term(["gravit"])][Term(["mass"])]), 1)
         self.assertEqual(len(parse.cooccurrences[Term(["mass"])][Term(["gravit"])]), len(parse.cooccurrences[Term(["gravit"])][Term(["mass"])]))
 
-        self.assertEqual(parse.inflections.to_inflection(Term(["phanerozo"])), Term(["phanerozoic"]))
-        self.assertEqual(parse.inflections.to_inflection(Term(["gravit"])), Term(["gravitation"]))
+        self.assertEqual(parse.inflections.to_dominant_inflection(Term(["phanerozo"])), Term(["phanerozoic"]))
+        self.assertEqual(parse.inflections.to_dominant_inflection(Term(["gravit"])), Term(["gravitation"]))
 
     def test_term_content_text(self):
         stream = ["Apple. Goat .\nexplore. \ncrater Sphere" \

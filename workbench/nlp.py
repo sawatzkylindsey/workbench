@@ -131,12 +131,24 @@ class Term(base.Comparable):
 class Inflections:
     def __init__(self):
         self.counts = {}
+        self.inflections = {}
         self.lemma_to_inflection = None
-        self.inflection_to_lemma = None
 
-    def record(self, lemma_term, inflection_term):
+    def combine(self, other):
+        combination = Inflections()
+
+        for lemma_term, inflection_counts in self.counts.items():
+            for inflection_term, count in inflection_counts.items():
+                combination.record(lemma_term, inflection_term, count)
+
+        for lemma_term, inflection_counts in other.counts.items():
+            for inflection_term, count in inflection_counts.items():
+                combination.record(lemma_term, inflection_term, count)
+
+        return combination
+
+    def record(self, lemma_term, inflection_term, number=1):
         check.check_none(self.lemma_to_inflection)
-        check.check_none(self.inflection_to_lemma)
         logging.debug("record: %s->%s" % (lemma_term, inflection_term))
         check.check_instance(lemma_term, Term)
         check.check_instance(inflection_term, Term)
@@ -145,27 +157,41 @@ class Inflections:
             self.counts[lemma_term] = {}
 
         count = self.counts[lemma_term].get(inflection_term, 0)
-        self.counts[lemma_term][inflection_term] = count + 1
+        self.counts[lemma_term][inflection_term] = count + number
 
-    def _setup_maps(self):
+        if inflection_term not in self.inflections:
+            self.inflections[inflection_term] = lemma_term
+        else:
+            if self.inflections[inflection_term] != lemma_term:
+                raise ValueError("Inflection '%s' maps to multiple lemmas." % inflection_term)
+
+        if inflection_term.lower() not in self.inflections:
+            self.inflections[inflection_term.lower()] = lemma_term
+        else:
+            if self.inflections[inflection_term.lower()] != lemma_term:
+                raise ValueError("Inflection '%s' maps to multiple lemmas." % inflection_term.lower())
+
+    def _finalize(self):
         if self.lemma_to_inflection is None:
             self.lemma_to_inflection = {}
-            self.inflection_to_lemma = {}
 
             for lemma, inflections in self.counts.items():
                 tmp = sorted(inflections.items(), key=lambda item: item[1], reverse=True)
                 self.lemma_to_inflection[lemma] = tmp[0][0]
-                self.inflection_to_lemma[tmp[0][0]] = lemma
 
-    def to_inflection(self, lemma_term):
-        self._setup_maps()
+    def to_dominant_inflection(self, lemma_term):
+        self._finalize()
         check.check_instance(lemma_term, Term)
         return self.lemma_to_inflection[lemma_term]
 
     def to_lemma(self, inflection_term):
-        self._setup_maps()
+        self._finalize()
         check.check_instance(inflection_term, Term)
-        return self.inflection_to_lemma[inflection_term]
+
+        try:
+            return self.inflections[inflection_term]
+        except KeyError as e:
+            return self.inflections[inflection_term.lower()]
 
     def lemma_counts(self):
         return [(lemma, sum(inflections.values())) for lemma, inflections in self.counts.items()]

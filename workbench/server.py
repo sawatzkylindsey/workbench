@@ -17,7 +17,7 @@ import urllib
 
 from workbench import errors
 from workbench.handler import errorhandler
-from workbench.graph import GraphBuilder, Graph
+from workbench.graph import GraphBuilder, Graph, RankedGraph
 from workbench.nlp import Term
 from workbench import parser
 from pytils.log import setup_logging, user_log
@@ -109,7 +109,8 @@ class ServerHandler(BaseHTTPRequestHandler):
             self._write(json.dumps(out))
 
     def term(self, query):
-        return Term(query["term"][0].lower().split(" "))
+        return query["term"][0]
+        #return Term(query["term"][0].lower().split(" "))
 
     def mode(self, query):
         return query["mode"][0]
@@ -123,7 +124,7 @@ class ServerHandler(BaseHTTPRequestHandler):
     def focus_configure(self, termnet_session, query):
         mode = self.mode(query)
 
-        if mode not in Termnet.BIASED and mode not in Termnet.UNBIASED:
+        if mode not in RankedGraph.BIASED and mode not in RankedGraph.UNBIASED:
             raise ValueError("invalid mode: %s" % mode)
 
         termnet_session.focus_metric = mode

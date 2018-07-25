@@ -63,6 +63,9 @@ var included = null;
 var excludedList = null;
 var excludedToggler = null;
 var excluded = null;
+var part = null;
+var comparer = null;
+var partToggler = null;
 
 $(document).ready(function() {
     svg = d3.select("svg");
@@ -111,6 +114,14 @@ $(document).ready(function() {
         ignores = $("#ignores");
         ignoreToggler = $("#ignoreToggler");
         historyList = $("#historyList");
+        comparer = $("#comparer");
+        partToggler = $("#partToggler");
+
+        if (!sessionKey.includes("&")) {
+            comparer.style("display", "none");
+        } else {
+            part = "whole";
+        }
     });
     var metaFo = svg.append("foreignObject")
         .attr("transform", "translate(" + 0 + "," + 10 + ")")
@@ -199,7 +210,6 @@ $(document).ready(function() {
     var drag_start_x = null;
     var drag_start_y = null;
 });
-
 function search(event) {
     if (event.keyCode == 13) {
         var termname = searcher.val();
@@ -429,6 +439,21 @@ function updateDampifications(termname) {
         }
     }
 }
+function togglePart(event) {
+    if (partToggler.val() == "Whole") {
+        part = "left";
+        partToggler.val("Left");
+    }
+    else if (partToggler.val() == "Left") {
+        part = "right";
+        partToggler.val("Right");
+    }
+    else {
+        part = "whole";
+        partToggler.val("Whole");
+    }
+    drawBars();
+}
 function toggleAmplifications(event) {
     if (amplifyToggler.val() == "Hide") {
         var suffix = amplifySet.size == 0 ? "" : " (" + amplifySet.size + ")";
@@ -521,8 +546,51 @@ function resize(event) {
     size = parseInt(sizer.val());
     restartSimulation();        // Make sure the simulation keeps going, otherwise sometimes the resizer gets "stuck".
 }
+function grouping(groups) {
+    if (groups.length == 2) {
+        return "intersect";
+    }
+    else if (groups.length == 1 && groups[0] == "left") {
+        return "left";
+    }
+    else if (groups.length == 1 && groups[0] == "right") {
+        return "right";
+    }
+    else {
+        assert(false);
+    }
+}
+function ranking(ranks) {
+    return Object.values(ranks).reduce((a,b) => a + b);
+}
+function part_ranking(ranks) {
+    if (part == null || part == "whole") {
+        return ranking(ranks);
+    }
+    else {
+        return ranks[part];
+    }
+}
+function part_ranking_a(ranks) {
+    if (part == "whole" || part == "left") {
+        return ranks["left"];
+    }
+    else {
+        return ranks["right"];
+    }
+}
+function part_ranking_b(ranks) {
+    if (part == "whole" || part == "left") {
+        return ranks["right"];
+    }
+    else {
+        return ranks["left"];
+    }
+}
+var theGraph = null;
 function draw(graph) {
     console.log(graph);
+    theGraph = graph;
     var previousPositions = {};
 
     if (!firstDraw) {
@@ -588,10 +656,20 @@ function draw(graph) {
             .attr("class", "node")
             .attr("id", function(d) { return "node-" + d.name; })
             .attr("fill", function(d) {
-                return d.colour;
+                var group = grouping(d.groups);
+
+                if (group == "intersect") {
+                    return "magenta";
+                }
+                else if (group == "left") {
+                    return "blue";
+                }
+                else {
+                    return "red";
+                }
             })
             .attr("term", function(d) { return d.name; })
-            .attr("r", function(d) { return node_radius(d.rank); })
+            .attr("r", function(d) { return ranking(d.ranks); })
             .style("opacity", function(d) { return d.alpha; })
             .on("click", unstick)
             .call(d3.drag()
@@ -612,29 +690,134 @@ function draw(graph) {
             .style("opacity", function(d) { return d.alpha / 1.5; })
             .text(function (d) { return d.name; });
 
+    drawBars();
+
+    simulation.nodes(graph.nodes)
+        .on("tick", ticked);
+
+    simulation.force("link")
+        .links(graph.links);
+
+    restartSimulation();
+
+    function ticked() {
+        node.attrs(function(d) {
+            var coordinates = pool_bound(node_radius(ranking(d.ranks)), d.x, d.y, d.drag);
+            d.x = coordinates.x;
+            d.y = coordinates.y;
+            return {
+                cx: coordinates.x,
+                cy: coordinates.y,
+                r: node_radius(ranking(d.ranks))
+            };
+        });
+
+        link.attr("x1", function(d) { return d.source.x; })
+            .attr("y1", function(d) { return d.source.y; })
+            .attr("x2", function(d) { return d.target.x; })
+            .attr("y2", function(d) { return d.target.y; });
+
+        labels.attrs(function(d) {
+            var radius = node_radius(ranking(d.ranks));
+            return {
+                x: d.x + 4.5 + radius,
+                y: d.y + 4.5
+            };
+        });
+    }
+}
+function drawBars() {
+    svg.selectAll(".bar").remove();
     var maximumBars = Math.floor((endY - startY) / barHeight);
-    var barNodes = graph.nodes.slice(0).sort(function(a, b) { return d3.descending(a.rank, b.rank); });
+    // Simply makes a copy:   vvvvvvvvv
+    var barNodes = theGraph.nodes.slice(0)
+        .sort(function(a, b) {
+            if (part == null || part == "whole") {
+                return ranking(b.ranks) - ranking(a.ranks);
+            }
+            else if (part == "left") {
+                var o = b.ranks["left"] - a.ranks["left"];
+
+                if (o == 0) {
+                    return b.ranks["right"] - a.ranks["right"];
+                }
+
+                return o;
+            }
+            else if (part == "right") {
+                var o = b.ranks["right"] - a.ranks["right"];
+
+                if (o == 0) {
+                    return b.ranks["left"] - a.ranks["left"];
+                }
+
+                return o;
+            }
+        });
     barNodes = barNodes.slice(0, maximumBars);
-    var x = d3.scaleLinear([0, side_width])
-        .domain([0, d3.max(barNodes, function(d) {
-            return d.rank;
-        })]);
+    var x = d3.scaleLinear()
+        .range([0, side_width * 0.9])
+        .domain([0, d3.max(barNodes, function(d) { return ranking(d.ranks); })]);
     var y = d3.scaleBand()
         .range([startY, startY + (barNodes.length * barHeight)])
         .domain(barNodes.map(function(d) { return d.name; }));
-    var bars = svg.append("g")
-        .attr("class", "bars")
-        .selectAll("bobboboobobobob")
-        .data(barNodes)
-        .enter()
-            .append("rect")
-            .attr("class", "bar")
-            .attr("y", function(d) { return y(d.name); })
-            .attr("height", barHeight - padding)
-            .attr("x", middle_width)
-            .attr("width", function(d) { return (side_width * 0.9) * x(d.rank); })
-            .style("fill", poolColour)
-            .style("opacity", 1.0);
+
+    if (part == null) {
+        var bars = svg.append("g")
+            .attr("class", "bars")
+            .selectAll("bobboboobobobob")
+            .data(barNodes)
+            .enter()
+                .append("rect")
+                .attr("class", "bar")
+                .attr("y", function(d) { return y(d.name); })
+                .attr("height", barHeight - padding)
+                .attr("x", middle_width)
+                .attr("width", function(d) { return x(ranking(d.ranks)); })
+                .style("fill", "blue")
+                .style("opacity", 1.0);
+    } else {
+        var orderedBars = svg.append("g")
+            .attr("class", "bars")
+            .selectAll("bobboboobobobob")
+            .data(barNodes)
+            .enter()
+                .append("rect")
+                .attr("class", "bar")
+                .attr("y", function(d) { return y(d.name); })
+                .attr("height", barHeight - padding)
+                .attr("x", middle_width)
+                .attr("width", function(d) { return x(part_ranking_a(d.ranks)); })
+                .style("fill", function(d) {
+                    if (part == "whole" || part == "left") {
+                        return "blue";
+                    }
+                    else {
+                        return "red";
+                    }
+                })
+                .style("opacity", 1.0);
+        var stackedBars = svg.append("g")
+            .attr("class", "bars")
+            .selectAll("bobboboobobobob")
+            .data(barNodes)
+            .enter()
+                .append("rect")
+                .attr("class", "bar")
+                .attr("y", function(d) { return y(d.name); })
+                .attr("height", barHeight - padding)
+                .attr("x", function(d) { return middle_width + x(part_ranking_a(d.ranks)); })
+                .attr("width", function(d) { return x(part_ranking_b(d.ranks)); })
+                .style("fill", function(d) {
+                    if (part == "whole" || part == "left") {
+                        return "red";
+                    }
+                    else {
+                        return "blue";
+                    }
+                })
+                .style("opacity", 1.0);
+    }
     var barLabels = svg.append("g")
         .attr("class", "barLabels")
         .selectAll("sdfasfdkajfbobob")
@@ -647,44 +830,10 @@ function draw(graph) {
             .style("pointer-events", "none")
             //.attr("class", "label")
             //.attr("stroke", "white")
-            .attr("fill", "#7796ff")
+            .attr("fill", "#999")
             .text(function (d) { return d.name; });
 
-    simulation.nodes(graph.nodes)
-        .on("tick", ticked);
-
-    simulation.force("link")
-        .links(graph.links);
-
-    restartSimulation();
-
-    function ticked() {
-        node.attrs(function(d) {
-            var coordinates = pool_bound(node_radius(d.rank), d.x, d.y, d.drag);
-            d.x = coordinates.x;
-            d.y = coordinates.y;
-            return {
-                cx: coordinates.x,
-                cy: coordinates.y,
-                r: node_radius(d.rank)
-            };
-        });
-
-        link.attr("x1", function(d) { return d.source.x; })
-            .attr("y1", function(d) { return d.source.y; })
-            .attr("x2", function(d) { return d.target.x; })
-            .attr("y2", function(d) { return d.target.y; });
-
-        labels.attrs(function(d) {
-            var radius = node_radius(d.rank);
-            return {
-                x: d.x + 4.5 + radius,
-                y: d.y + 4.5
-            };
-        });
-    }
 }
-
 function pythagoras(x, y) {
     var distance_x = Math.abs(center_x - x);
     var distance_y = Math.abs(center_y - y);

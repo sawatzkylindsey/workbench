@@ -44,6 +44,7 @@ var middle_width = 650;
 var center_x = middle_width / 2.0;
 var center_y = height / 2.0;
 var pool_radius = height / 2.5;
+var inner_pool_radius = pool_radius / 3.0;
 var poolColour = "#001e84";
 var barHeight = 16;
 var padding = 0.5;
@@ -121,6 +122,37 @@ $(document).ready(function() {
             comparer.style("display", "none");
         } else {
             part = "whole";
+            var pool2 = svg.append("circle")
+                .style("stroke-width", 5)
+                .style("stroke", poolColour)
+                .style("fill", "white")
+                .attrs({
+                    class: "pool",
+                    r: inner_pool_radius,
+                    cx: 0,
+                    cy: 0,
+                    transform: "translate(" + center_x + "," + center_y + ")"
+                });
+            var centerLineTop = svg.append("line")
+                .style("stroke-width", 5)
+                .style("stroke", poolColour)
+                .attrs({
+                    class: "line",
+                    x1: center_x,
+                    x2: center_x,
+                    y1: center_y - pool_radius,
+                    y2: center_y - inner_pool_radius
+                });
+            var centerLineBot = svg.append("line")
+                .style("stroke-width", 5)
+                .style("stroke", poolColour)
+                .attrs({
+                    class: "line",
+                    x1: center_x,
+                    x2: center_x,
+                    y1: center_y + pool_radius,
+                    y2: center_y + inner_pool_radius
+                });
         }
     });
     var metaFo = svg.append("foreignObject")
@@ -547,6 +579,10 @@ function resize(event) {
     restartSimulation();        // Make sure the simulation keeps going, otherwise sometimes the resizer gets "stuck".
 }
 function grouping(groups) {
+    if (part == null) {
+        return null;
+    }
+
     if (groups.length == 2) {
         return "intersect";
     }
@@ -702,7 +738,8 @@ function draw(graph) {
 
     function ticked() {
         node.attrs(function(d) {
-            var coordinates = pool_bound(node_radius(ranking(d.ranks)), d.x, d.y, d.drag);
+            var coordinates = pool_bound(d);
+            //var coordinates = pool_bound(node_radius(ranking(d.ranks)), d.x, d.y, d.drag);
             d.x = coordinates.x;
             d.y = coordinates.y;
             return {
@@ -843,22 +880,70 @@ function pythagoras(x, y) {
         hypotenuse: Math.sqrt(Math.pow(distance_x, 2) + Math.pow(distance_y, 2))
     };
 }
-function pool_bound(radius, x, y, ignore) {
-    var pyth = pythagoras(x, y);
+function pool_bound(d) {
+    if (d.drag) {
+        return {x: d.x, y: d.y}
+    }
 
-    if (pyth.hypotenuse > pool_radius && !ignore) {
+    var pyth = pythagoras(d.x, d.y);
+
+    var group = grouping(d.groups);
+    var maximum_radius = pool_radius;
+    var minimum_radius = null;
+    var left_bound = null;
+    var right_bound = null;
+
+    if (group == "intersect") {
+        maximum_radius = inner_pool_radius;
+    }
+    else if (group == "left") {
+        minimum_radius = inner_pool_radius;
+        left_bound = center_x;
+    }
+    else if (group == "right") {
+        minimum_radius = inner_pool_radius;
+        right_bound = center_x;
+    }
+
+    if (pyth.hypotenuse > maximum_radius) {
         var distance_total = pyth.distance_x + pyth.distance_y;
-        var excess = pyth.hypotenuse - pool_radius;
+        var excess = pyth.hypotenuse - maximum_radius;
         var excess_squared = Math.pow(excess, 2);
-        var sign_x = x > center_x ? 1 : -1;
-        var sign_y = y > center_y ? 1 : -1;
+        var sign_x = d.x > center_x ? 1 : -1;
+        var sign_y = d.y > center_y ? 1 : -1;
         return {
-            x: x - (sign_x * Math.sqrt(excess_squared * (pyth.distance_x / distance_total))),
-            y: y - (sign_y * Math.sqrt(excess_squared * (pyth.distance_y / distance_total)))
+            x: d.x - (sign_x * Math.sqrt(excess_squared * (pyth.distance_x / distance_total))),
+            y: d.y - (sign_y * Math.sqrt(excess_squared * (pyth.distance_y / distance_total)))
         };
     }
+    else if (minimum_radius != null && pyth.hypotenuse <= minimum_radius) {
+        var distance_total = pyth.distance_x + pyth.distance_y;
+        var excess = minimum_radius - pyth.hypotenuse;
+        var excess_squared = Math.pow(excess, 2);
+        var sign_x = d.x > center_x ? -1 : 1;
+        var sign_y = d.y > center_y ? -1 : 1;
+        return {
+            x: d.x - (sign_x * Math.sqrt(excess_squared * (pyth.distance_x / distance_total))),
+            y: d.y - (sign_y * Math.sqrt(excess_squared * (pyth.distance_y / distance_total)))
+        };
+    }
+    else if (left_bound != null && d.x < center_x) {
+        return {
+            x: center_x + 1,
+            y: d.y
+        }
+    }
+    else if (right_bound != null && d.x > center_x) {
+        return {
+            x: center_x - 1,
+            y: d.y
+        }
+    }
     else {
-        return {x: x, y: y}
+        return {
+            x: d.x,
+            y: d.y
+        }
     }
 }
 function dragstarted(d) {

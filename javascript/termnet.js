@@ -927,15 +927,15 @@ function pool_bound(d) {
             y: d.y - (sign_y * Math.sqrt(excess_squared * (pyth.distance_y / distance_total)))
         };
     }
-    else if (left_bound != null && d.x < center_x) {
+    else if (left_bound != null && d.x > center_x) {
         return {
-            x: center_x + 1,
+            x: center_x - 1,
             y: d.y
         }
     }
-    else if (right_bound != null && d.x > center_x) {
+    else if (right_bound != null && d.x < center_x) {
         return {
-            x: center_x - 1,
+            x: center_x + 1,
             y: d.y
         }
     }

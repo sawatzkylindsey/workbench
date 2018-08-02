@@ -86,6 +86,42 @@ $(document).ready(function() {
             //x: center_x,
             //y: center_y
         });
+
+        if (sessionKey.includes("&")) {
+            var pool2 = svg.append("circle")
+                .style("stroke-width", 5)
+                .style("stroke", poolColour)
+                .style("fill", "white")
+                .style("z-index", -1)
+                .attrs({
+                    class: "pool",
+                    r: inner_pool_radius,
+                    cx: 0,
+                    cy: 0,
+                    transform: "translate(" + center_x + "," + center_y + ")"
+                });
+            var centerLineTop = svg.append("line")
+                .style("stroke-width", 5)
+                .style("stroke", poolColour)
+                .attrs({
+                    class: "line",
+                    x1: center_x,
+                    x2: center_x,
+                    y1: center_y - pool_radius,
+                    y2: center_y - inner_pool_radius
+                });
+            var centerLineBot = svg.append("line")
+                .style("stroke-width", 5)
+                .style("stroke", poolColour)
+                .attrs({
+                    class: "line",
+                    x1: center_x,
+                    x2: center_x,
+                    y1: center_y + pool_radius,
+                    y2: center_y + inner_pool_radius
+                });
+        }
+
     $("#controlFo").width(side_width);
     $("#controlFo").load("controls.html", function() {
         sessioner = $("#sessioner");
@@ -122,37 +158,6 @@ $(document).ready(function() {
             comparer.style("display", "none");
         } else {
             part = "whole";
-            var pool2 = svg.append("circle")
-                .style("stroke-width", 5)
-                .style("stroke", poolColour)
-                .style("fill", "white")
-                .attrs({
-                    class: "pool",
-                    r: inner_pool_radius,
-                    cx: 0,
-                    cy: 0,
-                    transform: "translate(" + center_x + "," + center_y + ")"
-                });
-            var centerLineTop = svg.append("line")
-                .style("stroke-width", 5)
-                .style("stroke", poolColour)
-                .attrs({
-                    class: "line",
-                    x1: center_x,
-                    x2: center_x,
-                    y1: center_y - pool_radius,
-                    y2: center_y - inner_pool_radius
-                });
-            var centerLineBot = svg.append("line")
-                .style("stroke-width", 5)
-                .style("stroke", poolColour)
-                .attrs({
-                    class: "line",
-                    x1: center_x,
-                    x2: center_x,
-                    y1: center_y + pool_radius,
-                    y2: center_y + inner_pool_radius
-                });
         }
     });
     var metaFo = svg.append("foreignObject")

@@ -46,6 +46,9 @@ var center_y = height / 2.0;
 var pool_radius = height / 2.5;
 var inner_pool_radius = pool_radius / 3.0;
 var poolColour = "#001e84";
+var rightColour = "red";
+var leftColour = "blue";
+var intersectColour = "magenta";
 var barHeight = 16;
 var padding = 0.5;
 var startY = (height - (2 * pool_radius)) / 2.0;
@@ -88,36 +91,67 @@ $(document).ready(function() {
         });
 
         if (sessionKey.includes("&")) {
-            var pool2 = svg.append("circle")
-                .style("stroke-width", 5)
-                .style("stroke", poolColour)
+            part = "whole";
+            svg.append("path")
+                .attr("d", "M0,0 a1,1,0,0,0,0," + inner_pool_radius * 2)
+                .style("stroke-width", 1)
+                .style("stroke", leftColour)
                 .style("fill", "white")
-                .style("z-index", -1)
                 .attrs({
-                    class: "pool",
-                    r: inner_pool_radius,
+                    class: "pool-arc",
                     cx: 0,
                     cy: 0,
-                    transform: "translate(" + center_x + "," + center_y + ")"
+                    transform: "translate(" + center_x + "," + (center_y - inner_pool_radius) + ")"
                 });
-            var centerLineTop = svg.append("line")
-                .style("stroke-width", 5)
-                .style("stroke", poolColour)
+            svg.append("path")
+                .attr("d", "M0,0 a1,1,0,0,1,0," + inner_pool_radius * 2)
+                .style("stroke-width", 1)
+                .style("stroke", rightColour)
+                .style("fill", "white")
+                .attrs({
+                    class: "pool-arc",
+                    cx: 0,
+                    cy: 0,
+                    transform: "translate(" + center_x + "," + (center_y - inner_pool_radius) + ")"
+                });
+            svg.append("line")
+                .style("stroke-width", 1)
+                .style("stroke", leftColour)
                 .attrs({
                     class: "line",
-                    x1: center_x,
-                    x2: center_x,
-                    y1: center_y - pool_radius,
+                    x1: center_x - 0.5,
+                    x2: center_x - 0.5,
+                    y1: center_y - pool_radius + 2.5,
                     y2: center_y - inner_pool_radius
                 });
-            var centerLineBot = svg.append("line")
-                .style("stroke-width", 5)
-                .style("stroke", poolColour)
+            svg.append("line")
+                .style("stroke-width", 1)
+                .style("stroke", rightColour)
                 .attrs({
                     class: "line",
-                    x1: center_x,
-                    x2: center_x,
-                    y1: center_y + pool_radius,
+                    x1: center_x + 0.5,
+                    x2: center_x + 0.5,
+                    y1: center_y - pool_radius + 2.5,
+                    y2: center_y - inner_pool_radius
+                });
+            svg.append("line")
+                .style("stroke-width", 1)
+                .style("stroke", leftColour)
+                .attrs({
+                    class: "line",
+                    x1: center_x - 0.5,
+                    x2: center_x - 0.5,
+                    y1: center_y + pool_radius - 2.5,
+                    y2: center_y + inner_pool_radius
+                });
+            svg.append("line")
+                .style("stroke-width", 1)
+                .style("stroke", rightColour)
+                .attrs({
+                    class: "line",
+                    x1: center_x + 0.5,
+                    x2: center_x + 0.5,
+                    y1: center_y + pool_radius - 2.5,
                     y2: center_y + inner_pool_radius
                 });
         }
@@ -156,8 +190,6 @@ $(document).ready(function() {
 
         if (!sessionKey.includes("&")) {
             comparer.style("display", "none");
-        } else {
-            part = "whole";
         }
     });
     var metaFo = svg.append("foreignObject")
@@ -233,6 +265,9 @@ $(document).ready(function() {
             .strength(0.6)
             .id(function(node) { return node.name; })
         )
+        .force("collide", d3.forceCollide(function (d) {
+            return node_radius(ranking(d.ranks)) * 1.8;
+        }))
         .force("charge", d3.forceManyBody()
             .strength(-200)
             .distanceMin(10)
@@ -700,13 +735,13 @@ function draw(graph) {
                 var group = grouping(d.groups);
 
                 if (group == "intersect") {
-                    return "magenta";
+                    return intersectColour;
                 }
                 else if (group == "left") {
-                    return "blue";
+                    return leftColour;
                 }
                 else {
-                    return "red";
+                    return rightColour;
                 }
             })
             .attr("term", function(d) { return d.name; })
@@ -744,7 +779,6 @@ function draw(graph) {
     function ticked() {
         node.attrs(function(d) {
             var coordinates = pool_bound(d);
-            //var coordinates = pool_bound(node_radius(ranking(d.ranks)), d.x, d.y, d.drag);
             d.x = coordinates.x;
             d.y = coordinates.y;
             return {
@@ -816,7 +850,7 @@ function drawBars() {
                 .attr("height", barHeight - padding)
                 .attr("x", middle_width)
                 .attr("width", function(d) { return x(ranking(d.ranks)); })
-                .style("fill", "blue")
+                .style("fill", leftColour)
                 .style("opacity", 1.0);
     } else {
         var orderedBars = svg.append("g")
@@ -832,10 +866,10 @@ function drawBars() {
                 .attr("width", function(d) { return x(part_ranking_a(d.ranks)); })
                 .style("fill", function(d) {
                     if (part == "whole" || part == "left") {
-                        return "blue";
+                        return leftColour;
                     }
                     else {
-                        return "red";
+                        return rightColour;
                     }
                 })
                 .style("opacity", 1.0);
@@ -852,10 +886,10 @@ function drawBars() {
                 .attr("width", function(d) { return x(part_ranking_b(d.ranks)); })
                 .style("fill", function(d) {
                     if (part == "whole" || part == "left") {
-                        return "red";
+                        return rightColour;
                     }
                     else {
-                        return "blue";
+                        return leftColour;
                     }
                 })
                 .style("opacity", 1.0);
@@ -891,7 +925,6 @@ function pool_bound(d) {
     }
 
     var pyth = pythagoras(d.x, d.y);
-
     var group = grouping(d.groups);
     var maximum_radius = pool_radius;
     var minimum_radius = null;
@@ -903,16 +936,16 @@ function pool_bound(d) {
     }
     else if (group == "left") {
         minimum_radius = inner_pool_radius;
-        left_bound = center_x;
+        right_bound = center_x;
     }
     else if (group == "right") {
         minimum_radius = inner_pool_radius;
-        right_bound = center_x;
+        left_bound = center_x;
     }
 
-    if (pyth.hypotenuse > maximum_radius) {
+    if (pyth.hypotenuse > (maximum_radius - 1)) {
         var distance_total = pyth.distance_x + pyth.distance_y;
-        var excess = pyth.hypotenuse - maximum_radius;
+        var excess = pyth.hypotenuse - (maximum_radius - 1);
         var excess_squared = Math.pow(excess, 2);
         var sign_x = d.x > center_x ? 1 : -1;
         var sign_y = d.y > center_y ? 1 : -1;
@@ -921,26 +954,34 @@ function pool_bound(d) {
             y: d.y - (sign_y * Math.sqrt(excess_squared * (pyth.distance_y / distance_total)))
         };
     }
-    else if (minimum_radius != null && pyth.hypotenuse <= minimum_radius) {
+    else if (minimum_radius != null && pyth.hypotenuse <= (minimum_radius + 1)) {
         var distance_total = pyth.distance_x + pyth.distance_y;
-        var excess = minimum_radius - pyth.hypotenuse;
+        var excess = (minimum_radius + 1) - pyth.hypotenuse;
         var excess_squared = Math.pow(excess, 2);
         var sign_x = d.x > center_x ? -1 : 1;
         var sign_y = d.y > center_y ? -1 : 1;
-        return {
-            x: d.x - (sign_x * Math.sqrt(excess_squared * (pyth.distance_x / distance_total))),
-            y: d.y - (sign_y * Math.sqrt(excess_squared * (pyth.distance_y / distance_total)))
-        };
+
+        if (left_bound != null) {
+            return {
+                x: Math.max(d.x - (sign_x * Math.sqrt(excess_squared * (pyth.distance_x / distance_total))), center_x + 1),
+                y: d.y - (sign_y * Math.sqrt(excess_squared * (pyth.distance_y / distance_total)))
+            };
+        } else {
+            return {
+                x: Math.min(d.x - (sign_x * Math.sqrt(excess_squared * (pyth.distance_x / distance_total))), center_x - 1),
+                y: d.y - (sign_y * Math.sqrt(excess_squared * (pyth.distance_y / distance_total)))
+            };
+        }
     }
-    else if (left_bound != null && d.x > center_x) {
+    else if (left_bound != null && d.x < (center_x + 1)) {
         return {
-            x: center_x - 1,
+            x: center_x + 1,
             y: d.y
         }
     }
-    else if (right_bound != null && d.x < center_x) {
+    else if (right_bound != null && d.x > (center_x - 1)) {
         return {
-            x: center_x + 1,
+            x: center_x - 1,
             y: d.y
         }
     }

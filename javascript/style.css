@@ -3,6 +3,8 @@
   stroke-opacity: 0.6;
 }
 
+.control-row { outline: solid thin lightGrey; }
+
 .nodes circle {
   stroke: #fff;
   stroke-width: 1.5px;

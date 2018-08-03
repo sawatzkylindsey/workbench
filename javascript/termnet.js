@@ -70,6 +70,8 @@ var excluded = null;
 var part = null;
 var comparer = null;
 var partToggler = null;
+var innerSizer = null;
+var innerSizerMax = 9;
 
 $(document).ready(function() {
     svg = d3.select("svg");
@@ -92,68 +94,7 @@ $(document).ready(function() {
 
         if (sessionKey.includes("&")) {
             part = "whole";
-            svg.append("path")
-                .attr("d", "M0,0 a1,1,0,0,0,0," + inner_pool_radius * 2)
-                .style("stroke-width", 1)
-                .style("stroke", leftColour)
-                .style("fill", "white")
-                .attrs({
-                    class: "pool-arc",
-                    cx: 0,
-                    cy: 0,
-                    transform: "translate(" + center_x + "," + (center_y - inner_pool_radius) + ")"
-                });
-            svg.append("path")
-                .attr("d", "M0,0 a1,1,0,0,1,0," + inner_pool_radius * 2)
-                .style("stroke-width", 1)
-                .style("stroke", rightColour)
-                .style("fill", "white")
-                .attrs({
-                    class: "pool-arc",
-                    cx: 0,
-                    cy: 0,
-                    transform: "translate(" + center_x + "," + (center_y - inner_pool_radius) + ")"
-                });
-            svg.append("line")
-                .style("stroke-width", 1)
-                .style("stroke", leftColour)
-                .attrs({
-                    class: "line",
-                    x1: center_x - 0.5,
-                    x2: center_x - 0.5,
-                    y1: center_y - pool_radius + 2.5,
-                    y2: center_y - inner_pool_radius
-                });
-            svg.append("line")
-                .style("stroke-width", 1)
-                .style("stroke", rightColour)
-                .attrs({
-                    class: "line",
-                    x1: center_x + 0.5,
-                    x2: center_x + 0.5,
-                    y1: center_y - pool_radius + 2.5,
-                    y2: center_y - inner_pool_radius
-                });
-            svg.append("line")
-                .style("stroke-width", 1)
-                .style("stroke", leftColour)
-                .attrs({
-                    class: "line",
-                    x1: center_x - 0.5,
-                    x2: center_x - 0.5,
-                    y1: center_y + pool_radius - 2.5,
-                    y2: center_y + inner_pool_radius
-                });
-            svg.append("line")
-                .style("stroke-width", 1)
-                .style("stroke", rightColour)
-                .attrs({
-                    class: "line",
-                    x1: center_x + 0.5,
-                    x2: center_x + 0.5,
-                    y1: center_y + pool_radius - 2.5,
-                    y2: center_y + inner_pool_radius
-                });
+            drawInner();
         }
 
     $("#controlFo").width(side_width);
@@ -187,9 +128,13 @@ $(document).ready(function() {
         historyList = $("#historyList");
         comparer = $("#comparer");
         partToggler = $("#partToggler");
+        innerSizer = $("#innerSizer");
 
         if (!sessionKey.includes("&")) {
-            comparer.style("display", "none");
+            console.log("here");
+            comparer.css("display", "none");
+        } else {
+            innerSizer.change();
         }
     });
     var metaFo = svg.append("foreignObject")
@@ -265,9 +210,9 @@ $(document).ready(function() {
             .strength(0.6)
             .id(function(node) { return node.name; })
         )
-        .force("collide", d3.forceCollide(function (d) {
-            return node_radius(ranking(d.ranks)) * 1.8;
-        }))
+        //.force("collide", d3.forceCollide(function (d) {
+        //    return node_radius(ranking(d.ranks)) * 1.8;
+        //}))
         .force("charge", d3.forceManyBody()
             .strength(-200)
             .distanceMin(10)
@@ -282,6 +227,72 @@ $(document).ready(function() {
     var drag_start_x = null;
     var drag_start_y = null;
 });
+function drawInner() {
+    svg.selectAll("path").remove();
+    svg.selectAll("line").remove();
+    svg.append("path")
+        .attr("d", "M0,0 a1,1,0,0,0,0," + inner_pool_radius * 2)
+        .style("stroke-width", 1)
+        .style("stroke", leftColour)
+        .style("fill", "white")
+        .attrs({
+            class: "pool-arc",
+            cx: 0,
+            cy: 0,
+            transform: "translate(" + center_x + "," + (center_y - inner_pool_radius) + ")"
+        });
+    svg.append("path")
+        .attr("d", "M0,0 a1,1,0,0,1,0," + inner_pool_radius * 2)
+        .style("stroke-width", 1)
+        .style("stroke", rightColour)
+        .style("fill", "white")
+        .attrs({
+            class: "pool-arc",
+            cx: 0,
+            cy: 0,
+            transform: "translate(" + center_x + "," + (center_y - inner_pool_radius) + ")"
+        });
+    svg.append("line")
+        .style("stroke-width", 1)
+        .style("stroke", leftColour)
+        .attrs({
+            class: "line",
+            x1: center_x - 0.5,
+            x2: center_x - 0.5,
+            y1: center_y - pool_radius + 2.5,
+            y2: center_y - inner_pool_radius
+        });
+    svg.append("line")
+        .style("stroke-width", 1)
+        .style("stroke", rightColour)
+        .attrs({
+            class: "line",
+            x1: center_x + 0.5,
+            x2: center_x + 0.5,
+            y1: center_y - pool_radius + 2.5,
+            y2: center_y - inner_pool_radius
+        });
+    svg.append("line")
+        .style("stroke-width", 1)
+        .style("stroke", leftColour)
+        .attrs({
+            class: "line",
+            x1: center_x - 0.5,
+            x2: center_x - 0.5,
+            y1: center_y + pool_radius - 2.5,
+            y2: center_y + inner_pool_radius
+        });
+    svg.append("line")
+        .style("stroke-width", 1)
+        .style("stroke", rightColour)
+        .attrs({
+            class: "line",
+            x1: center_x + 0.5,
+            x2: center_x + 0.5,
+            y1: center_y + pool_radius - 2.5,
+            y2: center_y + inner_pool_radius
+        });
+}
 function search(event) {
     if (event.keyCode == 13) {
         var termname = searcher.val();
@@ -614,6 +625,13 @@ function toggleExcluded(event) {
 function node_radius(rank) {
     return Math.min(Math.max(rank * size, MIN_RADIUS), MAX_RADIUS);
 }
+function resizeInner(event) {
+    var factor = parseInt(innerSizer.val()) / innerSizerMax;
+    inner_pool_radius = pool_radius * 0.9 * factor;
+    drawInner();
+    draw();
+    restartSimulation();        // Make sure the simulation keeps going, otherwise sometimes the resizer gets "stuck".
+}
 function resize(event) {
     size = parseInt(sizer.val());
     restartSimulation();        // Make sure the simulation keeps going, otherwise sometimes the resizer gets "stuck".
@@ -665,8 +683,15 @@ function part_ranking_b(ranks) {
 }
 var theGraph = null;
 function draw(graph) {
-    console.log(graph);
-    theGraph = graph;
+    if (graph != null) {
+        console.log(graph);
+        theGraph = graph;
+    }
+
+    if (theGraph == null) {
+        return;
+    }
+
     var previousPositions = {};
 
     if (!firstDraw) {
@@ -674,7 +699,7 @@ function draw(graph) {
             .each(function(n) {
                 previousPositions[n.name] = {x: n.x, y: n.y, drag: n.drag};
             });
-        graph.nodes = graph.nodes.map(function(n) {
+        theGraph.nodes = theGraph.nodes.map(function(n) {
             if (n.name in previousPositions) {
                 n.drag = previousPositions[n.name].drag;
 
@@ -689,19 +714,19 @@ function draw(graph) {
             }
             return n;
         });
-        console.log(graph);
+        //console.log(graph);
     }
 
     firstDraw = false;
     svg.selectAll("g").remove();
     //svgRight.selectAll("g").remove();
-    graphMeta.html("<span>Nodes: " + graph.size + "</span></br><span>Selection: " + graph.selection + "</span>");
-    graphSummary.text(graph.summary);
+    graphMeta.html("<span>Nodes: " + theGraph.size + "</span></br><span>Selection: " + theGraph.selection + "</span>");
+    graphSummary.text(theGraph.summary);
 
     var link = svg.append("g")
         .attr("class", "links")
         .selectAll("links")
-        .data(graph.links, function (links) {
+        .data(theGraph.links, function (links) {
             return links;
         })
         .enter()
@@ -719,18 +744,16 @@ function draw(graph) {
                     return "5, 5";
                 }
             })
-            .style("opacity", function(l) { return l.alpha; })
-            .on("mouseover", function(l) {
-            });
+            .style("opacity", function(l) { return l.alpha; });
 
     var node = svg.append("g")
         .attr("class", "nodes")
         .selectAll("bob")
-        .data(graph.nodes)
+        .data(theGraph.nodes)
         .enter()
             .append("circle")
             .attr("class", "node")
-            .attr("id", function(d) { return "node-" + d.name; })
+            .attr("id", function(d) { return "node-" + d.name.replace(new RegExp(" ", 'g'), "_"); })
             .attr("fill", function(d) {
                 var group = grouping(d.groups);
 
@@ -748,6 +771,24 @@ function draw(graph) {
             .attr("r", function(d) { return ranking(d.ranks); })
             .style("opacity", function(d) { return d.alpha; })
             .on("click", unstick)
+            .on("mouseover", function(d) {
+                d3.select("#label-" + d.name.replace(new RegExp(" ", 'g'), "_"))
+                    .style("opacity", d.alpha)
+                    .style("background-color", "#f1f1f1")
+                    //.style("stroke", "white")
+                    //.style("text-shadow", "-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000")
+                    //.style("text-shadow", "1px 1px #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff")
+                    //.style("text-shadow", "2px 0 0 #fff, -2px 0 0 #fff, 0 2px 0 #fff, 0 -2px 0 #fff, 1px 1px #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff")
+                    //.style("text-shadow", "-2px 0 white, 0 2px white, 2px 0 white, 0 -2px white;")
+                    .style("font-size", "20px");
+            })
+            .on("mouseout", function(d) {
+                d3.select("#label-" + d.name.replace(new RegExp(" ", 'g'), "_"))
+                    .style("opacity", d.alpha / 3.0)
+                    //.style("stroke", "black")
+                    .style("text-shadow", "")
+                    .style("font-size", "14px");
+            })
             .call(d3.drag()
                 .on("start", dragstarted)
                 .on("drag", dragged)
@@ -756,23 +797,24 @@ function draw(graph) {
     var labels = svg.append("g")
         .attr("class", "labels")
         .selectAll("bobbobobo")
-        .data(graph.nodes)
+        .data(theGraph.nodes)
         .enter()
             .append("text")
-            .style("pointer-events", "none")
             .attr("class", "label")
+            .attr("id", function(d) { return "label-" + d.name.replace(new RegExp(" ", 'g'), "_"); })
+            .style("pointer-events", "none")
             .attr("stroke", "black")
             .attr("term", function(d) { return d.name; })
-            .style("opacity", function(d) { return d.alpha / 1.5; })
+            .style("opacity", function(d) { return d.alpha / 3.0; })
             .text(function (d) { return d.name; });
 
     drawBars();
 
-    simulation.nodes(graph.nodes)
+    simulation.nodes(theGraph.nodes)
         .on("tick", ticked);
 
     simulation.force("link")
-        .links(graph.links);
+        .links(theGraph.links);
 
     restartSimulation();
 
@@ -804,6 +846,7 @@ function draw(graph) {
 }
 function drawBars() {
     svg.selectAll(".bar").remove();
+    svg.selectAll(".barLabels").remove();
     var maximumBars = Math.floor((endY - startY) / barHeight);
     // Simply makes a copy:   vvvvvvvvv
     var barNodes = theGraph.nodes.slice(0)

@@ -1,7 +1,7 @@
 <div id="sessioner" style="text-align: center;"></div></br>
 <div style="text-align: center; font-size: 10pt;"><i>Hover for help text, or read the <a href='documentation.html' target="_blank">docs</a>.</i></div></br>
 <table style="border-spacing: 1px;">
-    <tr>
+    <tr class="control-row">
         <td class="description">Properties:</td>
         <td>
             <input type="button" id="propertiesToggler" onclick="toggleProperties(event)" value="Show"/>
@@ -9,13 +9,14 @@
             <input type="button" id="excludedToggler" onclick="toggleExcluded(event)" value="Hide Excluded" style="display: none;"/>
         </td>
     </tr>
-    <tr id="comparer">
+    <tr id="comparer" class="control-row">
         <td class="description">Comparison:</td>
         <td>
             <input type="button" id="partToggler" onclick="togglePart(event)" value="Whole"/>
+            <input type="range" id="innerSizer" min="1" max="9" value="3" oninput="resizeInner(event)" onchange="resizeInner(event)" title="Re-size the inner circle."/>
         </td>
     </tr>
-    <tr>
+    <tr class="control-row">
         <td class="description" title="Affect the nodes in the termnet in some way.">Nodes:</td>
         <td>
             <input type="button" id="releaser" onclick="release(event)" value="Release" title="Allow the nodes to move freely based off the animation rules."/>
@@ -24,11 +25,11 @@
             <span class="fakeButton" title="Nodes may be dragged around.  When dragged outside the circle they become highlighted.">Drag</span>
         </td>
     </tr>
-    <tr>
+    <tr class="control-row">
         <td class="description" title="Constrain the termnet by terms most local to the specified neighbourhood.">Search:</td>
         <td><input type="text" id="searcher" onkeydown="search(event)" title="Constrain the termnet by terms most local to the specified neighbourhood."/></td>
     </tr>
-    <tr>
+    <tr class="control-row">
         <td class="description" title="Indicate what the learner is interested in.  This alters the weights of the termnet towards the selected term and terms that relate to it.">Focus:</td>
         <td>
             <div>
@@ -50,11 +51,11 @@
             </div>
         </td>
     </tr>
-    <tr>
+    <tr class="control-row">
         <td class="description" title="Re-size the nodes.">Size:</td>
         <td><input type="range" id="sizer" min="1" max="2000" value="1" oninput="resize(event)" onchange="resize(event)" title="Re-size the nodes."/></td>
     </tr>
-    <tr>
+    <tr class="control-row">
         <td class="description">Amplify:</td>
         <td>
             <div id="amplifyAffect">
@@ -67,7 +68,7 @@
             </div>
         </td>
     </tr>
-    <tr>
+    <tr class="control-row">
         <td class="description">Dampify:</td>
         <td>
             <div id="dampifyAffect">
@@ -80,7 +81,7 @@
             </div>
         </td>
     </tr>
-    <tr>
+    <tr class="control-row">
         <td class="description" title="Completely remove the term from the termnet.">Ignore:</td>
         <td><input type="text" id="ignorer" onkeydown="ignoreAdd(event)" title="Completely remove the term from the termnet."></td>
     </tr>

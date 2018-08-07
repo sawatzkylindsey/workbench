@@ -682,7 +682,11 @@ function part_ranking_b(ranks) {
     }
 }
 function nameify(name) {
-    return name.replace(new RegExp(" ", 'g'), "_");
+    try {
+        return name.replace(new RegExp(" ", 'g'), "_");
+    } catch (e) {
+        return name.name.replace(new RegExp(" ", "g"), "_");
+    }
 }
 var theGraph = null;
 function draw(graph) {

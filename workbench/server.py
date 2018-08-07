@@ -219,6 +219,8 @@ class ServerHandler(BaseHTTPRequestHandler):
             termnet_session.highlight_add(term)
         elif mode == "remove":
             termnet_session.highlight_remove(term)
+        elif mode == "toggle":
+            termnet_session.highlight_toggle(term)
         else:
             raise ValueError("invalid mode: %s" % mode)
 

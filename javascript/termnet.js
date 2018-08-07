@@ -681,6 +681,9 @@ function part_ranking_b(ranks) {
         return ranks["left"];
     }
 }
+function nameify(name) {
+    return name.replace(new RegExp(" ", 'g'), "_");
+}
 var theGraph = null;
 function draw(graph) {
     if (graph != null) {
@@ -688,6 +691,7 @@ function draw(graph) {
         theGraph = graph;
     }
 
+    // Happens on the start when the graph isn't loaded yet - sa'll good
     if (theGraph == null) {
         return;
     }
@@ -731,8 +735,8 @@ function draw(graph) {
         })
         .enter()
             .append("line")
-            .attr("term-source", function(l) { return l.source; })
-            .attr("term-target", function(l) { return l.target; })
+            .attr("term-source", function(l) { return nameify(l.source); })
+            .attr("term-target", function(l) { return nameify(l.target); })
             .attr("stroke-width", function(l) {
                 return l.alpha == 1.0 ? 1.5 : 1.0;
             })
@@ -753,11 +757,13 @@ function draw(graph) {
         .enter()
             .append("circle")
             .attr("class", "node")
-            .attr("id", function(d) { return "node-" + d.name.replace(new RegExp(" ", 'g'), "_"); })
+            .attr("id", function(d) { return "node-" + nameify(d.name); })
             .attr("fill", function(d) {
                 var group = grouping(d.groups);
-
-                if (group == "intersect") {
+                if (group == null) {
+                    return leftColour;
+                }
+                else if (group == "intersect") {
                     return intersectColour;
                 }
                 else if (group == "left") {
@@ -772,22 +778,33 @@ function draw(graph) {
             .style("opacity", function(d) { return d.alpha; })
             .on("click", unstick)
             .on("mouseover", function(d) {
-                d3.select("#label-" + d.name.replace(new RegExp(" ", 'g'), "_"))
-                    .style("opacity", d.alpha)
-                    .style("background-color", "#f1f1f1")
-                    //.style("stroke", "white")
-                    //.style("text-shadow", "-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000")
-                    //.style("text-shadow", "1px 1px #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff")
-                    //.style("text-shadow", "2px 0 0 #fff, -2px 0 0 #fff, 0 2px 0 #fff, 0 -2px 0 #fff, 1px 1px #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff")
-                    //.style("text-shadow", "-2px 0 white, 0 2px white, 2px 0 white, 0 -2px white;")
+                d3.select("#label-" + nameify(d.name))
+                    .style("opacity", d.alpha * 2)
                     .style("font-size", "20px");
+                d3.select("#node-" + nameify(d.name))
+                    .style("opacity", d.alpha * 2);
+                d3.select("[term-source=" + nameify(d.name) + "]")
+                    .style("opacity", d.alpha * 4);
+                d3.select("[term-target=" + nameify(d.name) + "]")
+                    .style("opacity", d.alpha * 4);
             })
             .on("mouseout", function(d) {
-                d3.select("#label-" + d.name.replace(new RegExp(" ", 'g'), "_"))
+                d3.select("#label-" + nameify(d.name))
                     .style("opacity", d.alpha / 3.0)
-                    //.style("stroke", "black")
-                    .style("text-shadow", "")
                     .style("font-size", "14px");
+                d3.select("#node-" + nameify(d.name))
+                    .style("opacity", d.alpha);
+                d3.select("[term-source=" + nameify(d.name) + "]")
+                    .style("opacity", d.alpha);
+                d3.select("[term-target=" + nameify(d.name) + "]")
+                    .style("opacity", d.alpha);
+            })
+            .on("contextmenu", function(d) {
+                d3.json("highlight")
+                    .header("session-key", sessionKey)
+                    .post("term=" + d.name + "&mode=toggle", function(error, data) {
+                        draw(data);
+                    });
             })
             .call(d3.drag()
                 .on("start", dragstarted)
@@ -801,7 +818,7 @@ function draw(graph) {
         .enter()
             .append("text")
             .attr("class", "label")
-            .attr("id", function(d) { return "label-" + d.name.replace(new RegExp(" ", 'g'), "_"); })
+            .attr("id", function(d) { return "label-" + nameify(d.name); })
             .style("pointer-events", "none")
             .attr("stroke", "black")
             .attr("term", function(d) { return d.name; })

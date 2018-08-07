@@ -258,8 +258,8 @@ class TermnetSession:
         return not self.focused \
             and len(self.focus_points) == 0 \
             and len(self.positive_points) == 0 \
-            and len(self.negative_points) == 0 \
-            and len(self.ignore_points) == 0
+            and len(self.negative_points) == 0
+            # Don't need to count ignore_points or highlight_points because they don't affect weights
 
     def reset(self):
         group_maximums = {group: ranked_graph.uniform for group, ranked_graph in self.termnet.ranked_graphs.items()}
@@ -319,6 +319,15 @@ class TermnetSession:
         lemma = self.termnet.decode(term)
         assert lemma in self.termnet.display_graph
         self.highlight_points.discard(lemma)
+
+    def highlight_toggle(self, term):
+        lemma = self.termnet.decode(term)
+        assert lemma in self.termnet.display_graph
+
+        if lemma in self.highlight_points:
+            self.highlight_points.remove(lemma)
+        else:
+            self.highlight_points.add(lemma)
 
     def focus(self, term):
         if term is None:
@@ -424,15 +433,17 @@ class TermnetSession:
             #group_node_ranks[group] = util.scale(group_node_ranks[group])
             sorted_node_ranks[group] = sorted(filter(lambda item: item[0] not in self.ignore_points, group_node_ranks[group].items()), key=lambda item: item[1], reverse=True)
 
-        logging.debug(group_node_ranks)
+        logging.debug(sorted_node_ranks)
         logging.info("%s: %s" % (sum_subgraph, sorted_node_ranks))
         alpha_dark = 1.0
         alpha_light = 0.1
         alpha_medium = (alpha_dark + alpha_light) / 2.0
 
         if self.clean_slate():
-            selected_nodes = set([item[0] for snr in sorted_node_ranks.values() for item in snr])
-            neighbour_nodes = set()
+            selected_nodes = set()
+            neighbour_nodes = set([item[0] for snr in sorted_node_ranks.values() for item in snr])
+            #selected_nodes = set([item[0] for snr in sorted_node_ranks.values() for item in snr])
+            #neighbour_nodes = set()
         else:
             selected_nodes = set([item[0] for snr in sorted_node_ranks.values() for item in snr[:TOP]])
             neighbour_nodes = selection.difference(selected_nodes)
@@ -441,9 +452,12 @@ class TermnetSession:
                 selected_nodes.add(point)
                 neighbour_nodes.discard(point)
 
-            for point in self.highlight_points:
-                selected_nodes.add(point)
+            for point in self.ignore_points:
                 neighbour_nodes.discard(point)
+
+        for point in self.highlight_points:
+            selected_nodes.add(point)
+            neighbour_nodes.discard(point)
 
         selected_links = set()
         neighbour_links = set()
@@ -489,7 +503,8 @@ class TermnetSession:
                 or (link.source in neighbour_nodes and link.target in neighbour_nodes):
                 neighbour_links.add(link)
 
-            if link.source in self.highlight_points or link.target in self.highlight_points:
+            if (link.source in self.highlight_points and link.target in neighbour_nodes) \
+                or (link.source in neighbour_nodes and link.target in self.highlight_points):
                 selected_links.add(link)
                 neighbour_links.discard(link)
 
@@ -512,9 +527,9 @@ class TermnetSession:
         return {
             "nodes": [self._node(identifier, group_node_ranks, alpha_dark) for identifier in selected_nodes] \
                 + [self._node(identifier, group_node_ranks, alpha_medium) for identifier in cascade_nodes] \
-                + [self._node(identifier, group_node_ranks, alpha_light) for identifier in neighbour_nodes],
+                + [self._node(identifier, group_node_ranks, alpha_medium if len(selected_nodes) == 0 else alpha_light) for identifier in neighbour_nodes],
             "links": [self._link(link, alpha_dark, ((link_counts[link] / link_counts_sum) * fill_size) / virtual_width) for link in selected_links] \
-                + [self._link(link, alpha_light, ((link_counts[link] / link_counts_sum) * fill_size) / virtual_width) for link in neighbour_links],
+                + [self._link(link, alpha_medium if len(selected_nodes) == 0 else alpha_light, ((link_counts[link] / link_counts_sum) * fill_size) / virtual_width) for link in neighbour_links],
             "summary": summary,
             "size": size,
             "selection": len(selected_nodes) + len(cascade_nodes),

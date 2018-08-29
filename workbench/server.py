@@ -43,6 +43,12 @@ class ServerHandler(BaseHTTPRequestHandler):
         file_path = os.path.join(".", "javascript", path.strip("/"))
         logging.debug(file_path)
 
+        # Some systems (like eccc-nll.bigdata.sfu.ca) allow for relative paths to pass through urllib.
+        # I checked the versions of that library, and they are the same even though this problem doesn't exist on my osx.
+        # Alas, make sure the constructed path is a subpath of the server's javascript directory.
+        if not os.path.abspath(file_path).startswith(os.path.abspath(os.path.join(".", "javascript"))):
+            raise errors.NotFound(path)
+
         if os.path.exists(file_path) and os.path.isfile(file_path):
             mimetype, _ = mimetypes.guess_type(path)
 

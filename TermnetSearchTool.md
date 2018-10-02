@@ -3,19 +3,27 @@ Termnet Search Tool Prototype
 
 
 ### Assumptions/Premise
-The premise of this tool is to help students explore the so called *XYZ 220 Data*.
-In other words, given a set of roughly 220 short scientific articles, select some subset of roughly 5 articles to write an XYZ paper about.
+The premise of this tool is to help students explore the so called *Introduction to Educational Psychology 220 Data*.
+In other words, given a set of roughly 200 short scientific articles, select some subset of 4-7 articles to write an argumentative paper about.
 The paper should draw from the knowledge and connections of ideas from the selected subset of articles.
 
-Since there are many articles to search through, we want to study the effectiveness of using a termnet to help dig through the articles.
-This tool is designed to help students answer the question "Which subset of ~5 articles should I select?".
+Since there are many articles to search through, we want to study the effectiveness of using a termnet to help the student explore the articles and craft a focused thesis.
+This tool is designed to help students answer the question "Which subset of 4-7 articles should I select?", or at a higher level "What should my thesis be about?".
+
+Implicit to a termnet focused task, we want to research the effectiveness of primarily using terms and connections between terms to guide this discovery process.
+This can be contrasted with how the task is normally approached, where students will browse through the article categories and titles as the primary mechanism of discovery.
+Therefore, the design of this tool should put term based exploration as the first, and possibly only, exploration mechanism.
 
 This design documents aims to show a high level sketch of a proposal for a tool to help with this question.
 It purposefully stays away from describing any mathematical/computational aspects of the tool.
 These details can be decided upon after agreement on the assumptions and general tool design.
+Earlier work in the area of the mathematics that may be incorporated into this tool exists within this research group.
 
+##### Scope
 Although we may want to answer other questions around this dataset, those should be reserved for a separate tool/design.
 Deciding on a different question or rephrasing the currently assumed question are acceptable changes to this document, however they may in turn change the proposed design.
+
+Additionally, we should be cautious to only implement features necessary to answer the fundamental premise of this research task as stated.
 
 
 #### Widgets
@@ -35,7 +43,7 @@ Every widget has different interactions whose operations will be described short
 Before landing at the tool, some pre-processing has been done in order to represent the set of articles as as termnet, index terms within articles, etc.
 Suffice to say, the tool holds any necessary representations such as:
 * term-sentence cooccurrence across all articles
-* term-sentence coocurrence within each article
+* term-sentence cooccurrence within each article
 * mapping of which terms exist in which articles
 * etc
 
@@ -44,13 +52,14 @@ Suffice to say, the tool holds any necessary representations such as:
 Terms/phrases may be typed into the `text box` with an optional +/- prefix (by default, searching for a term uses a +).
 \+ indicates that the student is interested in the term, whereas - indicates a lack of interest in the term.
 A term can only be included in the search once at a time (a term cannot be searched as both + and -).
+As terms are typed, the `text box` will automatically list terms from the corpus that match the current sub-string (aka: auto-complete).
 
 As term/phrases are typed, the `chicklets` below the text box are updated.
 Clicking on a chicklet removes it from the search.
 
 Searching for a term/phrase will affect the ranks of the terms in the termnet, where + terms and their closer relations are given more weight, and - terms and their closer relations are given less weight.
 These weights will also affect the ranking of **Articles**, described later.
-The entire set of search terms/phrases consistutes the current search, and the order of the terms is irrelevant (searching for +bananas then -apples is no different from searching for -apples then +bananas).
+The entire set of search terms/phrases constitutes the current search, and the order of the terms is irrelevant (searching for +bananas then -apples is no different from searching for -apples then +bananas).
 
 The only way to affect term weights is through the **Search**, although the **Termnet** does provide a shortcut allowing for search terms to be added to the search without typing.
 Moreover, the only effect of the **Search** widget is to change the weights of the terms in the termnet.
@@ -58,7 +67,7 @@ Moreover, the only effect of the **Search** widget is to change the weights of t
 
 ##### Phrases
 This document describes a Terment Search Tool which allows for phrasal searches.
-A first draft implementation needn't worry about allowing for phrase based searches, and may assume that only known terms are searchable.
+A first draft implementation need not worry about allowing for phrase based searches, and may assume that only known terms are searchable.
 At a later point we may describe how unknown-terms or phrases are mapped to known terms.
 
 ### History
@@ -85,7 +94,7 @@ K can be altered by controlling the `more/less` slider in the top left of the **
 The top middle has an element `scope/context`, which will be described more later.
 At the onset, this element will not be visible at all.
 
-Finally, hovering over a term in the **Termnet** will show a clickable + and - button.
+Finally, hovering over a term in the **Termnet** will show a click-able + and - button.
 Clicking on either of these will update the **Search** with that term.
 This is shown in the bottom left diagram of *Supplementary Explanations*.
 
@@ -104,3 +113,8 @@ This is shown in the top diagram of *Supplementary Explanations*.
 
 Otherwise, the **Termnet** display and interactions remain the same as previously described.
 Re-clicking the same article will undo the selection, repopulating the **Termnet** with all the terms and removing the `scope/context`.
+
+The articles `row` also will have a link column which can be used open the article itself in a new tab (un-diagrammed).
+
+At a later point, we may extend the table of articles to include other pieces of information, such as author or publication date.
+

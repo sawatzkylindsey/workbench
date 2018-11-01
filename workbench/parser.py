@@ -204,7 +204,7 @@ class WikipediaArticlesList:
                         if term not in parse_terms:
                             logging.debug("Page '%s' adding term '%s'." % (page_id, term))
                             parse_terms.add(term)
-                            self.inflections.record(term, term)
+                            #self.inflections.record(term, term)
 
         terms_trie = build_trie(parse_terms)
 

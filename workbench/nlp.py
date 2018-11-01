@@ -175,7 +175,7 @@ class Inflections:
             self.inflections[inflection_term.lower()] = lemma_term
         else:
             if self.inflections[inflection_term.lower()] != lemma_term:
-                raise ValueError("Inflection '%s' maps to multiple lemmas." % inflection_term.lower())
+                raise ValueError("Inflection '%s' maps to multiple lemmas: [%s, %s]." % (inflection_term.lower(), self.inflections[inflection_term.lower()].lower(), lemma_term.lower()))
 
     def _finalize(self):
         if self.lemma_to_inflection is None:

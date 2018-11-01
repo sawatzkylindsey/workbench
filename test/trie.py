@@ -22,15 +22,15 @@ class Tests(TestCase):
     def test_node_empty_nonterminal(self):
         node = Node({}, False)
         self.assertEqual(node, Node({}, False))
-        self.assertNotEqual(node, Node({}, True))
+        self.assertNotEqual(node, Node({}, True, Term(["root"])))
 
     def test_node_empty(self):
-        node = Node({}, True)
-        self.assertEqual(node, Node({}, True))
+        node = Node({}, True, Term(["root"]))
+        self.assertEqual(node, Node({}, True, Term(["root"])))
         self.assertNotEqual(node, Node({}, False))
 
     def test_node_nonterminal(self):
-        child = Node({}, True)
+        child = Node({}, True, Term(["root"]))
         child_x = Node({}, False)
         node = Node({"child": child}, False)
         self.assertEqual(node, Node({"child": child}, False))
@@ -38,12 +38,30 @@ class Tests(TestCase):
         self.assertNotEqual(node, Node({"child": child_x}, False))
 
     def test_node(self):
-        child = Node({}, True)
+        child = Node({}, True, Term(["child"]))
         child_x = Node({}, False)
-        node = Node({"child": child}, True)
-        self.assertEqual(node, Node({"child": child}, True))
-        self.assertNotEqual(node, Node({"other": child}, True))
-        self.assertNotEqual(node, Node({"child": child_x}, True))
+        node = Node({"child": child})
+        self.assertEqual(node, Node({"child": child}))
+        self.assertNotEqual(node, Node({"other": child}))
+        self.assertNotEqual(node, Node({"child": child_x}))
+
+    def test_equivalence1(self):
+        child_a = Node({}, True, Term(["child"]))
+        child_b = Node({}, True, Term(["child"]))
+        node = Node({"child_a": child_a, "child_b": child_b})
+        self.assertEqual(len(node.children), 2)
+        self.assertEqual(len(node.children["child_a"].children), 0)
+        self.assertEqual(len(node.children["child_b"].children), 0)
+
+    def test_equivalence2(self):
+        child_a = Node({}, True, Term(["child"]))
+        child_c = Node({}, True, Term(["child"]))
+        child_b = Node({"child_c": child_c})
+        node = Node({"child_a": child_a, "child_b": child_b})
+        self.assertEqual(len(node.children), 2)
+        self.assertEqual(len(node.children["child_a"].children), 0)
+        self.assertEqual(len(node.children["child_b"].children), 1)
+        self.assertEqual(len(node.children["child_b"].children["child_c"].children), 0)
 
 
 def tests():

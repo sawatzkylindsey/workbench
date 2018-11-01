@@ -24,6 +24,8 @@ class Tests(TestCase):
         corpus1 = "once there was a little man, a little wooden man"
         corpus2 = "once there was a man, a little wooden man"
         corpus3 = "once there was a little man, a wooden man"
+        corpus4 = "little <= man"
+        corpus5 = "little > man"
         little = Term(["little"])
         little_man = Term(["little", "man"])
         terms = set([little, little_man])
@@ -31,6 +33,8 @@ class Tests(TestCase):
         self.assertEqual(extract_terms(split_words(corpus1), terms_trie), set([little, little_man]))
         self.assertEqual(extract_terms(split_words(corpus2), terms_trie), set([little]))
         self.assertEqual(extract_terms(split_words(corpus3), terms_trie), set([little_man]))
+        self.assertEqual(extract_terms(split_words(corpus4), terms_trie), set([little]))
+        self.assertEqual(extract_terms(split_words(corpus5), terms_trie), set([little_man]))
 
     def test_extract_terms_overlap(self):
         corpus = "once there was a little man"

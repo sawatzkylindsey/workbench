@@ -18,19 +18,24 @@ QUESTION_BREAK = "QB%s" % random.randrange(1000)
 EXCLAMATION_BREAK = "EB%s" % random.randrange(1000)
 PARAGRAPH_BREAK = "PB%s" % random.randrange(1000)
 STEMMER = SnowballStemmer("english")
+STEM_BANNED = {
+    # Avoid stemming "Ares", as it will become "are".
+    "ares": True
+}
 SENTENCE_SEPARATORS = set([SENTENCE_BREAK, QUESTION_BREAK, EXCLAMATION_BREAK])
 
 
 def stem(word):
-    # Avoid stemming "Ares" as "are".
-    if word.lower() == "ares":
-        return word
+    stemable = re.match("[a-zA-Z]{1}[a-z]{2,}$", word) is not None
 
-    return STEMMER.stem(word)
+    if stemable and word.lower() not in STEM_BANNED:
+        return STEMMER.stem(word.lower())
+
+    return word
 
 
 def split_words(corpus):
-    return re.findall("[\w\.]+", re.sub("(\s*\n\s*){2,}", " %s " % PARAGRAPH_BREAK,
+    return re.findall("[\w\.<=]+", re.sub("(\s*\n\s*){2,}", " %s " % PARAGRAPH_BREAK,
         re.sub("!", " %s " % EXCLAMATION_BREAK, re.sub("\?", " %s " % QUESTION_BREAK, re.sub("\.(?!\w+)", " %s " % SENTENCE_BREAK, corpus)))))
 
 
@@ -66,12 +71,14 @@ def extract_terms(corpus, terms_trie, lemmatizer=lambda x: x, inflection_recorde
         node = terms_trie
         lemma = lemmatizer(corpus[i])
         sequence = None
+        matched_term = None
 
         while lemma in node.children:
             node = node.children[lemma]
 
             if node.final:
                 sequence = corpus[i:i + span]
+                matched_term = node.term
 
             if i + span >= len(corpus):
                 break
@@ -80,10 +87,9 @@ def extract_terms(corpus, terms_trie, lemmatizer=lambda x: x, inflection_recorde
             span += 1
 
         if sequence is not None:
-            lemma_term = Term([lemmatizer(s) for s in sequence])
             inflection_term = Term(sequence)
-            extracted_terms.add(lemma_term)
-            inflection_recorder(lemma_term, inflection_term)
+            extracted_terms.add(matched_term)
+            inflection_recorder(matched_term, inflection_term)
             i += len(sequence)
         else:
             i += 1

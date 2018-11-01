@@ -21,7 +21,7 @@ from workbench.trie import build as build_trie
 
 
 CANONICALIZER = nlp.stem
-CLEANER = lambda text: text.strip().lower()
+CLEANER = lambda text: text.strip()
 
 GLOSSARY_CSV = ("gc", "glossary_csv")
 WIKIPEDIA_ARTICLES_LIST = ("wal", "wikipedia_articles_list")
@@ -278,6 +278,7 @@ class WikipediaArticlesList:
 
 class TermsContentText:
     TERMS_CONTENT_SEPARATOR = "terms_content_separator"
+    EQUIVALENCE_OPERATOR = "<="
 
     def __init__(self, window, paragraphs):
         assert window >= 1, window
@@ -286,8 +287,22 @@ class TermsContentText:
         self.window = window
         self.paragraphs = paragraphs
         self.terms = set()
+        self.equivalences = {}
         self.cooccurrences = {}
         self.inflections = nlp.Inflections()
+
+    def _add_equivalence(self, equivalence, term):
+        if equivalence in self.equivalences and self.equivalences[equivalence] != term:
+            raise ValueError("equivalence '%s' already mapped to term '%s'" % (equivalence.name(), term.name()))
+
+        self.equivalences[equivalence] = term
+        current = equivalence
+
+        while current in self.equivalences:
+            current = self.equivalences[current]
+
+            if current == equivalence:
+                raise ValueError("cycle on '%s'" % equivalence.name())
 
     def parse(self, input_stream):
         content_point = None
@@ -296,12 +311,26 @@ class TermsContentText:
             index = item.index(TermsContentText.TERMS_CONTENT_SEPARATOR)
 
             for sentence in nlp.split_sentences(item[0:index]):
-                term = nlp.Term([CANONICALIZER(word) for word in sentence])
-                self.terms.add(term)
-                inflection = nlp.Term(sentence)
-                self.inflections.record(term, inflection)
+                if TermsContentText.EQUIVALENCE_OPERATOR in sentence:
+                    index = sentence.index(TermsContentText.EQUIVALENCE_OPERATOR)
+                    left = sentence[:index]
+                    right = sentence[index + 1:]
+                    term = nlp.Term([CANONICALIZER(word) for word in left])
+                    self.terms.add(term)
+                    inflection = nlp.Term(left)
+                    self.inflections.record(term, inflection)
+                    # equivalence
+                    equivalence_term = nlp.Term([CANONICALIZER(word) for word in right])
+                    self._add_equivalence(equivalence_term, term)
+                    equivalence_inflection = nlp.Term(right)
+                    self._add_equivalence(equivalence_inflection, term)
+                else:
+                    term = nlp.Term([CANONICALIZER(word) for word in sentence])
+                    self.terms.add(term)
+                    inflection = nlp.Term(sentence)
+                    self.inflections.record(term, inflection)
 
-            terms_trie = build_trie(self.terms)
+            terms_trie = build_trie(self.terms, self.equivalences)
             sentences = nlp.split_sentences(item[len(TermsContentText.TERMS_CONTENT_SEPARATOR) + index:], self.paragraphs)
             maximum_offset = math.ceil(float(len(sentences)) / self.window)
 

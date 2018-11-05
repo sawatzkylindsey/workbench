@@ -204,7 +204,7 @@ class WikipediaArticlesList:
                         if term not in parse_terms:
                             logging.debug("Page '%s' adding term '%s'." % (page_id, term))
                             parse_terms.add(term)
-                            #self.inflections.record(term, term)
+                            self.inflections.record(term, term)
 
         terms_trie = build_trie(parse_terms)
 
@@ -260,7 +260,7 @@ class WikipediaArticlesList:
 
         for link in links:
             if link in content:
-                term = nlp.Term([CANONICALIZER(t) for t in link.split(" ")])
+                term = nlp.Term([CANONICALIZER(t) for t in nlp.split_words(link)])
 
                 if term == nlp.Term(["1"]):
                     pass

@@ -9,6 +9,7 @@ Requirements:
     python3 -m venv p3
     source ./p3/bin/activate
     # Libraries (pip based)
+    pip install markdown
     pip install nltk
     pip install rake_nltk
     pip install requests

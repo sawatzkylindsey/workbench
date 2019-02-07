@@ -85,7 +85,6 @@ class GlossaryCsv:
             raise ValueError("cannot invoke parse() multiple times for GlossaryCsv parser.")
 
         for row in input_stream:
-            row = [item for item in row]
             term = self._glossary_term(row)
             inflection = self._glossary_inflection(row)
             self.terms.add(term)
@@ -95,7 +94,6 @@ class GlossaryCsv:
         terms_trie = build_trie(self.terms)
 
         for row in input_stream:
-            row = [item for item in row]
             term = self._glossary_term(row)
 
             for sentence in nlp.split_sentences(row[1]):
@@ -324,7 +322,8 @@ class TermsContentText:
                     self._add_equivalence(equivalence_term, term)
                     equivalence_inflection = nlp.Term(right)
                     self._add_equivalence(equivalence_inflection, term)
-                else:
+                # Just silently ignore empty term definitions.
+                elif len(sentence) > 0:
                     term = nlp.Term([CANONICALIZER(word) for word in sentence])
                     self.terms.add(term)
                     inflection = nlp.Term(sentence)

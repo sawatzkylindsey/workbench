@@ -20,7 +20,7 @@ import threading
 from workbench.graph import GraphBuilder, Graph, RankedGraph
 from pytils.log import setup_logging, user_log
 import workbench.parser
-from workbench.nlp import Term
+from workbench.nlp import Term, Inflections
 from workbench.nlp import stem as CANONICALIZE
 from workbench import util
 
@@ -118,9 +118,9 @@ def build(input_text, input_format, window, separator, keep):
     if len(graph) > 0:
         return Termnet(graph, {LEFT: RankedGraph(graph)}, parse.inflections, occurring_sentences, properties)
     else:
-        builder = GraphBuilder(Graph.UNDIRECTED)
         empty = GraphBuilder(Graph.UNDIRECTED).build()
-        return Termnet(empty, {LEFT: RankedGraph(empty)}, Inflections(), {}, Properties())
+        inflections = Inflections()
+        return Termnet(empty, {LEFT: RankedGraph(empty)}, inflections, {}, Properties(inflections))
 
     return net
 

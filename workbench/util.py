@@ -5,7 +5,9 @@ import math
 
 
 def scale(ranks):
-    assert len(ranks) > 0
+    if len(ranks) == 0:
+        return {}
+
     total = 0.0
 
     for k, v in ranks.items():
@@ -20,7 +22,9 @@ def scale(ranks):
 
 
 def invert(ranks):
-    assert len(ranks) > 0
+    if len(ranks) == 0:
+        return {}
+
     ceiling = max(ranks.values()) * 2
     inverse_ranks = {}
     rolling_sum = 0.0

@@ -279,6 +279,10 @@ class Graph(object):
 
     def page_rank(self, damping=0.85, epsilon=0.005, max_epochs=50, bias=None):
         assert damping >= 0.0 and damping <= 1.0
+
+        if len(self.all_nodes) == 0:
+            return {}
+
         initial = 1.0 / len(self.all_nodes)
         weights = {n.identifier: initial for n in self.all_nodes}
 

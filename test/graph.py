@@ -543,6 +543,23 @@ class Tests(TestCase):
         self.assertTrue(math.isclose(page_rank["alik"], 0.142, abs_tol=0.001), page_rank["alik"])
         self.assertTrue(math.isclose(page_rank["peny"], 0.142, abs_tol=0.001), page_rank["peny"])
 
+    def test_page_rank_biases(self):
+        gb = GraphBuilder(Graph.UNDIRECTED)
+        graph = gb.add("bobo", ["jack", "jill", "jane"]) \
+            .add("jack", ["colt"]) \
+            .add("jack", ["colt"]) \
+            .add("jane", ["bobo"]) \
+            .add("alik", ["peny"]) \
+            .build()
+        page_rank = graph.page_rank(biases={"jack": .5})
+        self.assertTrue(math.isclose(page_rank["bobo"], 0.256, abs_tol=0.001), page_rank["bobo"])
+        self.assertTrue(math.isclose(page_rank["jack"], 0.174, abs_tol=0.001), page_rank["jack"])
+        self.assertTrue(math.isclose(page_rank["jill"], 0.093, abs_tol=0.001), page_rank["jill"])
+        self.assertTrue(math.isclose(page_rank["jane"], 0.093, abs_tol=0.001), page_rank["jane"])
+        self.assertTrue(math.isclose(page_rank["colt"], 0.096, abs_tol=0.001), page_rank["jane"])
+        self.assertTrue(math.isclose(page_rank["alik"], 0.142, abs_tol=0.001), page_rank["alik"])
+        self.assertTrue(math.isclose(page_rank["peny"], 0.142, abs_tol=0.001), page_rank["peny"])
+
 
 def tests():
     return create_suite(Tests)

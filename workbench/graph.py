@@ -277,7 +277,7 @@ class Graph(object):
     def nodes(self, identifiers):
         return set([self.indexes[i] for i in identifiers])
 
-    def page_rank(self, damping=0.85, epsilon=0.005, max_epochs=50, bias=None):
+    def page_rank(self, damping=0.85, epsilon=0.005, max_epochs=50, biases={}):
         assert damping >= 0.0 and damping <= 1.0
 
         if len(self.all_nodes) == 0:
@@ -287,7 +287,7 @@ class Graph(object):
         weights = {n.identifier: initial for n in self.all_nodes}
 
         for i in range(0, max_epochs):
-            next_weights = self.page_rank_iteration(weights, damping, bias)
+            next_weights = self.page_rank_iteration(weights, damping, biases)
 
             if self._delta(weights, next_weights) < epsilon:
                 break
@@ -296,7 +296,7 @@ class Graph(object):
 
         return next_weights
 
-    def page_rank_iteration(self, weights, damping, bias=None):
+    def page_rank_iteration(self, weights, damping, biases):
         assert damping >= 0.0 and damping <= 1.0
         intermediaries = {n.identifier: 0.0 for n in self.all_nodes}
         leak = 0.0
@@ -318,19 +318,15 @@ class Graph(object):
         for k, v in intermediaries.items():
             bias_factor = 1.0
 
-            if bias is not None:
-                distance = self.distance(bias, k)
-
-                if distance is None:
-                    distance = math.pow(self.max_distance(bias), 2)
-
-                bias_factor = 1.0 / (1.0 + ((0.25 * distance) / self.log_len))
+            if k in biases:
+                assert biases[k] >= 0.0 and biases[k] <= 1.0
+                bias_factor = 1.0 + biases[k]
 
             out[k] = damping_constant + leak_constant + (damping * v * bias_factor)
 
         # If no bias was specified, the math works out such that the ranks are already a proper probabily distribution.
         # Otherwise, we need to rescale.
-        if bias is not None:
+        if len(biases) > 0:
             out = util.scale(out)
 
         assert math.isclose(1.0, sum(out.values()), abs_tol=0.005), sum(out.values())
@@ -432,7 +428,7 @@ class RankedGraph:
         self._metrics[RankedGraph.ICC] = util.invert(self._metrics[RankedGraph.CC])
 
         for node in sorted(self.graph.all_nodes):
-            page_ranks = self.graph.page_rank(bias=node.identifier)
+            page_ranks = self.graph.page_rank(biases={node.identifier: 0.5})
             self._biased_metrics[RankedGraph.BPR][node.identifier] = page_ranks
             self._biased_metrics[RankedGraph.IBPR][node.identifier] = util.invert(page_ranks)
 
@@ -449,13 +445,17 @@ class RankedGraph:
                 pass
 
             if value is not None and metric in RankedGraph.BIASED:
-                assert identifier in self.graph
+                if isinstance(identifier, list):
+                    # Mladen
+                    pass
+                else:
+                    assert identifier in self.graph
 
-                while identifier not in value:
-                    if identifier in value:
-                        break
+                    while identifier not in value:
+                        if identifier in value:
+                            break
 
-                value = value[identifier]
+                    value = value[identifier]
 
         return value
 

@@ -190,7 +190,11 @@ class ServerHandler(BaseHTTPRequestHandler):
         except KeyError as e:
             pass
 
-        termnet_session.focus(term)
+        if term is not None and "," in term:
+            termnet_session.focus(list(term.split(",")))
+        else:
+            termnet_session.focus(term)
+
         return termnet_session.display_previous()
 
     def search(self, termnet_session, query):

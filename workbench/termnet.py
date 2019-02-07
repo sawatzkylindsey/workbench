@@ -334,10 +334,18 @@ class TermnetSession:
             assert self.focus_metric in RankedGraph.UNBIASED
             lemma = None
         else:
-            lemma = self.termnet.decode(term)
-            assert lemma in self.termnet.display_graph
+            if isinstance(term, list):
+                lemma = []
 
-        if lemma is None:
+                for t in term:
+                    l = self.termnet.decode(t)
+                    lemma += [l]
+                    assert l in self.termnet.display_graph
+            else:
+                lemma = self.termnet.decode(term)
+                assert lemma in self.termnet.display_graph
+
+        if lemma is None or isinstance(lemma, list):
             groups = self.termnet.ranked_graphs.keys()
         else:
             groups = self.termnet.groups(lemma)
@@ -363,7 +371,11 @@ class TermnetSession:
         self.focused = True
 
         if lemma is not None:
-            self.focus_points.add(lemma)
+            if isinstance(lemma, list):
+                for l in lemma:
+                    self.focus_points.add(l)
+            else:
+                self.focus_points.add(lemma)
 
     def display_previous(self):
         return self.display(self.previous_term)

@@ -231,12 +231,12 @@ class Termnet:
             properties)
 
     def decode(self, term):
-        #try:
-        inflection = Term(term.lower().split(" "))
-        return self.inflections.to_lemma(inflection)
-        #except KeyError as e:
-        #    pass
-        #return self.lemma_map[term.transform(lambda w: CANONICALIZE(w).lower())]
+        try:
+            inflection = Term(term.split(" "))
+            return self.inflections.to_lemma(inflection)
+        except KeyError as e:
+            inflection = Term(term.lower().split(" "))
+            return self.inflections.to_lemma(inflection)
 
     def encode(self, lemma):
         return self.inflections.to_dominant_inflection(lemma).name()
@@ -329,7 +329,7 @@ class TermnetSession:
         else:
             self.highlight_points.add(lemma)
 
-    def focus(self, term):
+    def focus(self, term, bias):
         if term is None:
             assert self.focus_metric in RankedGraph.UNBIASED
             lemma = None
@@ -351,7 +351,7 @@ class TermnetSession:
             groups = self.termnet.groups(lemma)
 
         for group in groups:
-            for k, v in self.termnet.ranked_graphs[group].get_metric(self.focus_metric, lemma).items():
+            for k, v in self.termnet.ranked_graphs[group].get_metric(self.focus_metric, lemma, bias).items():
                 assert v >= 0.0 and v <= 1.0, v
                 self.ranks[group][k] += v
 

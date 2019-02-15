@@ -11,7 +11,7 @@ def scale(ranks):
     total = 0.0
 
     for k, v in ranks.items():
-        assert v >= 0.0 and v <= 1.0
+        assert v >= 0.0, v
         total += v
 
     if total == 0.0:

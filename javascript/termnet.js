@@ -5,6 +5,7 @@ var sessionKey = window.location.hash == null || window.location.hash == "" ?
 var sessioner = null;
 var searcher = null;
 var focusMetric = null;
+var focuserBias = null;
 var focuserText = null;
 var focuserButton = null;
 var sizer = null;
@@ -102,6 +103,7 @@ $(document).ready(function() {
         sessioner = $("#sessioner");
         sessioner.text("Session: " + sessionKey);
         searcher = $("#searcher");
+        focuserBias = $("#focuserBias");
         focuserText = $("#focuserText");
         focuserButton = $("#focuserButton");
         focusMetric = $("#focusMetric");
@@ -308,6 +310,7 @@ function focusAction(event) {
 
     if (event.type == "keydown") {
         if (event.keyCode == 13) {
+            bias = focuserBias.val();
             termname = focuserText.val();
             focuserText.val("");
         }
@@ -316,6 +319,7 @@ function focusAction(event) {
     if (event.type == "click" || termname != null) {
         console.log("focus term: " + termname);
         var params = termname == null ? "" : "term=" + termname;
+        params += bias == null ? "" : "&bias=" + parseFloat(bias);
         d3.json("focus")
             .header("session-key", sessionKey)
             .post(params, function(error, data) {
@@ -383,9 +387,11 @@ function reset(event) {
 var BIASED = ["BPR", "IBPR"];
 function focusConfigure(event) {
     if (BIASED.indexOf(event.target.value) >= 0) {
+        focuserBias.css("display", "block");
         focuserText.css("display", "block");
         focuserButton.css("display", "none");
     } else {
+        focuserBias.css("display", "none");
         focuserText.css("display", "none");
         focuserButton.css("display", "block");
     }

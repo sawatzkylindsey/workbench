@@ -190,10 +190,15 @@ class ServerHandler(BaseHTTPRequestHandler):
         except KeyError as e:
             pass
 
+        try:
+            bias = float(query["bias"][0])
+        except KeyError as e:
+            bias = None
+
         if term is not None and "," in term:
-            termnet_session.focus(list(term.split(",")))
+            termnet_session.focus(list(term.split(",")), bias)
         else:
-            termnet_session.focus(term)
+            termnet_session.focus(term, bias)
 
         return termnet_session.display_previous()
 

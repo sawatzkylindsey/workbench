@@ -1,6 +1,6 @@
 <div id="sessioner" style="text-align: center;"></div></br>
 <div style="text-align: center; font-size: 10pt;"><i>Hover for help text, or read the <a href='documentation.html' target="_blank">docs</a>.</i></div></br>
-<table style="border-spacing: 1px;">
+<table style="border-spacing: 5px;">
     <tr class="control-row">
         <td class="description">Properties:</td>
         <td>
@@ -46,8 +46,9 @@
                 <input type="radio" name="focus-metric" value="IBPR" onchange="focusConfigure(event)" title="Inverse Biased PageRank"/><span>BPR<sup>-1</sup></span>
                 <input type="radio" name="focus-metric" value="CC" onchange="focusConfigure(event)" title="Clustering Coefficient"/><span>CC</span>-->
             </div>
-            <div style="height: 19px">
-                <input type="text" id="focuserText" onkeydown="focusAction(event)" title="Indicate what the learner is interested in.  This alters the weights of the termnet towards the selected term and terms that relate to it."/>
+            <div>
+                <input type="text" id="focuserBias" placeholder="Bias: a positive value (ex: 0.1)" value="0.1" title="Bias" style="width: 100%;"/>
+                <input type="text" id="focuserText" placeholder="Term(s): comma separated" onkeydown="focusAction(event)" title="Indicate what the learner is interested in.  This alters the weights of the termnet towards the selected term and terms that relate to it." style="width: 100%;"/>
                 <input type="button" id="focuserButton" onclick="focusAction(event)" value="Apply"/>
             </div>
         </td>

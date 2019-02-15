@@ -319,7 +319,7 @@ class Graph(object):
             bias_factor = 1.0
 
             if k in biases:
-                assert biases[k] >= 0.0 and biases[k] <= 1.0
+                #assert biases[k] >= 0.0 and biases[k] <= 1.0
                 bias_factor = 1.0 + biases[k]
 
             out[k] = damping_constant + leak_constant + (damping * v * bias_factor)
@@ -407,6 +407,7 @@ class RankedGraph:
         BPR,
         IBPR,
     ]
+    DEFAULT_BIAS = 0.1
 
     def __init__(self, graph):
         self.graph = graph
@@ -428,11 +429,11 @@ class RankedGraph:
         self._metrics[RankedGraph.ICC] = util.invert(self._metrics[RankedGraph.CC])
 
         for node in sorted(self.graph.all_nodes):
-            page_ranks = self.graph.page_rank(biases={node.identifier: 0.5})
+            page_ranks = self.graph.page_rank(biases={node.identifier: RankedGraph.DEFAULT_BIAS})
             self._biased_metrics[RankedGraph.BPR][node.identifier] = page_ranks
             self._biased_metrics[RankedGraph.IBPR][node.identifier] = util.invert(page_ranks)
 
-    def get_metric(self, metric, identifier):
+    def get_metric(self, metric, identifier, bias=None):
         value = None
 
         while value is None:
@@ -446,16 +447,22 @@ class RankedGraph:
 
             if value is not None and metric in RankedGraph.BIASED:
                 if isinstance(identifier, list):
-                    # Mladen
-                    pass
+                    # We can't have pre-computed the biases for a list of terms - these must be computed dynamically.
+                    if metric == RankedGraph.BPR:
+                        return self.graph.page_rank(biases={i: bias for i in identifier})
+                    else:
+                        raise ValueError("not implemented '%s' for multiple terms: %s" % (metric, identifier))
                 else:
                     assert identifier in self.graph
 
-                    while identifier not in value:
-                        if identifier in value:
-                            break
-
-                    value = value[identifier]
+                    if bias is None or bias == RankedGraph.DEFAULT_BIAS:
+                        # I have no idea what this while loop does
+                        while identifier not in value:
+                            if identifier in value:
+                                break
+                        value = value[identifier]
+                    else:
+                        return self.graph.page_rank(biases={identifier: bias})
 
         return value
 

@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+from csv import writer as csv_writer
 import json
 import logging
 import math
@@ -339,6 +340,22 @@ class Graph(object):
             total += abs(v - b[k])
 
         return total
+
+    def export(self, file_path, name_fn=str):
+        connections = {node.identifier: set([node.identifier]) for node in self.all_nodes}
+
+        for link in self.links():
+            connections[link.source].add(link.target)
+
+            if isinstance(link, UndirectedLink):
+                connections[link.target].add(link.source)
+
+        with open(file_path, "w") as fh:
+            writer = csv_writer(fh)
+            writer.writerow([""] + [name_fn(node.identifier) for node in self.all_nodes])
+
+            for node in self.all_nodes:
+                writer.writerow([name_fn(node.identifier)] + [1 if other.identifier in connections[node.identifier] else 0 for other in self.all_nodes])
 
 
 class GraphBuilder:

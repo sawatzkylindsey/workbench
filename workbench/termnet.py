@@ -107,6 +107,7 @@ def build(input_text, input_format, window, separator, keep):
                     occurring_sentences[source][target].add(" ".join(sentence))
 
     graph = builder.build()
+    graph.export("graph-adjacency.csv", name_fn=lambda identifier: identifier.name())
     properties = Properties(parse.inflections, minimum,
         maximum,
         average,

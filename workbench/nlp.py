@@ -23,13 +23,58 @@ STEM_BANNED = {
     "ares": True
 }
 SENTENCE_SEPARATORS = set([SENTENCE_BREAK, QUESTION_BREAK, EXCLAMATION_BREAK])
+STEM_EXCEPTIONS = {
+    #"importantly": "expansion",
+    #"expansion": "expansion"
+}
+TAGS = {
+    "CC": True,
+    "CD": False,
+    "DT": False,
+    "EX": False,
+    "FW": True,
+    "IN": True,
+    "JJ": True,
+    "JJR": True,
+    "JJS": True,
+    "LS": False,
+    "MD": False,
+    "NN": True,
+    "NNS": True,
+    "NNP": True,
+    "NNPS": True,
+    "PDT": False,
+    "POS": False,
+    "PRP": False,
+    "PRP$": False,
+    "RB": False,
+    "RBR": False,
+    "RBS": False, #
+    "RP": False, #
+    "SYM": False,
+    "TO": True,
+    "UH": False,
+    "VB": False,
+    "VBD": False,
+    "VBG": False,
+    "VBN": False,
+    "VBP": False,
+    "VBZ": False,
+    "WDT": False,
+    "WP": False,
+    "WP$": False,
+    "WRB": False,
+}
 
 
 def stem(word):
     stemable = re.match("[a-zA-Z]{1}[a-z]{2,}$", word) is not None
 
     if stemable and word.lower() not in STEM_BANNED:
-        return STEMMER.stem(word.lower())
+        if word.lower() in STEM_EXCEPTIONS:
+            return STEM_EXCEPTIONS[word.lower()]
+        else:
+            return STEMMER.stem(word.lower())
 
     return word
 
@@ -63,6 +108,8 @@ def split_sentences(corpus, paragraphs=False):
 
 def extract_terms(corpus, terms_trie, lemmatizer=lambda x: x, inflection_recorder=lambda x, y: 0):
     check.check_instance(terms_trie, Node)
+    tags = [tag for word, tag in nltk.pos_tag(corpus)]
+    assert len(tags) == len(corpus)
     extracted_terms = set()
     i = 0
 
@@ -70,21 +117,26 @@ def extract_terms(corpus, terms_trie, lemmatizer=lambda x: x, inflection_recorde
         span = 1
         node = terms_trie
         lemma = lemmatizer(corpus[i])
+        tag = tags[i]
         sequence = None
         matched_term = None
 
         while lemma in node.children:
-            node = node.children[lemma]
+            if tag in TAGS and TAGS[tag]:
+                node = node.children[lemma]
 
-            if node.final:
-                sequence = corpus[i:i + span]
-                matched_term = node.term
+                if node.final:
+                    sequence = corpus[i:i + span]
+                    matched_term = node.term
 
-            if i + span >= len(corpus):
+                if i + span >= len(corpus):
+                    break
+
+                lemma = lemmatizer(corpus[i + span])
+                tag = tags[i + span]
+                span += 1
+            else:
                 break
-
-            lemma = lemmatizer(corpus[i + span])
-            span += 1
 
         if sequence is not None:
             inflection_term = Term(sequence)

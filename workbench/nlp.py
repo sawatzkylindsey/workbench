@@ -24,8 +24,8 @@ STEM_BANNED = {
 }
 SENTENCE_SEPARATORS = set([SENTENCE_BREAK, QUESTION_BREAK, EXCLAMATION_BREAK])
 STEM_EXCEPTIONS = {
-    "laterization": "laterization",
-    "laterizations": "laterization",
+    "lateralization": "lateralization",
+    "lateralization": "lateralization",
     "learning": "learning",
     "learnings": "learning",
     "organization": "organization",
@@ -46,6 +46,8 @@ STEM_EXCEPTIONS = {
     "internalizes": "internalize",
     "operant": "operant",
     "operants": "operant",
+    "operation": "operation",
+    "operations": "operation",
     "accommodation": "accommodation",
     "accommodations": "accommodation",
     "compensation": "compensation",
@@ -115,6 +117,8 @@ STEM_EXCEPTIONS = {
     "transfers": "transfer",
     "aversive": "aversive",
     "aversives": "aversive",
+    "being": "being",
+    "beings": "being",
     "objective": "objective",
     "objectives": "objective",
     "contiguity": "contiguity",
@@ -123,6 +127,7 @@ STEM_EXCEPTIONS = {
     "reversibility": "reversibility",
     "reversibilitys": "reversibility",
     "reversibilities": "reversibility",
+    "withitness": "withitness",
     "priming": "priming",
     "primings": "priming",
     "commitment": "commitment",

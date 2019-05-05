@@ -25,7 +25,7 @@ STEM_BANNED = {
 SENTENCE_SEPARATORS = set([SENTENCE_BREAK, QUESTION_BREAK, EXCLAMATION_BREAK])
 STEM_EXCEPTIONS = {
     "lateralization": "lateralization",
-    "lateralization": "lateralization",
+    "lateralizations": "lateralization",
     "learning": "learning",
     "learnings": "learning",
     "organization": "organization",
